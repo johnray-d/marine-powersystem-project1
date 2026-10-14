@@ -15,12 +15,12 @@ type Table = [number, number][];
 export const SHIP = {
   mainDeck: 0.9,
   keel: -2.65,
-  waterline: -0.55,
+  waterline: -1.25,
   house: { minX: -13.5, maxX: -7.3, halfWidth: 2.65, roof: 4.7 },
   // Plan outline of the main deck: x (stern to bow) and half-beam. The bow is flared and raked.
   stations: [
     [-17.4, 1.65], [-16.2, 2.55], [-13.5, 3.1], [-9, 3.35],
-    [9.5, 3.35], [11, 3.3], [12.5, 3.08], [14, 2.62], [15.2, 2.05], [16.2, 1.48], [17, 0.95], [17.7, 0.46], [18.15, 0.06]
+    [9.5, 3.35], [11, 3.3], [12.5, 3.08], [14, 2.62], [15.2, 2.05], [16.2, 1.48], [17, 1.05], [17.8, 0.58], [18.4, 0.22], [18.7, 0.04]
   ] as Table,
   // Half-width of the flat of the bottom. It stays wide under the bow thruster, then closes into the forefoot.
   bottom: [

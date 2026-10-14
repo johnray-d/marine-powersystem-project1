@@ -137,7 +137,10 @@ function buildPart(type:ModelType,spec:PartSpec):THREE.Group {
     const blade=new THREE.ExtrudeGeometry(shape,{depth:.035,bevelEnabled:true,bevelSize:.015,bevelThickness:.015,bevelSegments:1});
     if(type==='thruster')blade.rotateY(Math.PI/2);
     const scale=spec.size[0]/1.3;
-    for(let i=0;i<5;i++){const mesh=new THREE.Mesh(blade,finish(spec.color));mesh.scale.setScalar(scale);if(type==='thruster')mesh.rotation.x=i*Math.PI*2/5;else mesh.rotation.z=i*Math.PI*2/5;part.add(mesh);}
+    const rotor=new THREE.Group();
+    if(type==='thruster')rotor.userData.spinImpeller=true;
+    for(let i=0;i<5;i++){const mesh=new THREE.Mesh(blade,finish(spec.color));mesh.scale.setScalar(scale);if(type==='thruster')mesh.rotation.x=i*Math.PI*2/5;else mesh.rotation.z=i*Math.PI*2/5;rotor.add(mesh);}
+    part.add(rotor);
   }else if(type==='transformer'&&id==='terminals'){
     for(const x of [-.7,0,.7])for(const z of [-.35,.35]){
       rod(part,.075,.42,[x,0,z],pale,'y');for(let y=-.14;y<.15;y+=.07)ring(part,.10,.022,[x,y,z],pale,'y');rod(part,.035,.12,[x,.26,z],copper,'y');

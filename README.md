@@ -20,11 +20,14 @@ The **Marine Power System Simulator** teaches marine electrical engineering fund
 ## ✨ Key Features
 
 ### 1. Interactive 3D Vessel View
-* **Streamlined Hull & Machinery Layout**: Rendered in Three.js with realistic proportions, featuring a flared raked bow, bulbous bow, rounded bilge, blue topsides, and darker underwater hull.
-* **Animated Translucent Sea**: Dynamic flowing sea surface at the waterline with wave swell displacement, wave crest drift, and a cutout around the vessel hull for a floating visual illusion.
+* **Elevated Freeboard & Seaworthy Hull Proportion**: Lowered waterline (`-1.25`) and raised topsides sheer coaming and forecastle deck, ensuring realistic freeboard height well above sea waves.
+* **Hydrodynamic Taylor/Nabla Bulbous Bow**: Organically lofted continuous bulbous bow emerging seamlessly from the lower forefoot and keel line, eliminating faceted step-cuts and featuring a smooth raked stem.
+* **Detailed Forecastle & Foredeck Architecture**: Raised forecastle deck with sheer rise, solid plated steel bulwarks with cap rail, heavy-duty V-shaped green water breakwater, twin anchor windlasses/mooring winches, chain pipes, recessed hawse pipes with cast stockless bower anchors, mooring bollards, and forward jackstaff.
+* **Athwartships Thruster Tunnels**: Structural transverse bow thruster tube with reinforced collar rims and protective vertical debris grates.
+* **Active Propeller & Thruster Animations**: Real-time rotating propeller blades when the propulsion motor circuit is closed/energized, and spinning bronze impellers for the bow and stern thrusters when their respective feeder breakers are closed.
+* **Animated Translucent Sea**: Dynamic flowing sea surface at the waterline with wave swell displacement, wave crest drift, and a cutout hugging the vessel hull for an authentic floating visual illusion.
 * **Detailed Slewing Deck Crane**: High-fidelity cargo crane model including a flanged pedestal, slewing ring, machinery house, operator cab with glazing, 7-panel lattice boom with diagonal bracing, twin hydraulic luffing rams, sheaves, and hook block.
 * **Interactive Reefer Container & Power Flow**: Active 40-foot refrigerated container in the cargo bay connected via a socket feeder cable to the reefer distribution board. Features an animated spinning condenser fan and dual-state power indicator light (green = powered / red = isolated).
-* **Realistic Keel-Level Thrusters**: Bow thruster housed in the bulbous bow tunnel and stern thruster lowered to keel level with strict physical clearance below the propeller shaft line.
 * **Realistic Equipment Placement**: Exact positioning of 4 Diesel Generators (DG 1–4), 6.6 kV Main Switchboards (Sections A & B), propulsion drive/motor, transformers, pumps, and deck equipment.
 * **Camera Controls**: Orbit, pan, zoom, **Reset view**, and **Focus item** to zoom in on any selected piece of machinery in place.
 * **Visibility Toggles**: Toggle translucent outer hull shell and machinery 3D labels on/off.

@@ -33,8 +33,17 @@ function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .024): THREE.M
 const SEA_SAMPLES = 80;
 /** Animated, translucent sea at the waterline. It is cut out inside the hull outline so the interior stays visible. */
 function createSea(): THREE.Mesh {
-  const x0 = hullStart - 1, x1 = hullEnd + 1, hull: number[] = [];
-  for (let i = 0; i < SEA_SAMPLES; i++) hull.push(halfBeamAt(x0 + (x1 - x0) * i / (SEA_SAMPLES - 1), SHIP.waterline));
+  const x0 = hullStart - 1, x1 = 19.8, hull: number[] = [];
+  for (let i = 0; i < SEA_SAMPLES; i++) {
+    const x = x0 + (x1 - x0) * i / (SEA_SAMPLES - 1);
+    let hb = halfBeamAt(x, SHIP.waterline);
+    if (x >= 14.5 && x <= 19.3) {
+      const u = Math.max(0, Math.min(1, (x - 14.5) / 4.8));
+      const bulbHb = 0.72 * Math.sin(Math.pow(u, 0.62) * Math.PI);
+      hb = Math.max(hb, bulbHb);
+    }
+    hull.push(hb);
+  }
   const material = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
     uniforms: { uTime: { value: 0 }, uHull: { value: hull }, uX0: { value: x0 }, uX1: { value: x1 } },
@@ -246,6 +255,17 @@ export class VesselView {
     (this.sea.material as THREE.ShaderMaterial).uniforms.uTime.value = this.phase;
     // The reefer's condenser fan turns only while the container is supplied.
     if (this.live.has('reeferUnit')) this.objects.get('reeferUnit')?.traverse(o => { if (o.userData.spin) o.rotation.x += dt * 9; });
+    // Main propulsion propeller spins when propulsion is energized
+    if (this.live.has('prop') || this.live.has('motor')) {
+      this.objects.get('prop')?.traverse(o => { if (o.userData.spinProp) o.rotation.x += dt * 14; });
+    }
+    // Bow and stern thrusters spin when energized
+    if (this.live.has('bow')) {
+      this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
+    }
+    if (this.live.has('stern')) {
+      this.objects.get('stern')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
+    }
     this.controls.update(); this.updateLabels();
     if (this.state) for (const c of connections) {
       if (connectionState(c, this.state, this.live) !== 'live') continue;

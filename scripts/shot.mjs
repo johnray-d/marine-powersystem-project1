@@ -70,39 +70,21 @@ try {
   // Wait 2 seconds for initial render
   await new Promise(r => setTimeout(r, 2000));
 
-  // Focus on crane
+  // 1. Focus on Bow and Front of the Ship
   await evaluate(`
-    window.app.select('crane');
-    window.app.vessel.focusSelection();
+    window.app.select('bow');
+    // Position camera for an eye-level beauty shot of the bow, bulbous bow, flare, and forecastle
+    window.app.vessel.controls.target.set(16.5, 0.2, 0);
+    window.app.vessel.camera.position.set(22.5, 2.2, 7.5);
+    window.app.vessel.controls.update();
   `);
-  await new Promise(r => setTimeout(r, 1000));
-  const shotCrane = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync('crane_shot.png', Buffer.from(shotCrane.result.data, 'base64'));
-  console.log('Saved crane_shot.png');
+  await new Promise(r => setTimeout(r, 1200));
+  const shotBow = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('bow_closeup.png', Buffer.from(shotBow.result.data, 'base64'));
+  console.log('Saved bow_closeup.png');
 
-  // Focus on reefer unit
+  // 2. Full vessel overview showing elevated ship height above the sea
   await evaluate(`
-    window.app.select('reeferUnit');
-    window.app.vessel.focusSelection();
-  `);
-  await new Promise(r => setTimeout(r, 1000));
-  const shotReefer = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync('reefer_shot.png', Buffer.from(shotReefer.result.data, 'base64'));
-  console.log('Saved reefer_shot.png');
-
-  // Test Enlarge modal on generator
-  await evaluate(`
-    window.app.select('dg1');
-    document.querySelector('#explodeExpand')?.click();
-  `);
-  await new Promise(r => setTimeout(r, 1000));
-  const shotEnlarged = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync('enlarged_shot.png', Buffer.from(shotEnlarged.result.data, 'base64'));
-  console.log('Saved enlarged_shot.png');
-
-  // Close enlarge and reset view
-  await evaluate(`
-    document.querySelector('#explodeExpand')?.click();
     window.app.select('busA');
     window.app.vessel.resetCamera();
   `);
@@ -110,6 +92,30 @@ try {
   const shotFull = await send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync('vessel_shot.png', Buffer.from(shotFull.result.data, 'base64'));
   console.log('Saved vessel_shot.png');
+
+  // 3. Energize propulsion and bow thruster to test spinning animations
+  await evaluate(`
+    const state = window.app.getState();
+    state.closed.propFeed = true;
+    state.closed.bowFeed = true;
+    window.app.refresh();
+    window.app.select('prop');
+    window.app.vessel.focusSelection();
+  `);
+  await new Promise(r => setTimeout(r, 1000));
+  const shotProp = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('propeller_shot.png', Buffer.from(shotProp.result.data, 'base64'));
+  console.log('Saved propeller_shot.png');
+
+  // 4. Focus on spinning bow thruster in tunnel
+  await evaluate(`
+    window.app.select('bow');
+    window.app.vessel.focusSelection();
+  `);
+  await new Promise(r => setTimeout(r, 1000));
+  const shotBowSpin = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('bow_thruster_spin.png', Buffer.from(shotBowSpin.result.data, 'base64'));
+  console.log('Saved bow_thruster_spin.png');
 
   if (consoleMessages.length) {
     console.log('Console messages:', consoleMessages);
