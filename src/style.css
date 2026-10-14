@@ -525,11 +525,13 @@ overflow:hidden;
 margin-top:12px;
 background:#cbe4f4}
 .exploded-canvas{
+position:relative;
 height:100%;
 width:100%}
 .exploded-canvas canvas{
 display:block}
 .exploded-actions{
+flex-wrap:wrap;
 display:flex;
 align-items:center;
 justify-content:space-between;
@@ -830,3 +832,7 @@ max-height:22vh}
 .exploded-section.expanded .part-description{
 grid-row:5}
 }
+.equipment-part-label{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 24px);padding:7px 10px;background:#16394eee;color:#fff;border:1px solid #769eaf;border-radius:6px;font-size:12px;pointer-events:none}
+.equipment-part-label[hidden]{display:none}
+.exploded-actions button:disabled{opacity:.45;cursor:default}
+.part-chip.active{box-shadow:inset 3px 0 #17866b}

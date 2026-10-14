@@ -190,13 +190,18 @@ export class ExplodedView {
   private instance?: ModelInstance;
   private exploded = false;
   private selectedPart?: string;
+  private focused = false;
+  private partLabel = document.createElement('div');
+  private pointerStart = new THREE.Vector2();
   onPart: (id: string) => void = () => {};
 
   constructor(private host: HTMLElement) {
     this.renderer = renderer(host); this.scene.background = new THREE.Color(BG.exploded); lights(this.scene);
     this.camera.position.set(5.6, 3.5, 7.8);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true; this.controls.minDistance = 3; this.controls.maxDistance = 20;
+    this.controls.enableDamping = true; this.controls.minDistance = .5; this.controls.maxDistance = 90;
+    this.partLabel.className='equipment-part-label';this.partLabel.hidden=true;host.appendChild(this.partLabel);
+    this.renderer.domElement.addEventListener('pointerdown',e=>this.pointerStart.set(e.clientX,e.clientY));
     this.renderer.domElement.addEventListener('click', e => this.click(e));
     new ResizeObserver(() => this.resize()).observe(host); this.resize(); this.animate();
   }
@@ -204,7 +209,7 @@ export class ExplodedView {
   private resize() {
     const w = this.host.clientWidth, h = this.host.clientHeight; if (!w || !h) return;
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.renderer.setSize(w, h);
-    this.fitModelView();
+    if(this.focused)this.focusPart();else this.fitModelView();
   }
   setModel(type?: ModelType) {
     if (this.instance) {
@@ -216,34 +221,64 @@ export class ExplodedView {
       });
     }
     this.instance = type ? createModel(type) : undefined; this.exploded = false; this.selectedPart = undefined;
+    this.partLabel.hidden=true;
     if (this.instance) this.scene.add(this.instance.group);
     this.fitModelView();
   }
   private fitModelView() {
     if (!this.instance) return;
+    this.focused=false;
     const bounds = new THREE.Box3();
+    const boxes:THREE.Box3[]=[];
     for (const part of this.instance.parts) {
+      part.group.visible=true;
       const box = new THREE.Box3().setFromObject(part.group);
       const target = this.exploded ? part.exploded : part.base;
-      box.translate(target.clone().sub(part.group.position)); bounds.union(box);
+      box.translate(target.clone().sub(part.group.position)); bounds.union(box);boxes.push(box);
     }
+    this.frameBounds(bounds,boxes);
+  }
+  private frameBounds(bounds: THREE.Box3,boxes:THREE.Box3[]=[bounds]) {
     const center = bounds.getCenter(new THREE.Vector3());
-    const radius = bounds.getSize(new THREE.Vector3()).length() / 2;
-    const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(21.5)) * Math.min(1, this.camera.aspect));
-    const distance = radius / Math.sin(halfFov) * 1.06;
+    const direction = new THREE.Vector3(1,.6,1.6).normalize();
+    const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),direction).normalize();
+    const up = new THREE.Vector3().crossVectors(direction,right);
+    const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2));
+    let distance = 1;
+    for(const box of boxes)for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){
+      const corner=new THREE.Vector3(x,y,z).sub(center),depth=corner.dot(direction);
+      distance=Math.max(distance,depth+Math.abs(corner.dot(right))/(tan*this.camera.aspect),depth+Math.abs(corner.dot(up))/tan);
+    }
+    distance*=1.1;
     this.controls.target.copy(center);
-    this.camera.position.copy(center).addScaledVector(new THREE.Vector3(1,.6,1.6).normalize(),distance);
+    this.camera.position.copy(center).addScaledVector(direction,distance);
     this.controls.update();
+  }
+  resetView() { this.fitModelView(); }
+  focusPart() {
+    const part=this.instance?.parts.find(p=>p.spec.id===this.selectedPart);
+    if(!part)return;
+    this.focused=true;
+    // Snap to the chosen assembly state before fitting a small component.
+    for(const p of this.instance!.parts){p.group.position.copy(this.exploded?p.exploded:p.base);p.group.visible=p===part;}
+    this.frameBounds(new THREE.Box3().setFromObject(part.group));
   }
   setExploded(value: boolean) { this.exploded = value; this.fitModelView(); }
   isExploded() { return this.exploded; }
-  setPart(id?: string) { this.selectedPart = id; }
+  setPart(id?: string) {
+    this.selectedPart = id;
+    const index=this.instance?.parts.findIndex(p=>p.spec.id===id)??-1;
+    this.partLabel.hidden=index<0;
+    if(index>=0)this.partLabel.textContent=`${String(index+1).padStart(2,'0')} · ${this.instance!.parts[index].spec.name}`;
+    if(this.focused&&index>=0)this.focusPart();
+  }
   private click(event: MouseEvent) {
     if (!this.instance) return;
+    if(this.pointerStart.distanceTo(new THREE.Vector2(event.clientX,event.clientY))>5)return;
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
     this.ray.setFromCamera(this.pointer, this.camera);
-    const hit = this.ray.intersectObject(this.instance.group, true).find(h => h.object.userData.partId);
+    const hit = this.ray.intersectObject(this.instance.group, true).find(h => h.object.userData.partId && (!this.focused || h.object.userData.partId===this.selectedPart));
     const id = hit?.object.userData.partId as string | undefined;
     if (id) { this.setPart(id); this.onPart(id); }
   }

@@ -1,43 +1,17 @@
 import * as THREE from 'three';
 import type { ModelType } from './network';
+import { detailedParts, buildDetailedPart } from './equipment-models';
 
 type Shape = 'box'|'cylinder'|'sphere'|'torus'|'blade'|'coil';
-export interface PartSpec { id:string; name:string; description:string; shape:Shape; pos:[number,number,number]; size:[number,number,number]; color:number; }
+export interface PartSpec { id:string; name:string; description:string; shape:Shape; pos:[number,number,number]; size:[number,number,number]; color:number; explode?:[number,number,number]; }
 export interface ModelInstance { group:THREE.Group; parts:{spec:PartSpec; group:THREE.Group; base:THREE.Vector3; exploded:THREE.Vector3}[]; }
 const p=(id:string,name:string,description:string,shape:Shape,pos:[number,number,number],size:[number,number,number],color:number):PartSpec=>({id,name,description,shape,pos,size,color});
 const navy=0x31526b, steel=0xaec5d2, copper=0xe2a05b, teal=0x4ed9c8, amber=0xffbc68, blue=0x629bd5, pale=0xe8eef0, dark=0x23394d;
 
 export const modelParts:Record<ModelType,PartSpec[]> = {
-  generator:[
-    p('base','Skid / bedplate','Supports the engine and alternator and keeps their shafts aligned.','box',[0,-0.7,0],[3.5,0.22,1.55],navy),
-    p('engine','Diesel engine','Burns fuel to turn a crankshaft. Its job here is to drive an alternator, not the propeller.','box',[-0.9,0,0],[1.5,1.15,1.2],steel),
-    p('cylinders','Cylinder bank','Pistons and cylinders create the engine’s rotating power.','box',[-0.9,0.73,0],[1.35,0.38,0.9],amber),
-    p('coupling','Flexible coupling','Connects the engine shaft to the alternator shaft while tolerating small movements.','cylinder',[0.05,0,0],[0.3,0.45,0.45],copper),
-    p('stator','Alternator stator','Stationary winding in which electrical output is produced.','cylinder',[0.95,0,0],[1.2,0.95,0.95],blue),
-    p('rotor','Alternator rotor','Rotating magnetic field inside the stator.','cylinder',[0.95,0,0],[1.45,0.34,0.34],copper),
-    p('terminal','Output terminal box','Connects the alternator output to its generator breaker.','box',[1.15,0.64,0],[0.68,0.35,0.5],teal),
-    p('turbo','Turbocharger','Uses exhaust-gas energy to compress the engine’s intake air.','sphere',[-1.5,.93,-.48],[.52,.48,.48],steel),
-    p('exhaust','Exhaust manifold','Collects exhaust gas from the cylinders and carries it toward the turbocharger and exhaust uptake.','cylinder',[-.8,.63,-.56],[1.5,.16,.16],dark)
-  ],
-  breaker:[
-    p('truck','Truck / racking carriage','Allows a withdrawable breaker to move between service, test, and isolated positions.','box',[0,-0.8,0],[2.6,0.25,1.4],navy),
-    p('insulation','Insulating supports','Keep live conductors separated from grounded metalwork.','cylinder',[0,-0.02,0],[0.4,1.4,0.4],pale),
-    p('interrupter','Vacuum interrupter','Sealed chamber where contacts separate and the arc is extinguished in vacuum.','cylinder',[0,0.33,0],[0.6,1.0,0.6],blue),
-    p('fixed','Fixed contact','Stationary contact at one end of the vacuum interrupter.','cylinder',[0,0.88,0],[0.25,0.27,0.25],copper),
-    p('moving','Moving contact','Moves away from the fixed contact to interrupt the circuit.','cylinder',[0,-0.2,0],[0.25,0.45,0.25],copper),
-    p('mechanism','Operating mechanism','Stored-energy springs and linkages open or close the contacts quickly.','box',[0,-0.22,0.55],[1.55,0.7,0.48],amber),
-    p('terminals','Primary terminals','Connect the interrupter to the switchboard conductors.','box',[0,1.2,0],[1.95,0.18,0.38],copper),
-    p('auxiliary','Auxiliary contacts','Provide electrical indications of breaker position to control and monitoring circuits.','box',[.91,-.2,.57],[.35,.42,.3],steel)
-  ],
-  'hv-board':[
-    p('enclosure','Metal enclosure','Protects people and separates internal switchgear compartments.','box',[0,0,0],[3.1,2.4,1.35],navy),
-    p('busbars','6.6 kV busbars','Heavy conductors forming the common path inside this switchboard section.','box',[0,0.65,0.25],[2.65,0.22,0.32],copper),
-    p('compartment','Breaker compartment','Houses a withdrawable vacuum circuit breaker.','box',[-0.55,-0.45,0.77],[1.15,1.0,0.32],blue),
-    p('tie','Bus-tie breaker','Connects or separates the two main bus sections when commanded.','box',[0.75,-0.45,0.77],[1.0,1.0,0.34],teal),
-    p('relay','Protection / control relay','Monitors and controls the breaker. Detailed protection logic is outside V1.','box',[0.75,0.55,0.77],[0.72,0.38,0.18],amber),
-    p('cable','Cable termination','Connects outgoing cables to the switchgear conductors.','cylinder',[-0.85,-1.16,0],[0.55,0.5,0.55],steel),
-    p('earth','Earthing connection','Connects the metal enclosure to the ship’s protective earthing system.','box',[.75,-1.08,.4],[.75,.07,.15],copper)
-  ],
+  generator:detailedParts.generator,
+  breaker:detailedParts.breaker,
+  'hv-board':detailedParts['hv-board'],
   transformer:[
     p('tank','Tank / enclosure','Provides mechanical protection and contains the active assembly.','box',[0,0,0],[2.9,2.2,1.5],navy),
     p('core','Magnetic core','Guides changing magnetic flux between the windings.','box',[0,-0.1,0.12],[1.8,1.65,0.55],steel),
@@ -47,14 +21,7 @@ export const modelParts:Record<ModelType,PartSpec[]> = {
     p('terminals','Input / output terminals','Insulated bushings carry the electrical connections through the enclosure.','cylinder',[0,1.25,0],[1.8,0.35,0.35],teal),
     p('radiator','Cooling fins','Increase the surface area available to release transformer heat.','box',[-1.52,-.05,0],[.23,1.75,1.2],steel)
   ],
-  'lv-board':[
-    p('cabinet','Switchboard cabinet','Protects and organizes low-voltage bus and feeder equipment.','box',[0,0,0],[3.2,2.3,1.25],navy),
-    p('bus','Main busbars','Common conductors that receive transformer output.','box',[0,0.58,0.3],[2.8,0.22,0.3],copper),
-    p('incomer','Incoming breaker','Connects an incoming source to the low-voltage board.','box',[-0.92,-0.35,0.72],[0.68,0.92,0.28],blue),
-    p('feeder','Outgoing breakers','Switch groups of pumps, reefers, and other low-voltage loads.','box',[0.36,-0.35,0.72],[1.6,0.92,0.28],teal),
-    p('meter','Meters / indicators','Show operating information on a real board; values are omitted in V1.','box',[0,0.91,0.72],[1.65,0.27,0.18],amber),
-    p('earth','Protective earth bar','Connects exposed metal parts to the protective earthing system.','box',[0,-.95,.6],[2.5,.08,.12],copper)
-  ],
+  'lv-board':detailedParts['lv-board'],
   drive:[
     p('cabinet','Drive cabinet','Encloses the power electronics and control sections.','box',[0,0,0],[3.2,2.35,1.4],navy),
     p('input','Input stage','Receives electrical power from the main switchboard.','box',[-0.95,0,0.78],[0.62,1.5,0.25],blue),
@@ -140,6 +107,8 @@ function fan(parent:THREE.Group,radius:number,axis:'x'|'z'='x'){
 }
 
 function buildPart(type:ModelType,spec:PartSpec):THREE.Group {
+  const detailed=buildDetailedPart(type,spec);
+  if(detailed){detailed.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.partId=spec.id;});return detailed;}
   const part=new THREE.Group();const id=spec.id;
   const enclosure=['tank','cabinet','enclosure','frame','tunnel'].includes(id);
   if(spec.shape==='coil'){
@@ -266,7 +235,7 @@ export function createModel(type:ModelType):ModelInstance {
     if(type==='motor'&&spec.id==='rotor')offset.set(1.8,0,.4);
     if(type==='motor'&&spec.id==='shaft')offset.set(2.8,0,.4);
     if(type==='generator'&&spec.id==='base')offset.set(0,-.8,0);
-    const exploded=base.clone().add(offset);
+    const exploded=base.clone().add(spec.explode?new THREE.Vector3(...spec.explode):offset);
     part.position.copy(base);group.add(part);
     return {spec,group:part,base,exploded};
   });

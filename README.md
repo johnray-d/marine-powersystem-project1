@@ -28,11 +28,14 @@ The **Marine Power System Simulator** teaches marine electrical engineering fund
 
 ### 2. "Inside the Equipment" Exploded View (with Fullscreen Enlarge)
 * **Detailed Procedural Models**: Inspect internal mechanical and electrical assemblies for key equipment:
-  * **Diesel Generator**: Bedplate, engine block, cylinder bank, turbocharger, flexible coupling, stator, rotor, and terminal box.
-  * **Vacuum Circuit Breaker (VCB)**: Withdrawable racking truck, vacuum interrupter bottle, fixed/moving contacts, operating mechanism, and primary disconnects.
+  * **Diesel Generator — 22 selectable assemblies**: Marine green V12 engine, wet liners, pistons and connecting rods, crankshaft, heads, valves, rocker covers, turbocharger, charge-air cooler, fuel piping, oil and cooling auxiliaries, flywheel, coupling, and a detailed alternator.
+  * **Vacuum Circuit Breaker (VCB) — 15 selectable assemblies**: Three vacuum poles, fixed/moving contacts, bellows, primary disconnects, insulating pushrods, contact-pressure springs, closing/opening springs, charging motor, releases, secondary plug, front cover and withdrawable truck.
+  * **Main Switchboards — 14 selectable assemblies each**: Three cubicles with analog meters, relays, mimic lines, controls and ventilation. Exploded views expose busbars, supports, switching units, current transformers, cable terminations, earth bar and control wiring. The 6.6 kV board uses VCBs; the LV board illustrates ACBs and moulded-case feeders.
   * **Switchboard Enclosures, Transformers, Thrusters, Drives, and Pumps**.
 * **Expandable Modal**: Click **⤢ Enlarge** to open an expansive inspection dialog with a large 3D canvas and an interactive components list with descriptive engineering explanations. Close anytime via **✕ Close**, **Esc**, or clicking the backdrop.
 * **Exploded Animation**: Smoothly toggle between assembled and exploded configurations (**↗ Explode view** / **↙ Assemble view**).
+* **Part inspection**: Select a numbered part name or click the geometry to highlight it and read its description. **Focus part** isolates and frames that assembly; selecting another name continues the isolated inspection. **Fit all** restores the complete model. Explosion offsets are authored per assembly, and the camera fits the assembled or exploded bounds.
+* **Reference scope**: Equipment is modeled procedurally from the supplied visual references, with generic illustrative proportions. The generator is a four-stroke generating set driving an alternator. Instrument faces are illustrative, and exploded positions are a teaching arrangement rather than a maintenance sequence.
 
 ### 3. Synchronized Single-Line Diagram (SLD)
 * **Dynamic Electrical Topology**: Full SVG single-line schematic displaying medium-voltage (6.6 kV) generation, 440 V distribution, 220 V consumer services, and isolated 440 V emergency distribution.
@@ -96,6 +99,7 @@ flowchart TD
 ├── src/
 │   ├── main.ts             # Application entry point, UI binding, event handlers
 │   ├── models.ts           # 3D procedural exploded equipment models and part metadata
+│   ├── equipment-models.ts # Reference-inspired genset, VCB and switchboard assemblies
 │   ├── network.ts          # Electrical connectivity solver, equipment registry, and scenarios
 │   ├── scene.ts            # Three.js 3D vessel and exploded-view camera/renderer controllers
 │   ├── style.css           # Light-theme styles, responsive layout, and modal controls
@@ -157,3 +161,12 @@ The project includes an automated deployment workflow via [GitHub Actions](.gith
 ## 📜 License
 
 Created for educational and training purposes.
+
+## Equipment terminology references
+
+The supplied images guide appearance. These manufacturer resources support the component terminology and operating principles:
+
+* [Wärtsilä engine auxiliary systems](https://www.wartsila.com/marine/products/engines-and-generating-sets/generating-sets/wartsila-engines-auxiliary-systems) — lubrication, cooling and charge-air equipment.
+* [Wärtsilä pressure charging](https://www.wartsila.com/encyclopedia/term/pressure-charging) — exhaust-driven turbocharging.
+* [ABB VD4 vacuum circuit breakers](https://www.abb.com/gb/en/areas/electrification/medium-voltage/grid-components/primary-vacuum-circuit-breakers/vd4-evo) — vacuum poles and spring-operated mechanisms.
+* [ABB UniGear ZS1](https://www.abb.com/global/en/areas/electrification/medium-voltage/switchgear/air-insulated/unigear/zs1) — metal-enclosed medium-voltage switchgear.
