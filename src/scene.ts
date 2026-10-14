@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
 import { createVessel, createVesselEquipment } from './vessel';
-import { vesselLayout } from './vessel-layout';
+import { vesselLayout, SHIP, halfBeamAt, hullStart, hullEnd } from './vessel-layout';
 
 const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
 const BG = { vessel: 0xdfeaf1, exploded: 0xe9f1f6 };
@@ -30,6 +30,65 @@ function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .024): THREE.M
   return mesh;
 }
 
+const SEA_SAMPLES = 80;
+/** Animated, translucent sea at the waterline. It is cut out inside the hull outline so the interior stays visible. */
+function createSea(): THREE.Mesh {
+  const x0 = hullStart - 1, x1 = hullEnd + 1, hull: number[] = [];
+  for (let i = 0; i < SEA_SAMPLES; i++) hull.push(halfBeamAt(x0 + (x1 - x0) * i / (SEA_SAMPLES - 1), SHIP.waterline));
+  const material = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { uTime: { value: 0 }, uHull: { value: hull }, uX0: { value: x0 }, uX1: { value: x1 } },
+    vertexShader: `
+      uniform float uTime;
+      varying vec3 vWorld;
+      varying float vWave;
+      float wave(vec2 p) {
+        return sin(p.x * .42 + uTime * .8) * .5 + sin(p.y * .55 - uTime * .65) * .35 + sin((p.x * .7 + p.y * .9) * .8 + uTime * 1.1) * .25;
+      }
+      void main() {
+        vec3 p = position;
+        vWave = wave(p.xz);
+        p.y += vWave * .07;
+        vec4 world = modelMatrix * vec4(p, 1.);
+        vWorld = world.xyz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }`,
+    fragmentShader: `
+      uniform float uTime, uX0, uX1;
+      uniform float uHull[${SEA_SAMPLES}];
+      varying vec3 vWorld;
+      varying float vWave;
+      float hullHalfBeam(float x) {
+        float f = (x - uX0) / (uX1 - uX0) * ${SEA_SAMPLES - 1}.;
+        if (f < 0. || f > ${SEA_SAMPLES - 1}.) return 0.;
+        int i = int(floor(f));
+        return mix(uHull[i], uHull[min(i + 1, ${SEA_SAMPLES - 1})], f - float(i));
+      }
+      void main() {
+        vec2 p = vWorld.xz;
+        float hb = hullHalfBeam(p.x);
+        float d = abs(p.y) - hb;
+        if (hb > .02 && d < 0.) discard;
+        // Flowing crest lines that drift across the surface.
+        float flowA = sin(p.x * 1.1 + sin(p.y * .6 + uTime * .45) * 1.6 - uTime * .9);
+        float flowB = sin(p.y * 1.4 - sin(p.x * .5 - uTime * .35) * 1.4 + uTime * .7);
+        float crest = smoothstep(.93, 1., flowA) * .55 + smoothstep(.94, 1., flowB) * .45;
+        float swell = .5 + .5 * vWave;
+        vec3 col = mix(vec3(.13, .43, .62), vec3(.45, .78, .9), swell * .7 + crest * .5);
+        // Foam where the water meets the hull.
+        float foam = hb > .02 ? (1. - smoothstep(0., .45, d)) * (.55 + .45 * sin(p.x * 4. + p.y * 3. + uTime * 2.)) : 0.;
+        float fade = 1. - smoothstep(26., 62., length(p));
+        float alpha = (.15 + .08 * swell + crest * .34 + foam * .45) * fade;
+        col = mix(col, vec3(.95, 1., 1.), clamp(foam * .8 + crest * .2, 0., 1.));
+        gl_FragColor = vec4(col, alpha);
+      }`
+  });
+  const geometry = new THREE.PlaneGeometry(150, 150, 220, 220); geometry.rotateX(-Math.PI / 2);
+  const sea = new THREE.Mesh(geometry, material);
+  sea.position.y = SHIP.waterline; sea.renderOrder = 2; sea.frustumCulled = false;
+  return sea;
+}
+
 export class VesselView {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -47,6 +106,7 @@ export class VesselView {
   private selection = 'busA';
   private labelsVisible = true;
   private phase = 0;
+  private sea = createSea();
   private lastTime = 0;
   onSelect: (id: string) => void = () => {};
 
@@ -61,13 +121,15 @@ export class VesselView {
     this.controls.maxDistance = 95;
     this.controls.maxPolarAngle = Math.PI * .62;
     this.scene.add(this.hull);
-    const grid = new THREE.GridHelper(48, 48, 0x9db6c4, 0xc3d4de); grid.position.y = -2.85; this.scene.add(grid);
+    this.scene.add(this.sea);
     for (const e of equipment) {
       const group = createVesselEquipment(e);
-      const size = vesselLayout[e.id].size;
-      const radius = Math.max(.16, Math.max(size[0], size[2]) / 2 + .06);
+      const placement = vesselLayout[e.id], size = placement.size, inContainer = placement.space === 'cargo';
+      const radius = inContainer ? .3 : Math.max(.16, Math.max(size[0], size[2]) / 2 + .06);
       const halo = new THREE.Mesh(new THREE.RingGeometry(radius, radius + .035, 32), new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .7, side: THREE.DoubleSide, depthWrite: false }));
       halo.rotation.x = -Math.PI / 2; halo.position.y = .012; halo.userData.halo = true;
+      // A container's ring sits just outside its refrigeration end, which faces -x when the container is rotated half a turn.
+      if (inContainer) halo.position.x = (placement.rotation === Math.PI ? -1 : 1) * (size[0] / 2 + .2);
       group.add(halo);
       this.objects.set(e.id, group); this.scene.add(group);
       const label = document.createElement('div'); label.className = 'vessel-label'; label.textContent = e.short;
@@ -78,8 +140,9 @@ export class VesselView {
       const a = this.endpoint(c.from), b = this.endpoint(c.to);
       const group = new THREE.Group();
       // Cable runs follow a longitudinal internal route with short branch connections.
-      const points = c.id === 'shaft' || c.id === 'tie' ? [a, b] : [a,
-        new THREE.Vector3(a.x, a.y, 0), new THREE.Vector3(b.x, a.y, 0),
+      const points = c.id === 'shaft' || c.id === 'tie' ? [a, b]
+        : c.id === 'reeferPlug' ? [a, new THREE.Vector3((a.x + b.x) / 2, Math.min(a.y, b.y) - .1, (a.z + b.z) / 2), b]
+        : [a, new THREE.Vector3(a.x, a.y, 0), new THREE.Vector3(b.x, a.y, 0),
         new THREE.Vector3(b.x, b.y, 0), b];
       const route = new THREE.CurvePath<THREE.Vector3>();
       for (let i = 1; i < points.length; i++) {
@@ -100,6 +163,11 @@ export class VesselView {
   }
   private endpoint(id: string) {
     const object = this.objects.get(id)!;
+    if (id === 'reeferUnit') {
+      // The supply plugs into the inlet on the refrigeration end of the container.
+      const placement = vesselLayout[id], direction = placement.rotation === Math.PI ? -1 : 1;
+      return object.position.clone().add(new THREE.Vector3(direction * (placement.size[0] / 2 + .05), .28, 0));
+    }
     const point = object.position.clone(); point.y += object.userData.height * (id === 'motor' ? .45 : .5); return point;
   }
   private resize() {
@@ -121,6 +189,12 @@ export class VesselView {
       (halo.material as THREE.MeshBasicMaterial).color.setHex(id === selection ? C.selected : live.has(id) ? C.live : C.dead);
       (halo.material as THREE.MeshBasicMaterial).opacity = id === selection ? .95 : .48;
     }
+    const reeferOn = live.has('reeferUnit');
+    this.objects.get('reeferUnit')?.traverse(o => {
+      if (!o.userData.statusLight) return;
+      const material = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
+      material.color.setHex(reeferOn ? 0x41ff9a : 0x7a2a2a); material.emissive.setHex(reeferOn ? 0x1fb868 : 0x000000);
+    });
     for (const c of connections) {
       const status = connectionState(c, state, live);
       for (const child of this.paths.get(c.id)!.children) {
@@ -166,8 +240,12 @@ export class VesselView {
   }
   private animate = (time: number) => {
     requestAnimationFrame(this.animate);
-    this.phase += Math.min(.05, (time - this.lastTime) / 1000); this.lastTime = time;
+    const dt = Math.min(.05, (time - this.lastTime) / 1000);
+    this.phase += dt; this.lastTime = time;
     if (!this.host.clientWidth || !this.host.clientHeight) return;
+    (this.sea.material as THREE.ShaderMaterial).uniforms.uTime.value = this.phase;
+    // The reefer's condenser fan turns only while the container is supplied.
+    if (this.live.has('reeferUnit')) this.objects.get('reeferUnit')?.traverse(o => { if (o.userData.spin) o.rotation.x += dt * 9; });
     this.controls.update(); this.updateLabels();
     if (this.state) for (const c of connections) {
       if (connectionState(c, this.state, this.live) !== 'live') continue;

@@ -20,9 +20,12 @@ The **Marine Power System Simulator** teaches marine electrical engineering fund
 ## ✨ Key Features
 
 ### 1. Interactive 3D Vessel View
-* **Spatial Hull & Machinery Layout**: Rendered in Three.js with realistic proportions (approx. 4 meters per unit), showing engine rooms, switchboard flats, cargo container bays, and accommodation superstructure.
-* **Realistic Equipment Placement**: Realistic positioning of 4 Diesel Generators (DG 1–4), 6.6 kV Main Switchboards (Sections A & B), propulsion drive/motor, transformers, pumps, and deck equipment.
-* **Hydrodynamic Thrusters & Shafting**: Bow thruster positioned on the keel line and an aft stern thruster positioned with strict physical clearance above the propulsion motor shaft line.
+* **Streamlined Hull & Machinery Layout**: Rendered in Three.js with realistic proportions, featuring a flared raked bow, bulbous bow, rounded bilge, blue topsides, and darker underwater hull.
+* **Animated Translucent Sea**: Dynamic flowing sea surface at the waterline with wave swell displacement, wave crest drift, and a cutout around the vessel hull for a floating visual illusion.
+* **Detailed Slewing Deck Crane**: High-fidelity cargo crane model including a flanged pedestal, slewing ring, machinery house, operator cab with glazing, 7-panel lattice boom with diagonal bracing, twin hydraulic luffing rams, sheaves, and hook block.
+* **Interactive Reefer Container & Power Flow**: Active 40-foot refrigerated container in the cargo bay connected via a socket feeder cable to the reefer distribution board. Features an animated spinning condenser fan and dual-state power indicator light (green = powered / red = isolated).
+* **Realistic Keel-Level Thrusters**: Bow thruster housed in the bulbous bow tunnel and stern thruster lowered to keel level with strict physical clearance below the propeller shaft line.
+* **Realistic Equipment Placement**: Exact positioning of 4 Diesel Generators (DG 1–4), 6.6 kV Main Switchboards (Sections A & B), propulsion drive/motor, transformers, pumps, and deck equipment.
 * **Camera Controls**: Orbit, pan, zoom, **Reset view**, and **Focus item** to zoom in on any selected piece of machinery in place.
 * **Visibility Toggles**: Toggle translucent outer hull shell and machinery 3D labels on/off.
 

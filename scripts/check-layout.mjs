@@ -26,6 +26,13 @@ try {
       assert(box.min.x >= SHIP.house.minX && box.max.x <= SHIP.house.maxX, `${item.id}: outside accommodation length`);
       assert(box.min.z >= -SHIP.house.halfWidth && box.max.z <= SHIP.house.halfWidth, `${item.id}: outside accommodation width`);
       assert(box.min.y >= SHIP.mainDeck && box.max.y <= SHIP.house.roof, `${item.id}: outside accommodation height`);
+    } else if (placement.space === 'cargo') {
+      const halfWidth = (CARGO.rows - 1) * CARGO.rowPitch / 2 + CARGO.width / 2;
+      const bayMin = Math.min(...CARGO.bays) - CARGO.length / 2;
+      const bayMax = Math.max(...CARGO.bays) + CARGO.length / 2;
+      assert(box.min.x >= bayMin - tolerance && box.max.x <= bayMax + tolerance, `${item.id}: outside cargo bays length`);
+      assert(box.min.z >= -halfWidth - tolerance && box.max.z <= halfWidth + tolerance, `${item.id}: outside cargo bay width`);
+      assert(box.min.y >= SHIP.mainDeck - tolerance, `${item.id}: below main deck`);
     } else {
       for (const x of [box.min.x, box.max.x]) {
         const halfBeam = halfBeamAt(x, Math.min(SHIP.mainDeck, box.min.y));
