@@ -6,6 +6,7 @@
   "scripts": {
     "build:hull": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender-hull-2-V6.py",
     "build:prop": "\"D:\\Blender\\blender.exe\" --background --python scripts/propeller_assembly.py",
+    "build:tx": "\"D:\\Blender\\blender.exe\" --background --python scripts/generate_transformer.py",
     "check:layout": "node scripts/check-layout.mjs",
     "dev": "vite",
     "build": "tsc && vite build",

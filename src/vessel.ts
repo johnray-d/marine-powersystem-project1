@@ -4,8 +4,10 @@ import { CARGO, vesselLayout } from './vessel-layout';
 import { createModel } from './models';
 import type { Equipment } from './network';
 import { propellerAssembly } from './propeller-assembly';
+import { transformerAssembly } from './transformer-assembly';
 import { resolvePublicAsset } from './assets';
 export { propellerAssembly } from './propeller-assembly';
+export { transformerAssembly } from './transformer-assembly';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.
@@ -328,6 +330,18 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.add(propellerAssembly.group);
     root.userData.height=placement.size[1];
     root.userData.propellerAssembly=propellerAssembly;
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='txA'||e.id==='txB'){
+    const txGroup = transformerAssembly.createEquipmentGroup(e.id, placement.size);
+    txGroup.rotation.y = placement.rotation || 0;
+    root.add(txGroup);
+    root.userData.height = placement.size[1];
+    root.userData.transformerAssembly = transformerAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }

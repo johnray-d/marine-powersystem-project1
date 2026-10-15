@@ -3,6 +3,7 @@ import { byId, connections, edgeById, equipment, initialState, powered, connecti
 import { modelParts } from './models';
 import { VesselView, ExplodedView } from './scene';
 import { propellerAssembly } from './propeller-assembly';
+import { transformerAssembly } from './transformer-assembly';
 import { resolveAssemblyUrl } from './assets';
 
 type View='vessel'|'schematic';
@@ -139,6 +140,14 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'PROPULSION CAD ASSEMBLY & SPECS'
     };
   }
+  if (selectedId === 'txA' || selectedId === 'txB') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_transformer_assembly.html'),
+      title: '6.6 kV / 440 V Marine Transformer — 3D Explodable CAD Assembly',
+      subtitle: '3-Phase Laminated Core · Concentric Primary & Secondary Windings · Class H Nomex Insulation · Porcelain Bushings · Forced Air Cooling',
+      tag: 'TRANSFORMER CAD ASSEMBLY & SPECS'
+    };
+  }
   return null;
 }
 
@@ -219,6 +228,32 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
+    ${selected === 'txA' || selected === 'txB' ? `
+      <div class="transformer-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">6.6 kV / 440 V Distribution Transformer</h4>
+          </div>
+          <span id="transformer-explosion-val" class="transformer-val-badge">${Math.round(transformerAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the CRGO laminated silicon steel core, concentric 440 V LV and 6.6 kV HV resin coils, dielectric Nomex barriers, porcelain bushings, and radiator fin banks.
+        </p>
+        <div class="transformer-slider-row">
+          <label for="transformer-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="transformer-explosion-slider" min="0" max="1" step="0.01" value="${transformerAssembly.targetExplosionFactor}">
+        </div>
+        <div class="transformer-presets">
+          <button type="button" class="preset-btn" data-tx-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-tx-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-tx-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
     ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
@@ -245,6 +280,26 @@ function renderInspector(){
         propellerAssembly.setExplosionFactor(factor);
         if (propSlider) propSlider.value = String(factor);
         const label = document.getElementById('propeller-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
+  if (selected === 'txA' || selected === 'txB') {
+    const txSlider = document.getElementById('transformer-explosion-slider') as HTMLInputElement;
+    txSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      transformerAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('transformer-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-tx-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.txPreset || '0');
+        transformerAssembly.setExplosionFactor(factor);
+        if (txSlider) txSlider.value = String(factor);
+        const label = document.getElementById('transformer-explosion-val');
         if (label) label.textContent = `${Math.round(factor * 100)}%`;
       });
     });

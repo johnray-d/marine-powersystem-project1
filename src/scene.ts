@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
-import { createVessel, createVesselEquipment, propellerAssembly } from './vessel';
+import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly } from './vessel';
 import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
 const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
@@ -263,6 +263,14 @@ export class VesselView {
     }
     // Update explosion lerp interpolation smoothly every frame
     propellerAssembly.updateExplosion(dt);
+    // Update transformer cooling fans when energized, or during inspection
+    const isTxActive = this.live.has('txA') || this.live.has('txB');
+    const isInspectingTx = this.selection === 'txA' || this.selection === 'txB';
+    if (isTxActive || isInspectingTx) {
+      transformerAssembly.updateRotation(dt, isTxActive ? 1200 : 600);
+    }
+    // Update transformer explosion lerp interpolation smoothly every frame
+    transformerAssembly.updateExplosion(dt);
     // Bow thruster spins when energized
     if (this.live.has('bow')) {
       this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
