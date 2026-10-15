@@ -8,7 +8,11 @@ import type { PartSpec } from './models';
 type V = [number, number, number];
 const green=0x527b69, lightGreen=0x86a494, iron=0x3e4c50, steel=0xb6c2c5,
   copper=0xc88743, gold=0xb49a56, white=0xe5e7df, black=0x243039,
-  red=0xba443a, blue=0x417fad, yellow=0xe4bd54;
+  red=0xba443a, blue=0x417fad, yellow=0xe4bd54,
+  terracotta=0xb54328, darkTerracotta=0x8b321c, bronze=0xd4a857,
+  goldBronze=0xe0b869, darkBronze=0xc89d51, polishedSteel=0xdbe4ee,
+  copperSeal=0xc26d38, motorGreen=0x3b5e4c, pebbleGrey=0xa5ad9e,
+  darkPlinth=0x1e242c, cyanLcd=0x38bdf8, statusGreen=0x22c55e, statusRed=0xef4444;
 const part=(id:string,name:string,description:string,pos:V,explode:V,color=green):PartSpec=>
   ({id,name,description,pos,explode,color,shape:'box',size:[1,1,1]});
 
@@ -55,24 +59,61 @@ const breaker:PartSpec[]=[
   part('cover','Front cover, pushbuttons & indicators','The front panel carries mechanical OPEN/CLOSE pushbuttons, contact-position and spring-charge indicators, an operation counter and the manual charging access.',[0,.05,.85],[-3.2,0,1.4],white)
 ];
 
-function boardParts(hv:boolean):PartSpec[]{return [
-  part('enclosure','Cubicle frame & segregated compartments','Bolted steel frames support the switchgear. Internal partitions separate busbars, switching equipment, cables and low-voltage control wiring.',[0,0,0],[0,0,-1.7]),
-  part('doors','Front doors, handles & mimic diagram','Compartment doors provide access to the equipment. The black mimic lines show the simplified electrical path; handles and inspection windows are shown on the breaker doors.',[0,0,.72],[-3.6,0,1.2],lightGreen),
-  part('meters','Analog meters & selector switches','Panel meters represent voltage, current and frequency indication. Selector switches choose the phase or measurement to display. The drawn needles are illustrative.',[0,.93,.81],[0,1.6,1.6],white),
-  part('relay','Protection relays & monitoring displays','Protective relays evaluate measured electrical quantities and issue breaker trip commands for configured faults. Displays and settings are illustrative in this connectivity simulator.',[0,.53,.82],[0,.75,2],black),
-  part('controls','Control switches & status lamps','Local controls issue open/close commands. Lamps represent running, available and trip indications; these model details are separate from the simulator switching controls.',[0,.14,.82],[0,-.15,2.2],green),
-  part('busbars',hv?'Three-phase 6.6 kV busbars':'Three-phase low-voltage busbars','Three separate copper bars carry the phase currents along the board. Insulated supports maintain spacing and support the bars mechanically.',[0,.82,-.42],[0,1.65,-.85],copper),
-  part('insulators','Busbar support insulators','Support the live bars and maintain electrical separation from the grounded metal cubicle structure.',[0,.55,-.42],[0,.75,-1.4],white),
-  part('incomer',hv?'Incoming vacuum circuit breaker':'Incoming air circuit breaker',hv?'A three-pole withdrawable VCB connects a source to this bus section. Its vacuum bottles interrupt the current when its contacts open.':'The incoming ACB connects the source to the low-voltage bus. Its air arc chutes divide and cool the arc during interruption.',[-1.12,-.4,.05],[-1.65,-.2,1.1],iron),
-  part('tie',hv?'Bus-section / feeder VCB':'Bus-section air circuit breaker','This representative cubicle can connect bus sections or serve a feeder. The simulator single-line diagram defines the actual connections and switching state.',[0,-.4,.05],[0,-.2,1.35],iron),
-  part('feeder',hv?'Outgoing feeder VCB':'Outgoing moulded-case breakers',hv?'Connects an outgoing high-voltage feeder to the bus. A withdrawable three-pole vacuum breaker is shown in the middle compartment.':'Individual moulded-case breakers switch and protect outgoing low-voltage circuits feeding auxiliary loads.',[1.12,-.4,.05],[1.65,-.2,1.1],iron),
-  part('ct','Current transformers','Insulated toroidal transformers surround the phase conductors. They supply scaled current signals to meters and protection relays.',[0,-.65,-.32],[1.4,-.2,-1.2],gold),
-  part('cable','Cable terminations & gland plate','Cable lugs connect each outgoing conductor to its terminal. Glands secure cables at the enclosure entry; high-voltage terminations also control electrical stress.',[0,-1.05,-.18],[0,-1.25,.3],copper),
-  part('earth','Protective earth bar & bonding straps','A dedicated protective earth bar bonds the cubicle metalwork to the vessel earthing system and provides a fault-current return path.',[0,-1.25,.42],[0,-1.8,1.4],copper),
-  part('wiring','Control wiring & terminal strips','Numbered terminal strips connect the meters, relays, auxiliary contacts and controls. Wiring ducts keep these low-voltage circuits organized.',[0,.5,.2],[0,1.3,-.1],blue)
-];}
+const thruster:PartSpec[]=[
+  part('tunnel','Thruster tunnel casing & flanges','Transverse cylindrical steel tunnel welded into the bow with external reinforcement ribs, upper mounting neck and flanged collars.',[0,0,0],[0,0,0],terracotta),
+  part('bracket','Pedestal mounting bracket & casing','Heavy-duty cast pedestal housing with bolted base flange, triangular gusset plates, coupling window and top motor deck.',[-.25,1.0,0],[-.25,2.6,0],terracotta),
+  part('motor','Vertical electric drive motor','High-output vertical marine squirrel-cage induction motor mounted atop the thruster pedestal with finned cooling stator frame.',[-.25,2.15,0],[-.25,5.2,0],motorGreen),
+  part('coupling','Splined input shaft & claw coupling','Machined vertical input shaft and interlocking jaw claw coupling transmitting high torque from the motor to the transmission.',[-.25,1.15,0],[-.25,3.8,0],polishedSteel),
+  part('vshaft','Vertical drive shaft, seals & bearings','Nickel-chrome alloy vertical drive shaft with double tapered roller bearings, bronze/copper lip seals and mounting flange.',[-.25,.35,0],[-.25,1.8,0],polishedSteel),
+  part('pinion','Spiral bevel pinion gear','Driving spiral bevel pinion gear mounted on the bottom of the vertical shaft meshing at 90° with the propeller shaft bevel ring gear.',[-.25,-.25,0],[-.25,.9,0],iron),
+  part('pod','Right-angle gear pod housing','Hydrodynamically streamlined torpedo-shaped bevel gearbox housing with rear tail cone and forward ribbed collar in an oil bath.',[0,-.45,0],[0,-.45,-2.2],terracotta),
+  part('hshaft','Horizontal propeller shaft & ring gear','Alloy steel propeller drive shaft with longitudinal keyway, driven spiral bevel ring gear and rear thrust bearing.',[.15,-.45,0],[-.9,-.45,-3.4],polishedSteel),
+  part('bearing','Propeller thrust bearing & seal','High-load marine thrust bearing and double-lip seal absorbing axial forward and reverse maneuvering thrust.',[.52,-.45,0],[.52,-.45,1.6],bronze),
+  part('hub','Propeller boss / hub','Precision-machined Cu3 nickel-aluminum bronze central hub keyed to the horizontal shaft, transferring torque to the 4 blades.',[.82,-.45,0],[.82,-.45,2.7],darkBronze),
+  part('blades','4-Blade skewed Kaplan propeller','Four high-skew Kaplan hydrofoil bronze blades engineered to deliver symmetrical bidirectional thrust with minimal cavitation.',[.82,-.45,0],[.82,-.45,2.7],goldBronze),
+  part('cap','Fairing nose cone cap & fasteners','Hydrodynamic hub nose cone cap, slotted castle lock nut and corrosion-resistant cap fasteners securing the propeller assembly.',[1.18,-.45,0],[1.18,-.45,3.9],polishedSteel)
+];
 
-export const detailedParts = {generator,breaker,'hv-board':boardParts(true),'lv-board':boardParts(false)};
+function boardParts(hv:boolean):PartSpec[]{
+  if(hv){
+    return [
+      part('enclosure','RAL 7032 Switchboard cubicles & plinth','Three-cubicle bolted steel enclosure (Incomer A, Center Bus-Tie, Feeder/Incomer B) with base plinth and internal segregated partitions.',[0,0,0],[0,0,-1.8],pebbleGrey),
+      part('canopy','IP22 Drip-proof canopy & top cable tray','Overhead sloped marine drip-proof canopy shield and perforated cable tray protecting against condensation or pipe leaks.',[0,1.42,0],[0,2.3,-.4],steel),
+      part('doors','Compartment doors & mimic diagram','Front access doors with chrome handles. Cubicle 1 door is open at 115° showing internal arrangement, while Cubicle 3 door shows the mimic bus line.',[0,0,.72],[-3.6,0,1.4],lightGreen),
+      part('meters','Analog meters & selector switches','Door-mounted 6.6 kV / 440 V analog voltmeters, ammeters, frequency meters and phase selector switches on front panels.',[0,.93,.81],[0,1.6,1.8],white),
+      part('pms','PMS display & protection relays','Digital microprocessor PMS (Power Management System) screen with cyan LCD telemetry readout and multifunction generator protection relays.',[0,.53,.82],[0,.85,2.1],cyanLcd),
+      part('bustie_switch','Bus-tie control switch & indicators','Center bus-tie rotary control switch (OPEN/CLOSE selector) with Red (TRIP/OPEN), Green (CLOSED), and Amber (SYNC) pilot lamps.',[0,-.15,.82],[0,-.3,2.2],statusGreen),
+      part('busbars','Main 3-phase copper busbars (L1, L2, L3)','Heavy horizontal and vertical copper busbars with Red (L1), Yellow (L2), Blue (L3), and Black neutral phase insulation.',[0,.82,-.38],[0,1.75,-.75],copper),
+      part('insulators','Busbar support insulators','Ribbed red DMC/epoxy compression-molded standoff insulators clamping busbars against short-circuit magnetic forces.',[0,.55,-.38],[0,.85,-1.3],red),
+      part('incomer','Withdrawable incomer breaker (ACB/VCB)','Three-pole withdrawable circuit breaker on draw-out racking rails with top arc chutes, rear disconnect stabs and front control fascia.',[-1.12,-.35,.08],[-1.65,-.2,1.2],iron),
+      part('bustie_breaker','Withdrawable bus-tie circuit breaker','Center cubicle withdrawable bus-tie breaker allowing parallel operation or split-bus segregation between Bus A and Bus B.',[0,-.35,.08],[0,-.2,1.4],iron),
+      part('bustie_copper','Bus-tie copper bridge connections','Heavy copper tie bars and phase links bridging Left Busbar A and Right Busbar B through the center bus-tie breaker.',[0,.25,-.12],[0,.9,1.1],copper),
+      part('feeder','Outgoing feeder circuit breakers','Bank of molded-case circuit breakers (MCCBs) with toggle handles switching and protecting outgoing auxiliary distribution circuits.',[1.12,-.35,.08],[1.65,-.2,1.2],iron),
+      part('ct','Current & potential transformers (CT/VT)','Toroidal ring CTs around vertical phase risers and epoxy-cast voltage transformers on shelf for metering and synchronizing.',[-.65,-.65,-.25],[1.2,-.2,-1.1],gold),
+      part('cable','Cable gland plate & armored feeders','Bottom steel gland plate with brass compression glands and heavy armored marine feeder cables exiting through base plinth.',[0,-1.05,-.18],[0,-1.35,.35],copper),
+      part('earth','Protective earth bar (PE) & bonding','Bare copper protective earthing bar bonded to the ship hull with M12 terminal lugs and green/yellow grounding conductor.',[0,-1.25,.42],[0,-1.85,1.5],copper),
+      part('wiring','Control wiring ducts & relays','Slotted grey PVC trunking, DIN-rail modular terminal blocks, plug-in auxiliary relays and surge protection devices (SPDs).',[0,.45,.22],[0,1.35,-.1],blue)
+    ];
+  }
+  return [
+    part('enclosure','Cubicle frame & segregated compartments','Bolted steel frames support the switchgear. Internal partitions separate busbars, switching equipment, cables and low-voltage control wiring.',[0,0,0],[0,0,-1.7]),
+    part('doors','Front doors, handles & mimic diagram','Compartment doors provide access to the equipment. The black mimic lines show the simplified electrical path; handles and inspection windows are shown on the breaker doors.',[0,0,.72],[-3.6,0,1.2],lightGreen),
+    part('meters','Analog meters & selector switches','Panel meters represent voltage, current and frequency indication. Selector switches choose the phase or measurement to display. The drawn needles are illustrative.',[0,.93,.81],[0,1.6,1.6],white),
+    part('relay','Protection relays & monitoring displays','Protective relays evaluate measured electrical quantities and issue breaker trip commands for configured faults. Displays and settings are illustrative in this connectivity simulator.',[0,.53,.82],[0,.75,2],black),
+    part('controls','Control switches & status lamps','Local controls issue open/close commands. Lamps represent running, available and trip indications; these model details are separate from the simulator switching controls.',[0,.14,.82],[0,-.15,2.2],green),
+    part('busbars','Three-phase low-voltage busbars','Three separate copper bars carry the phase currents along the board. Insulated supports maintain spacing and support the bars mechanically.',[0,.82,-.42],[0,1.65,-.85],copper),
+    part('insulators','Busbar support insulators','Support the live bars and maintain electrical separation from the grounded metal cubicle structure.',[0,.55,-.42],[0,.75,-1.4],white),
+    part('incomer','Incoming air circuit breaker','The incoming ACB connects the source to the low-voltage bus. Its air arc chutes divide and cool the arc during interruption.',[-1.12,-.4,.05],[-1.65,-.2,1.1],iron),
+    part('tie','Bus-section air circuit breaker','This representative cubicle can connect bus sections or serve a feeder. The simulator single-line diagram defines the actual connections and switching state.',[0,-.4,.05],[0,-.2,1.35],iron),
+    part('feeder','Outgoing feeder circuit breakers','Individual moulded-case breakers switch and protect outgoing low-voltage circuits feeding auxiliary loads.',[1.12,-.4,.05],[1.65,-.2,1.1],iron),
+    part('ct','Current transformers','Insulated toroidal transformers surround the phase conductors. They supply scaled current signals to meters and protection relays.',[0,-.65,-.32],[1.4,-.2,-1.2],gold),
+    part('cable','Cable terminations & gland plate','Cable lugs connect each outgoing conductor to its terminal. Glands secure cables at the enclosure entry; high-voltage terminations also control electrical stress.',[0,-1.05,-.18],[0,-1.25,.3],copper),
+    part('earth','Protective earth bar & bonding straps','A dedicated protective earth bar bonds the cubicle metalwork to the vessel earthing system and provides a fault-current return path.',[0,-1.25,.42],[0,-1.8,1.4],copper),
+    part('wiring','Control wiring & terminal strips','Numbered terminal strips connect the meters, relays, auxiliary contacts and controls. Wiring ducts keep these low-voltage circuits organized.',[0,.5,.2],[0,1.3,-.1],blue)
+  ];
+}
+
+export const detailedParts = {generator,breaker,'hv-board':boardParts(true),'lv-board':boardParts(false),thruster};
 
 function material(color:number,opacity=1){return new THREE.MeshStandardMaterial({color,metalness:.45,roughness:.36,transparent:opacity<1,opacity,depthWrite:opacity===1,side:THREE.DoubleSide});}
 function mesh(g:THREE.Group,geometry:THREE.BufferGeometry,pos:V,color:number,opacity=1){const m=new THREE.Mesh(geometry,material(color,opacity));m.position.set(...pos);g.add(m);return m;}
@@ -178,32 +219,313 @@ function switchUnit(g:THREE.Group,hv:boolean,feeders=false){
   else if(feeders){for(const x of [-.24,0,.24])for(const y of [-.23,.23]){box(g,[.2,.36,.3],[x,y,.05],black);box(g,[.05,.1,.07],[x,y,.24],steel);for(const z of [-.12,.22])box(g,[.13,.025,.03],[x,y+.2,z],copper);}}
   else{box(g,[.78,.7,.68],[0,0,0],black);box(g,[.65,.56,.04],[0,0,.37],iron);screen(g,-.09,.11,.41);for(const x of [-.16,.16])cyl(g,.04,.04,[x,-.17,.41],x<0?red:green,'z');for(const x of [-.23,0,.23]){for(let z=-.25;z<.3;z+=.07)box(g,[.17,.025,.035],[x,.4,z],steel);cyl(g,.04,.2,[x,-.45,-.15],copper,'y');}}
 }
+
+function thrusterGeometry(id:string,g:THREE.Group){
+  switch(id){
+    case 'tunnel':
+      cyl(g,.88,2.78,[0,0,0],terracotta,'x');
+      cyl(g,.83,2.82,[0,0,0],iron,'x');
+      for(const x of [-1.39,1.39]){
+        ring(g,.88,.075,[x,0,0],terracotta,'x');
+        ring(g,.88,.03,[x,0,0],polishedSteel,'x');
+        for(let i=0;i<12;i++){
+          const a=i*Math.PI/6;
+          cyl(g,.02,.05,[x,Math.cos(a)*.95,Math.sin(a)*.95],steel,'x');
+        }
+      }
+      for(const x of [-.75,0,.75])ring(g,.91,.04,[x,0,0],darkTerracotta,'x');
+      cyl(g,.45,.28,[-.25,.86,0],terracotta,'y');
+      ring(g,.48,.04,[-.25,.98,0],pebbleGrey,'y');
+      break;
+    case 'bracket':
+      cyl(g,.5,.08,[0,-.02,0],terracotta,'y');
+      for(let i=0;i<8;i++){
+        const a=i*Math.PI/4;
+        cyl(g,.022,.06,[Math.cos(a)*.44,-.02,Math.sin(a)*.44],steel,'y');
+      }
+      for(const z of [-.28,.28]){
+        box(g,[.4,.65,.08],[0,.32,z],terracotta);
+        box(g,[.12,.5,.2],[.18,.25,z*.8],pebbleGrey);
+        box(g,[.12,.5,.2],[-.18,.25,z*.8],pebbleGrey);
+      }
+      box(g,[.08,.65,.5],[-.18,.32,0],terracotta);
+      box(g,[.55,.08,.55],[0,.68,0],pebbleGrey);
+      ring(g,.3,.03,[0,.68,0],steel,'y');
+      break;
+    case 'motor':
+      cyl(g,.34,.9,[0,0,0],motorGreen,'y');
+      for(let i=0;i<12;i++){
+        const a=i*Math.PI/6;
+        box(g,[.02,.82,.04],[Math.cos(a)*.35,0,Math.sin(a)*.35],darkTerracotta);
+      }
+      cyl(g,.36,.08,[0,-.44,0],steel,'y');
+      cyl(g,.36,.08,[0,.44,0],steel,'y');
+      cyl(g,.28,.14,[0,.54,0],iron,'y');
+      ring(g,.12,.03,[0,.62,0],steel,'y');
+      box(g,[.18,.24,.18],[.32,.12,0],motorGreen);
+      box(g,[.03,.18,.12],[.42,.12,0],pebbleGrey);
+      break;
+    case 'coupling':
+      cyl(g,.09,.42,[0,.12,0],polishedSteel,'y');
+      for(let i=0;i<6;i++){
+        const a=i*Math.PI/3;
+        box(g,[.015,.28,.02],[Math.cos(a)*.095,.18,Math.sin(a)*.095],iron);
+      }
+      cyl(g,.18,.14,[0,-.08,0],polishedSteel,'y');
+      cyl(g,.18,.14,[0,-.24,0],iron,'y');
+      for(let i=0;i<4;i++){
+        const a=i*Math.PI/2;
+        box(g,[.05,.12,.05],[Math.cos(a)*.14,-.16,Math.sin(a)*.14],steel);
+      }
+      break;
+    case 'vshaft':
+      cyl(g,.08,.85,[0,0,0],polishedSteel,'y');
+      for(const y of [-.22,.22]){
+        cyl(g,.17,.12,[0,y,0],iron,'y');
+        ring(g,.17,.02,[0,y,0],polishedSteel,'y');
+        ring(g,.12,.015,[0,y,0],copperSeal,'y');
+      }
+      ring(g,.11,.02,[0,-.38,0],copperSeal,'y');
+      break;
+    case 'pinion':
+      cyl(g,.14,.12,[0,.06,0],iron,'y');
+      cyl(g,.18,.14,[0,-.04,0],gold,'y');
+      for(let i=0;i<8;i++){
+        const a=i*Math.PI/4;
+        box(g,[.035,.12,.06],[Math.cos(a)*.14,-.04,Math.sin(a)*.14],steel);
+      }
+      break;
+    case 'pod':
+      cyl(g,.34,.88,[0,0,0],terracotta,'x');
+      cyl(g,.24,.32,[-.52,0,0],terracotta,'x');
+      ring(g,.24,.03,[-.64,0,0],darkTerracotta,'x');
+      cyl(g,.36,.22,[.48,0,0],darkTerracotta,'x');
+      for(let i=0;i<8;i++){
+        const a=i*Math.PI/4;
+        box(g,[.18,.04,.04],[.48,Math.cos(a)*.36,Math.sin(a)*.36],iron);
+      }
+      cyl(g,.26,.45,[-.25,.38,0],terracotta,'y');
+      break;
+    case 'hshaft':
+      cyl(g,.09,1.12,[0,0,0],polishedSteel,'x');
+      cyl(g,.26,.08,[-.4,0,0],gold,'x');
+      for(let i=0;i<12;i++){
+        const a=i*Math.PI/6;
+        box(g,[.07,.035,.06],[-.4,Math.cos(a)*.23,Math.sin(a)*.23],steel);
+      }
+      cyl(g,.15,.1,[-.22,0,0],iron,'x');
+      box(g,[.35,.02,.02],[.3,.09,0],iron);
+      break;
+    case 'bearing':
+      cyl(g,.22,.14,[0,0,0],bronze,'x');
+      ring(g,.22,.025,[0,0,0],gold,'x');
+      ring(g,.15,.02,[.06,0,0],copperSeal,'x');
+      ring(g,.15,.02,[-.06,0,0],copperSeal,'x');
+      break;
+    case 'hub':
+      cyl(g,.22,.32,[0,0,0],darkBronze,'x');
+      ring(g,.22,.03,[.12,0,0],bronze,'x');
+      ring(g,.22,.03,[-.12,0,0],bronze,'x');
+      for(let i=0;i<4;i++){
+        const a=i*Math.PI/2;
+        cyl(g,.08,.04,[0,Math.cos(a)*.2,Math.sin(a)*.2],bronze,'x');
+        for(let b=0;b<4;b++){
+          const ba=b*Math.PI/2;
+          cyl(g,.012,.03,[.04,Math.cos(a)*.2+Math.cos(ba)*.05,Math.sin(a)*.2+Math.sin(ba)*.05],polishedSteel,'x');
+        }
+      }
+      break;
+    case 'blades':
+      for(let i=0;i<4;i++){
+        const a=i*Math.PI/2;
+        const bGroup=new THREE.Group();
+        bGroup.rotation.x=a;
+        const shape=new THREE.Shape();
+        shape.moveTo(-.08,.22);
+        shape.bezierCurveTo(-.24,.38,-.28,.64,-.14,.79);
+        shape.bezierCurveTo(-.03,.85,.18,.82,.26,.68);
+        shape.bezierCurveTo(.28,.5,.18,.34,.08,.22);
+        shape.closePath();
+        const bladeGeo=new THREE.ExtrudeGeometry(shape,{depth:.03,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:2});
+        bladeGeo.center();
+        const posAttr=bladeGeo.attributes.position;
+        for(let k=0;k<posAttr.count;k++){
+          const bx=posAttr.getX(k),by=posAttr.getY(k),bz=posAttr.getZ(k);
+          const t=(by+.3)/.6;
+          const twist=0.48-t*.26;
+          const rx=bx*Math.cos(twist)-bz*Math.sin(twist);
+          const rz=bx*Math.sin(twist)+bz*Math.cos(twist);
+          posAttr.setXYZ(k,rx,by+.48,rz);
+        }
+        bladeGeo.computeVertexNormals();
+        const bladeMesh=new THREE.Mesh(bladeGeo,material(goldBronze));
+        bGroup.add(bladeMesh);
+        cyl(bGroup,.065,.05,[0,.22,0],bronze,'y');
+        g.add(bGroup);
+      }
+      break;
+    case 'cap':
+      cyl(g,.18,.22,[0,0,0],darkBronze,'x');
+      const coneGeo=new THREE.ConeGeometry(.18,.25,24);
+      coneGeo.rotateZ(-Math.PI/2);
+      mesh(g,coneGeo,[.2,0,0],darkBronze);
+      cyl(g,.09,.06,[-.08,0,0],polishedSteel,'x');
+      for(let i=0;i<6;i++){
+        const a=i*Math.PI/3;
+        box(g,[.03,.02,.02],[-.08,Math.cos(a)*.09,Math.sin(a)*.09],iron);
+      }
+      break;
+  }
+}
+
 function boardGeometry(id:string,g:THREE.Group,hv:boolean){
   const bays=[-1.12,0,1.12];
   switch(id){
+    case 'canopy':
+      box(g,[3.56,.06,1.48],[0,0,0],steel);
+      for(const z of [-.75,.75])box(g,[3.58,.16,.08],[0,-.06,z],pebbleGrey);
+      box(g,[3.4,.04,.45],[0,.12,-.2],steel);
+      for(let x=-1.5;x<1.6;x+=.2)box(g,[.03,.02,.42],[x,.14,-.2],iron);
+      break;
     case 'enclosure':
-      for(const y of [-1.36,1.36])box(g,[3.5,.1,1.45],[0,y,0],green);
-      for(const x of [-1.73,-.56,.56,1.73]){box(g,[.055,2.68,1.4],[x,0,0],green);box(g,[.11,2.7,.07],[x,0,.68],lightGreen);}
-      box(g,[3.46,2.65,.055],[0,0,-.7],green);for(const y of [-.95,.3])box(g,[3.4,.04,1.34],[0,y,0],steel);break;
+      box(g,[3.5,.18,1.42],[0,-1.32,0],darkPlinth);
+      box(g,[3.5,.1,1.42],[0,1.32,0],pebbleGrey);
+      for(const x of [-1.72,-.56,.56,1.72]){
+        box(g,[.055,2.55,1.4],[x,-.04,0],pebbleGrey);
+        box(g,[.11,2.58,.07],[x,-.04,.68],steel);
+      }
+      box(g,[3.46,2.55,.055],[0,-.04,-.68],pebbleGrey);
+      for(const y of [-.9,.32])box(g,[3.4,.04,1.34],[0,y,0],steel);
+      break;
     case 'doors':
-      for(const x of bays){box(g,[1.07,1.15,.045],[x,.7,0],lightGreen);box(g,[1.07,1.31,.045],[x,-.6,0],lightGreen);
-        box(g,[.54,.5,.035],[x,-.39,.045],black);box(g,[.44,.4,.012],[x,-.39,.07],steel,.2);
-        for(const y of [-.65,.45])box(g,[.045,.28,.1],[x+.43,y,.055],black);
-        for(let y=-1.18;y<-.9;y+=.055)box(g,[.7,.018,.01],[x,y,.03],iron);
-        box(g,[.64,.09,.015],[x,1.18,.035],iron);
-        box(g,[.016,.38,.012],[x,-.08,.034],black);box(g,[.8,.016,.012],[x,.06,.034],black);
-        for(const dx of [-.45,.45])for(const y of [-1.22,1.23])cyl(g,.015,.018,[x+dx,y,.035],steel,'z');}break;
-    case 'meters':for(const x of bays){for(const dx of [-.28,0,.28])gauge(g,x+dx,0,0);for(const dx of [-.2,.2])cyl(g,.045,.045,[x+dx,-.21,0],black,'z');}break;
-    case 'relay':for(const x of bays)screen(g,x,0,0);break;
-    case 'controls':for(const x of bays){for(let i=0;i<4;i++)cyl(g,.035,.04,[x-.3+i*.2,.02,0],[red,green,yellow,white][i],'z');for(const dx of [-.23,.23]){cyl(g,.045,.05,[x+dx,-.19,0],black,'z');box(g,[.025,.07,.025],[x+dx,-.19,.04],steel);}}break;
-    case 'busbars':for(const z of [-.17,0,.17]){box(g,[3.24,.08,.095],[0,0,z],copper);for(const x of bays){box(g,[.08,.45,.095],[x,-.22,z],copper);cyl(g,.027,.035,[x,.06,z],steel,'y');}}break;
-    case 'insulators':for(const x of bays)for(const z of [-.17,0,.17]){cyl(g,.06,.3,[x,0,z],white,'y');for(const y of [-.1,0,.1])ring(g,.075,.015,[x,y,z],white,'y');}break;
-    case 'incomer':case 'tie':case 'feeder':switchUnit(g,hv,id==='feeder');break;
-    case 'ct':for(const x of bays)for(const dx of [-.23,0,.23]){ring(g,.09,.045,[x+dx,0,0],gold,'y');cyl(g,.025,.32,[x+dx,0,0],copper,'y');}break;
+      if(hv){
+        // Cubicle 1 open 115°
+        const d1=new THREE.Group();
+        d1.position.set(-1.68,0,.72);
+        d1.rotation.y=-2.0;
+        box(d1,[1.07,1.15,.045],[.54,.7,0],pebbleGrey);
+        box(d1,[1.07,1.25,.045],[.54,-.58,0],pebbleGrey);
+        box(d1,[.045,.28,.1],[1.0,.45,.055],polishedSteel);
+        box(d1,[.045,.28,.1],[1.0,-.65,.055],polishedSteel);
+        g.add(d1);
+        for(const x of [0,1.12]){
+          box(g,[1.07,1.15,.045],[x,.7,0],pebbleGrey);
+          box(g,[1.07,1.25,.045],[x,-.58,0],pebbleGrey);
+          box(g,[.54,.48,.035],[x,-.38,.045],black);
+          box(g,[.44,.38,.012],[x,-.38,.07],steel,.25);
+          for(const y of [-.65,.45])box(g,[.045,.28,.1],[x+.45,y,.055],polishedSteel);
+          for(let y=-1.15;y<-.88;y+=.055)box(g,[.7,.018,.01],[x,y,.03],iron);
+          box(g,[.64,.09,.015],[x,1.18,.035],iron);
+          box(g,[.02,.38,.012],[x,-.08,.035],black);
+          box(g,[.8,.02,.012],[x,.06,.035],black);
+          for(const dx of [-.48,.48])for(const y of [-1.15,1.18])cyl(g,.016,.02,[x+dx,y,.035],steel,'z');
+        }
+      }else{
+        for(const x of bays){
+          box(g,[1.07,1.15,.045],[x,.7,0],pebbleGrey);
+          box(g,[1.07,1.31,.045],[x,-.6,0],pebbleGrey);
+          box(g,[.54,.5,.035],[x,-.39,.045],black);
+          box(g,[.44,.4,.012],[x,-.39,.07],steel,.2);
+          for(const y of [-.65,.45])box(g,[.045,.28,.1],[x+.43,y,.055],black);
+          for(let y=-1.18;y<-.9;y+=.055)box(g,[.7,.018,.01],[x,y,.03],iron);
+          box(g,[.64,.09,.015],[x,1.18,.035],iron);
+          box(g,[.016,.38,.012],[x,-.08,.034],black);
+          box(g,[.8,.016,.012],[x,.06,.034],black);
+          for(const dx of [-.45,.45])for(const y of [-1.22,1.23])cyl(g,.015,.018,[x+dx,y,.035],steel,'z');
+        }
+      }
+      break;
+    case 'meters':
+      for(const x of bays){
+        for(const dx of [-.28,0,.28])gauge(g,x+dx,0,0);
+        for(const dx of [-.2,.2])cyl(g,.045,.045,[x+dx,-.21,0],black,'z');
+      }
+      break;
+    case 'pms': case 'relay':
+      for(const x of bays){
+        box(g,[.44,.28,.07],[x,0,0],black);
+        box(g,[.34,.16,.008],[x,0,.04],cyanLcd);
+        for(let i=0;i<4;i++)box(g,[.05,.015,.01],[x-.1+i*.07,.04,.045],white);
+        for(let i=0;i<5;i++)cyl(g,.015,.015,[x-.12+i*.06,-.06,.045],white,'z');
+      }
+      break;
+    case 'bustie_switch': case 'controls':
+      for(const x of bays){
+        cyl(g,.035,.04,[x-.2,.04,0],statusRed,'z');
+        cyl(g,.035,.04,[x,.04,0],statusGreen,'z');
+        cyl(g,.035,.04,[x+.2,.04,0],yellow,'z');
+        cyl(g,.05,.055,[x,-.16,0],black,'z');
+        box(g,[.025,.08,.025],[x,-.16,.035],steel);
+      }
+      break;
+    case 'busbars':
+      const phaseColors=[statusRed,yellow,blue];
+      const zs=[-.22,0,.22];
+      for(let i=0;i<3;i++){
+        const z=zs[i];
+        box(g,[3.3,.08,.095],[0,0,z],copper);
+        for(const x of bays){
+          box(g,[.1,.085,.1],[x,0,z],phaseColors[i]);
+          box(g,[.08,.48,.095],[x,-.24,z],copper);
+          cyl(g,.027,.035,[x,.06,z],polishedSteel,'y');
+        }
+      }
+      break;
+    case 'insulators':
+      for(const x of bays)for(const z of [-.22,0,.22]){
+        cyl(g,.065,.32,[x,0,z],red,'y');
+        for(const y of [-.1,0,.1])ring(g,.08,.018,[x,y,z],darkTerracotta,'y');
+      }
+      break;
+    case 'incomer':
+      switchUnit(g,hv,false);
+      break;
+    case 'bustie_breaker': case 'tie':
+      switchUnit(g,hv,false);
+      break;
+    case 'bustie_copper':
+      for(const z of [-.18,0,.18]){
+        box(g,[1.45,.07,.08],[0,0,z],copper);
+        for(const x of [-.5,0,.5]){
+          box(g,[.07,.35,.08],[x,-.15,z],copper);
+          cyl(g,.025,.03,[x,.05,z],polishedSteel,'y');
+        }
+      }
+      break;
+    case 'feeder':
+      switchUnit(g,hv,true);
+      break;
+    case 'ct':
+      for(const x of bays)for(const dx of [-.24,0,.24]){
+        ring(g,.095,.048,[x+dx,0,0],gold,'y');
+        cyl(g,.026,.34,[x+dx,0,0],copper,'y');
+        box(g,[.12,.15,.12],[x+dx,-.16,-.12],darkTerracotta);
+      }
+      break;
     case 'cable':
-      box(g,[3.3,.06,.7],[0,-.16,0],steel);for(const x of bays)for(const dx of [-.23,0,.23]){cyl(g,.04,.48,[x+dx,0,0],black,'y');cyl(g,.048,.13,[x+dx,.28,0],copper,'y');ring(g,.06,.02,[x+dx,-.11,0],steel,'y');}break;
-    case 'earth':box(g,[3.24,.07,.07],[0,0,0],copper);for(const x of bays){cyl(g,.028,.045,[x,.05,0],steel,'y');pipe(g,[[x,0,0],[x,-.08,.15],[x+.2,-.08,.23]],.018,0x779a40);}break;
-    case 'wiring':for(const x of bays){box(g,[.76,.055,.15],[x,0,0],steel);for(let i=0;i<10;i++){box(g,[.055,.12,.12],[x-.32+i*.07,.05,0],white);pipe(g,[[x-.32+i*.07,.1,0],[x-.32+i*.07,.2,-.02],[x+.4,.3,-.06]],.006,blue);}}break;
+      box(g,[3.3,.06,.72],[0,-.16,0],steel);
+      for(const x of bays)for(const dx of [-.24,0,.24]){
+        cyl(g,.042,.52,[x+dx,0,0],black,'y');
+        cyl(g,.05,.14,[x+dx,.28,0],copper,'y');
+        ring(g,.065,.022,[x+dx,-.12,0],gold,'y');
+      }
+      break;
+    case 'earth':
+      box(g,[3.3,.07,.07],[0,0,0],copper);
+      for(const x of bays){
+        cyl(g,.028,.045,[x,.05,0],polishedSteel,'y');
+        pipe(g,[[x,0,0],[x,-.08,.15],[x+.2,-.08,.23]],.018,0x779a40);
+      }
+      break;
+    case 'wiring':
+      for(const x of bays){
+        box(g,[.78,.055,.16],[x,0,0],pebbleGrey);
+        for(let i=0;i<10;i++){
+          box(g,[.055,.12,.12],[x-.32+i*.07,.05,0],white);
+          pipe(g,[[x-.32+i*.07,.1,0],[x-.32+i*.07,.2,-.02],[x+.4,.3,-.06]],.006,blue);
+        }
+      }
+      break;
   }
 }
 
@@ -212,9 +534,8 @@ export function buildDetailedPart(type:ModelType,spec:PartSpec):THREE.Group|unde
   const g=new THREE.Group();
   if(type==='generator')generatorGeometry(spec.id,g);
   else if(type==='breaker')breakerGeometry(spec.id,g);
+  else if(type==='thruster')thrusterGeometry(spec.id,g);
   else boardGeometry(spec.id,g,type==='hv-board');
-  // Batch decorative geometry by finish within each teaching part. Selection
-  // remains per part, while four gensets do not require thousands of draw calls.
   g.updateMatrixWorld(true);
   const batches=new Map<string,{material:THREE.MeshStandardMaterial;geometries:THREE.BufferGeometry[]}>();
   g.traverse(o=>{if(o instanceof THREE.Mesh){
@@ -229,5 +550,6 @@ export function buildDetailedPart(type:ModelType,spec:PartSpec):THREE.Group|unde
     if(geometry)g.add(new THREE.Mesh(geometry,batch.material));
     batch.geometries.forEach(geometry=>geometry.dispose());
   }
+  if(spec.id==='blades')g.userData.spinImpeller=true;
   return g;
 }

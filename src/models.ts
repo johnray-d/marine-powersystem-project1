@@ -39,14 +39,7 @@ export const modelParts:Record<ModelType,PartSpec[]> = {
     p('terminal','Terminal box','Receives the controlled electrical supply from the propulsion drive.','box',[-0.35,0.95,0],[0.9,0.4,0.68],teal),
     p('fan','Cooling fan and guard','Moves cooling air over the motor frame; the guard keeps objects away from the fan.','cylinder',[-1.42,0,0],[.28,1.36,1.36],steel)
   ],
-  thruster:[
-    p('tunnel','Thruster tunnel','Opening through the hull where water is driven sideways.','cylinder',[0,0,0],[2.8,1.75,1.75],navy),
-    p('motor','Electric motor','Drives the thruster propeller through a shaft or gearbox.','cylinder',[0,1.15,0],[1.35,0.7,0.7],blue),
-    p('gear','Gearbox / drive shaft','Transfers motor rotation to the propeller axis.','cylinder',[0,0.35,0],[0.35,1.25,0.35],steel),
-    p('hub','Propeller hub','Connects blades to the rotating shaft.','sphere',[0,-0.2,0],[0.5,0.5,0.5],copper),
-    p('blades','Propeller blades','Push water sideways to maneuver the vessel.','blade',[0,-0.2,0],[1.5,0.18,0.24],teal),
-    p('bearing','Shaft bearing housing','Supports the propeller shaft within the thruster drive assembly.','cylinder',[.54,-.2,0],[.35,.44,.44],steel)
-  ],
+  thruster:detailedParts.thruster,
   reefer:[
     p('cabinet','Reefer distribution cabinet','Houses the group feeder and individual outlet protection.','box',[0,0,0],[2.7,2.35,1.2],navy),
     p('incomer','Incoming feeder','Brings power from the low-voltage switchboard.','box',[-0.72,0.35,0.7],[0.7,0.95,0.25],blue),

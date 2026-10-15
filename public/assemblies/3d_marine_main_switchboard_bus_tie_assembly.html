@@ -1,0 +1,2428 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marine Main Switchboard & Bus-Tie — 3D Explodable CAD Assembly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #090e17;
+            color: #f1f5f9;
+            user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at 50% 42%, #1e293b 0%, #0f172a 65%, #060a12 100%);
+        }
+        body.light-studio #canvas-container {
+            background: radial-gradient(circle at 50% 42%, #f8fafc 0%, #e2e8f0 68%, #cbd5e1 100%);
+        }
+        .cad-grid-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background-image:
+                linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+            background-size: 36px 36px;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        body.light-studio .glass-panel {
+            background: rgba(15, 23, 42, 0.9);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f59e0b;
+            border: 2px solid #fff;
+            margin-top: -7px;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.75);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.14);
+            background: #fbbf24;
+        }
+        /* Numbered Callout Pins */
+        .callout-pin {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.2s ease;
+            z-index: 15;
+        }
+        .callout-pin:hover {
+            transform: translate(-50%, -50%) scale(1.15);
+            z-index: 30;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.55);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
+
+    <!-- 3D WebGL Viewport -->
+    <div id="canvas-container"></div>
+    <div class="cad-grid-overlay"></div>
+
+    <!-- SVG Leader Lines Overlay -->
+    <svg id="leader-svg" class="fixed inset-0 w-full h-full pointer-events-none z-10"></svg>
+
+    <!-- Floating Numbered Callout Pins Container -->
+    <div id="pins-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- Top Navigation & View Header -->
+    <header class="fixed top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <!-- Equipment Identity -->
+        <div class="glass-panel px-4 py-2.5 rounded-xl flex items-center gap-3.5 pointer-events-auto shadow-2xl">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center shadow-inner border border-amber-300/30">
+                <svg class="w-6 h-6 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 mono">IEC 60092-302 MSB</span>
+                    <span id="bus-state-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono">440V AC 60Hz • BUS-TIE CLOSED</span>
+                </div>
+                <h1 class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">Marine Main Switchboard — Internal Arrangement &amp; Bus-Tie Assembly</h1>
+            </div>
+        </div>
+
+        <!-- Camera Presets & Display Modes -->
+        <div class="glass-panel p-1.5 rounded-xl flex flex-wrap items-center gap-1.5 pointer-events-auto shadow-2xl">
+            <button onclick="setCameraPreset('open_cubicle')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition" title="Focus on Cubicle 1 Open Door Internal Arrangement (Reference 2)">
+                Open Cubicle (Ref 2)
+            </button>
+            <button onclick="setCameraPreset('bustie_front')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition" title="Full 3-Cubicle Bus-Tie Arrangement View (Reference 3)">
+                Bus-Tie Lineup (Ref 3)
+            </button>
+            <button onclick="setCameraPreset('ecr_corridor')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition" title="Engine Control Room Switchboard Perspective (Reference 1)">
+                ECR Perspective (Ref 1)
+            </button>
+            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+            <!-- Master Prominent Labels Toggle Button -->
+            <button id="btn-labels-top" onclick="toggleCalloutPins()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50 hover:bg-sky-500/35 shadow-sm transition flex items-center gap-1.5" title="Toggle all 2D Callout Labels & 3D Anchor Dots (Keyboard Shortcut: L)">
+                <span id="dot-labels-top" class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                <span id="txt-labels-top">Labels: ON</span>
+                <span class="text-[10px] px-1 rounded bg-slate-900/80 text-sky-200 mono">L</span>
+            </button>
+            <button id="btn-xray" onclick="toggleEnclosureXRay()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                X-Ray Enclosure
+            </button>
+            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                Light Studio
+            </button>
+        </div>
+    </header>
+
+    <!-- Left Panel: Keyed Component Legend (1-15) -->
+    <aside class="fixed top-20 left-3 bottom-28 w-76 z-20 flex flex-col gap-2 pointer-events-none hidden lg:flex" style="width: 300px;">
+        <div class="glass-panel rounded-xl p-3.5 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-700/80">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Keyed Switchboard BOM (15)</h2>
+                    <p class="text-[11px] text-slate-400">Click any pin or item to inspect</p>
+                </div>
+                <button onclick="selectPart(null)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition">
+                    Show All
+                </button>
+            </div>
+
+            <!-- Scrollable BOM List -->
+            <div id="bom-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+
+            <!-- Material & Phase Color Legend -->
+            <div class="pt-2.5 mt-2 border-t border-slate-700/80 space-y-1.5 text-[11px] text-slate-400 mono">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Marine Phase &amp; Busbar Coding</div>
+                <div class="grid grid-cols-3 gap-1">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block"></span>L1 (Red)</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span>L2 (Yellow)</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>L3 (Blue)</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-sky-600 inline-block"></span>N (Neutral)</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#d97742] inline-block"></span>ETP Copper</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span>PE Earth</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Panel: Component Inspector, Door Hinges & Bus-Tie State Controller -->
+    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-11rem)] overflow-y-auto pr-0.5">
+        <!-- Selected Component Specification Card -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span id="part-pin-badge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 mono">SYS-MSB</span>
+                        <span id="part-ref-badge" class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 mono">Ref 1, 2 &amp; 3</span>
+                    </div>
+                    <h3 id="part-title" class="text-sm sm:text-base font-bold text-white mt-1.5">3-Cubicle Marine Main Switchboard</h3>
+                </div>
+                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 font-medium transition shrink-0">
+                    Isolate
+                </button>
+            </div>
+            <p id="part-desc" class="text-xs text-slate-300 leading-relaxed mt-2">
+                Dead-front, drip-proof marine main switchboard (RAL 7032) segregated into Generator 1 Incomer (Cubicle 1 with open inspection door), Central Bus-Tie Breaker Section (Cubicle 2), and Generator 2 Incomer (Cubicle 3).
+            </p>
+            <div class="mt-3 pt-2.5 border-t border-slate-700/70 grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-slate-900/75 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Material / Spec</span>
+                    <span id="part-material" class="text-slate-100 font-semibold mono text-[11px]">RAL 7032 Steel &amp; Cu-ETP</span>
+                </div>
+                <div class="bg-slate-900/75 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Removal Axis</span>
+                    <span id="part-axis" class="text-amber-300 font-semibold mono text-[11px]">+Z Draw-out &amp; -Z Rear</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enclosure Doors & Bus-Tie Switching Control Panel -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl space-y-3">
+            <!-- Hinged Cubicle Doors Control -->
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Cubicle Hinged Doors</span>
+                    <span class="text-[10px] text-amber-400 mono">Door 1 Open at 0%</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button id="btn-door-1" onclick="toggleDoor(1)" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition">
+                        Door 1: OPEN
+                    </button>
+                    <button id="btn-door-2" onclick="toggleDoor(2)" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        Bus-Tie: OPEN
+                    </button>
+                    <button id="btn-door-3" onclick="toggleDoor(3)" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        Door 3: SHUT
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bus-Tie & Incomer Switching State -->
+            <div class="pt-2.5 border-t border-slate-800">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Bus-Tie Switching State</span>
+                    <span id="energized-readout" class="text-[11px] font-bold text-emerald-400 mono">PARALLEL BUS</span>
+                </div>
+
+                <!-- Single-Line Mimic Status Diagram -->
+                <div class="bg-slate-950/90 rounded-lg p-2.5 border border-slate-800 mb-2.5">
+                    <svg class="w-full h-14" viewBox="0 0 240 56">
+                        <!-- Gen 1 & Gen 2 Circles -->
+                        <circle id="mimic-g1" cx="45" cy="12" r="9" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
+                        <text x="45" y="15" text-anchor="middle" fill="#ecfdf5" font-size="8" font-family="monospace" font-weight="bold">G1</text>
+
+                        <circle id="mimic-g2" cx="195" cy="12" r="9" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
+                        <text x="195" y="15" text-anchor="middle" fill="#ecfdf5" font-size="8" font-family="monospace" font-weight="bold">G2</text>
+
+                        <!-- Incomer Vertical Feeds -->
+                        <line id="mimic-in1" x1="45" y1="21" x2="45" y2="36" stroke="#10b981" stroke-width="3"/>
+                        <line id="mimic-in2" x1="195" y1="21" x2="195" y2="36" stroke="#10b981" stroke-width="3"/>
+
+                        <!-- Main Bus 1 & Main Bus 2 -->
+                        <line id="mimic-bus1" x1="16" y1="36" x2="104" y2="36" stroke="#f59e0b" stroke-width="4"/>
+                        <line id="mimic-bus2" x1="136" y1="36" x2="224" y2="36" stroke="#f59e0b" stroke-width="4"/>
+
+                        <!-- Bus-Tie Breaker Symbol in Center -->
+                        <rect id="mimic-tie-box" x="104" y="29" width="32" height="14" rx="2" fill="#065f46" stroke="#34d399" stroke-width="1.5"/>
+                        <line id="mimic-tie-bar" x1="108" y1="36" x2="132" y2="36" stroke="#34d399" stroke-width="2.5"/>
+                        <text x="120" y="25" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">BUS-TIE</text>
+
+                        <!-- Outgoing Feeders -->
+                        <line id="mimic-f1" x1="30" y1="36" x2="30" y2="52" stroke="#10b981" stroke-width="2"/>
+                        <line id="mimic-f2" x1="75" y1="36" x2="75" y2="52" stroke="#10b981" stroke-width="2"/>
+                        <line id="mimic-f3" x1="165" y1="36" x2="165" y2="52" stroke="#10b981" stroke-width="2"/>
+                        <line id="mimic-f4" x1="210" y1="36" x2="210" y2="52" stroke="#10b981" stroke-width="2"/>
+                    </svg>
+                </div>
+
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button id="btn-mode-parallel" onclick="setSwitchingMode('parallel')" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 transition">
+                        Tie CLOSED
+                    </button>
+                    <button id="btn-mode-split" onclick="setSwitchingMode('split')" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        Tie OPEN (Split)
+                    </button>
+                    <button id="btn-mode-isolated" onclick="setSwitchingMode('isolated')" class="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        De-Energized
+                    </button>
+                </div>
+            </div>
+
+            <!-- Prominent Labels Master Toggle & Filter Section -->
+            <div class="pt-2.5 border-t border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Component Labels</span>
+                    <span class="text-[10px] text-slate-400 mono">Press [L] Key</span>
+                </div>
+                <button id="btn-labels-panel" onclick="toggleCalloutPins()" class="w-full py-2 px-3 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50 hover:bg-sky-500/35 transition flex items-center justify-between shadow-inner">
+                    <span class="flex items-center gap-2">
+                        <span id="dot-labels-panel" class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+                        <span id="txt-labels-panel">Labels: ON</span>
+                    </span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-900/90 text-slate-300 mono">Master Switch</span>
+                </button>
+                <!-- Secondary Label Filter Buttons -->
+                <div id="label-filter-group" class="grid grid-cols-3 gap-1 pt-0.5">
+                    <button id="btn-filter-all" onclick="setLabelFilter('all')" class="py-1 px-1.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition">
+                        All Labels
+                    </button>
+                    <button id="btn-filter-internal" onclick="setLabelFilter('internal')" class="py-1 px-1.5 rounded text-[10px] font-medium bg-slate-800/90 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        Internal Arrangement
+                    </button>
+                    <button id="btn-filter-bustie" onclick="setLabelFilter('bustie')" class="py-1 px-1.5 rounded text-[10px] font-medium bg-slate-800/90 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                        Bus-Tie &amp; Exterior
+                    </button>
+                </div>
+            </div>
+
+            <!-- Auxiliary Display Checkboxes -->
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300" title="Highlight active 440V copper busbar power path">
+                    <input type="checkbox" id="chk-power-glow" checked onchange="togglePowerHighlight(this.checked)" class="rounded accent-amber-400">
+                    <span>Energized Bus Glow</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300" title="Toggle overhead IP22 drip-proof canopy shield & top cable tray">
+                    <input type="checkbox" id="chk-driphood" checked onchange="toggleDripCanopy(this.checked)" class="rounded accent-amber-400">
+                    <span>IP22 Drip Canopy</span>
+                </label>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bottom Master Explosion Controller -->
+    <footer class="fixed bottom-3 left-3 right-3 z-30 flex justify-center pointer-events-none">
+        <div class="glass-panel px-5 py-3.5 rounded-2xl w-full max-w-3xl pointer-events-auto shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-400 mono flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                        Switchboard Draw-Out &amp; Explosion
+                    </span>
+                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold mono">0% (Door 1 Open)</span>
+                </div>
+
+                <!-- Stage Presets -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-600/25 transition">
+                        0% Assembled (Door Open)
+                    </button>
+                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        45% Sub-Assy
+                    </button>
+                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        100% Exploded
+                    </button>
+                </div>
+            </div>
+
+            <!-- Slider -->
+            <div class="flex items-center gap-4">
+                <span class="text-[11px] font-medium text-slate-400 mono">ASSEMBLED</span>
+                <input id="explode-slider" type="range" min="0" max="100" value="0" class="w-full" oninput="onExplodeSliderChange(this.value)">
+                <span class="text-[11px] font-medium text-slate-400 mono">EXPLODED</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // 1. GLOBAL STATE & SWITCHBOARD ENGINEERING BOM (18 KEYED ASSEMBLIES)
+        // ============================================================================
+        let scene, camera, renderer, controls;
+        let explodeFactor = 0.0; // Starts at 0% Assembled with Cubicle 1 Door Open at 115 deg
+        let targetExplodeFactor = 0.0;
+        let isAnimatingExplode = false;
+
+        let isEnclosureXRay = false;
+        let showCalloutPins = true;
+        let labelFilterMode = 'all'; // 'all' | 'internal' | 'bustie'
+        let showPowerGlow = true;
+        let showDripCanopy = true;
+        let switchingMode = 'parallel'; // 'parallel', 'split', 'isolated'
+        let selectedPartId = null;
+        let isIsolated = false;
+
+        // Independent Door Hinge States (Door 1 is open 115 deg by default even when assembled!)
+        const doorState = {
+            1: { isOpen: true, currentAngle: 2.01, targetAngle: 2.01, pivot: null },   // Left Bay Door 1 open 115 deg
+            2: { isOpen: true, currentAngle: -1.92, targetAngle: -1.92, pivot: null }, // Center Bus-Tie Door 2 open by default to show Bus-Tie ACB
+            3: { isOpen: false, currentAngle: 0.0, targetAngle: 0.0, pivot: null }     // Right Bay Door 3 closed to showcase exterior mimic faceplate
+        };
+
+        const assemblyRoot = new THREE.Group();
+        const partGroups = {};
+        const subExplodeActors = []; // Additional sub-meshes that translate along local axes (+/-X, +/-Y, +/-Z)
+        const anchorDotMeshes = {};
+        const anchorDotsGroup = new THREE.Group();
+        const enclosureShellMaterials = [];
+        const busbarGlowMaterials = { bus1: [], busTie: [], bus2: [] };
+        let cadTraceLinesGroup;
+        let rotarySwitchHandleMesh;
+        let busTieIndLights = {};
+
+        // Cubicle Geometry Constants (Left Incomer Bay, Narrower Center Bus-Tie Bay, Right Incomer Bay)
+        const CUB1_W = 2.65;
+        const CUB2_W = 2.05;
+        const CUB3_W = 2.65;
+        const CUB_H = 5.4;
+        const CUB_D = 1.65;
+        const PLINTH_H = 0.36;
+        const CUB1_X = -(CUB2_W / 2 + CUB1_W / 2); // -2.35
+        const CUB2_X = 0.0;                        //  0.00
+        const CUB3_X = (CUB2_W / 2 + CUB3_W / 2);  // +2.35
+        const TOTAL_W = CUB1_W + CUB2_W + CUB3_W;
+
+        // 18 Keyed Components matching all labels in Reference Images 1, 2 & 3
+        const BOM_PARTS = [
+            {
+                id: 'main_busbars',
+                pin: 1,
+                code: 'BUS-01',
+                category: 'internal',
+                name: 'Main 3-Phase Copper Busbars (L1, L2, L3)',
+                shortLabel: 'MAIN BUSBARS',
+                refBasis: 'Ref 2 & Ref 3 (Top Bus Zone)',
+                material: 'ETP High-Conductivity Copper + PVC Sleeves',
+                axis: '-Z Rear / +Y Top (+1.6m)',
+                desc: 'Vertical copper risers wrapped in Red (L1), Yellow (L2), Blue (L3), and Black heat-shrink sleeves bolted with hex bolts to heavy horizontal copper busbars (#d97736).',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0.95, -1.55),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.72, 4.82, -0.15),
+                labelScreenOffset: { x: -105, y: -32 }
+            },
+            {
+                id: 'neutral_busbar',
+                pin: 2,
+                code: 'BUS-02',
+                category: 'internal',
+                name: 'Insulated Neutral Busbar & Lugs',
+                shortLabel: 'NEUTRAL BUSBAR',
+                refBasis: 'Ref 2 (Top Right Bus Zone)',
+                material: 'Copper Bar + Blue Insulating Sleeve (#2563eb)',
+                axis: '+Y Vertical (+1.5m)',
+                desc: 'Upper-right blue-insulated horizontal Neutral copper busbar mounted on standoffs with five bolted hex terminal lugs above the secondary control wiring duct.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 1.45, 0.55),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.55, 5.06, -0.12),
+                labelScreenOffset: { x: 92, y: -36 }
+            },
+            {
+                id: 'busbar_insulators',
+                pin: 3,
+                code: 'INS-03',
+                category: 'internal',
+                name: 'Busbar Support Insulators',
+                shortLabel: 'BUSBAR SUPPORT INSULATOR',
+                refBasis: 'Ref 2 & Ref 3 (Bus Standoffs)',
+                material: 'Ribbed Red DMC / Epoxy Thermoset (#b91c1c)',
+                axis: '+Z Forward (+1.1m)',
+                desc: 'Ribbed red compression-molded epoxy/DMC standoff insulators clamping the horizontal and vertical copper busbars to the rear switchboard frame against short-circuit forces.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0.3, 1.1),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.55, 4.22, 0.04),
+                labelScreenOffset: { x: 105, y: -14 }
+            },
+            {
+                id: 'incoming_acb',
+                pin: 4,
+                code: 'ACB-04',
+                category: 'internal',
+                name: 'Incoming Air Circuit Breaker (ACB)',
+                shortLabel: 'INCOMING ACB',
+                refBasis: 'Ref 1, Ref 2 & Ref 3',
+                material: 'Withdrawable Masterpact-Style ACB Cassette',
+                axis: '+Z Draw-Out Rail (+2.4m)',
+                desc: 'Upper-left withdrawable metallic Air Circuit Breaker cassette with top arc chutes, rear copper contact clusters, front digital Micrologic trip unit, green ON / red OFF pushbuttons, and charging handle.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.15, 0.12, 2.4),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 3.62, 0.46),
+                labelScreenOffset: { x: -110, y: -12 }
+            },
+            {
+                id: 'bus_coupler_acb',
+                pin: 5,
+                code: 'ACB-05',
+                category: 'internal',
+                name: 'Bus Coupler / Cradle Frame Assembly',
+                shortLabel: 'BUS COUPLER ACB',
+                refBasis: 'Ref 2 (Left ACB Lower Cradle & Shutter)',
+                material: 'Galvanized Steel Draw-Out Cradle + Copper Stabs',
+                axis: '+Z Draw-Out (+1.6m)',
+                desc: 'Fixed draw-out cassette cradle and lower bus coupler terminal housing with safety shutters and bolted copper primary tails feeding the CTs below.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.15, 0.0, 1.6),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 3.16, 0.38),
+                labelScreenOffset: { x: -110, y: 12 }
+            },
+            {
+                id: 'outgoing_mccbs',
+                pin: 6,
+                code: 'MCCB-06',
+                category: 'internal',
+                name: 'Outgoing MCCB Feeders (5x Breakers)',
+                shortLabel: 'OUTGOING MCCB FEEDERS',
+                refBasis: 'Ref 2 & Ref 3 (Upper-Right Feeder Bank)',
+                material: 'Thermoset Molded Case + Toggle Handles',
+                axis: '+Z Forward (+2.05m)',
+                desc: 'Horizontal bank of five 3-pole Molded Case Circuit Breakers with toggle handles, fed from the main busbars via color-coded Red/Yellow/Blue copper drop links.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0.28, 0, 2.05),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.56, 3.45, 0.34),
+                labelScreenOffset: { x: 108, y: 0 }
+            },
+            {
+                id: 'current_transformers',
+                pin: 7,
+                code: 'CT-07',
+                category: 'internal',
+                name: 'Current Transformers (3x Ring CTs)',
+                shortLabel: 'CURRENT TRANSFORMER',
+                refBasis: 'Ref 2 (Mid-Left Risers)',
+                material: 'Cast-Resin Toroidal Ring Cores',
+                axis: '+Z Forward (+1.8m)',
+                desc: 'Three brown/red cast-resin toroidal ring Current Transformers mounted around the vertical L1, L2, and L3 copper phase risers below the ACB.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.28, 0, 1.8),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 2.52, 0.22),
+                labelScreenOffset: { x: -110, y: 2 }
+            },
+            {
+                id: 'voltage_transformers',
+                pin: 8,
+                code: 'VT-08',
+                category: 'internal',
+                name: 'Voltage Transformers (3x Epoxy VTs)',
+                shortLabel: 'VOLTAGE TRANSFORMER',
+                refBasis: 'Ref 2 (Lower-Left Shelf)',
+                material: 'Red Epoxy-Cast Block Transformers + Fuse Caps',
+                axis: '+Z Forward (+2.15m)',
+                desc: 'Three red epoxy-cast potential transformers with brass primary fuse caps mounted on a steel shelf below the CTs for 440V/110V metering and synchronization.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.32, -0.1, 2.15),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 1.72, 0.26),
+                labelScreenOffset: { x: -110, y: 12 }
+            },
+            {
+                id: 'control_wiring_duct',
+                pin: 9,
+                code: 'DUC-09',
+                category: 'internal',
+                name: 'Slotted PVC Control Wiring Ducts',
+                shortLabel: 'CONTROL WIRING DUCT',
+                refBasis: 'Ref 2 (Right Secondary Bay)',
+                material: 'Slotted Grey Halogen-Free PVC (#7c8594)',
+                axis: '+Z Forward (+1.35m)',
+                desc: 'Horizontal and vertical slotted grey PVC wiring trunking framing the secondary control tiers and routing low-voltage harnesses safely away from main busbars.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0.22, 0, 1.35),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.56, 2.88, 0.26),
+                labelScreenOffset: { x: 105, y: -12 }
+            },
+            {
+                id: 'terminal_blocks',
+                pin: 10,
+                code: 'TB-10',
+                category: 'internal',
+                name: 'DIN-Rail Modular Terminal Blocks',
+                shortLabel: 'TERMINAL BLOCKS',
+                refBasis: 'Ref 2 (Middle-Right Tier)',
+                material: 'White/Grey Polyamide Blocks + Wire Ferrules',
+                axis: '+Z Forward (+2.5m)',
+                desc: 'Row of modular screw terminal blocks on a DIN rail with white marker strips and yellow/blue secondary wire ferrules entering the upper and lower slotted PVC ducts.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0.4, 0.04, 2.5),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.56, 2.45, 0.24),
+                labelScreenOffset: { x: 105, y: 4 }
+            },
+            {
+                id: 'auxiliary_relays',
+                pin: 11,
+                code: 'RLY-11',
+                category: 'internal',
+                name: 'Auxiliary Control Relays (5x Plug-In)',
+                shortLabel: 'AUXILIARY RELAYS',
+                refBasis: 'Ref 2 (Lower-Right Tier)',
+                material: 'Plug-In Relay Sockets + Coil LEDs + Clips',
+                axis: '+Z Forward (+2.7m)',
+                desc: 'Row of five plug-in electromagnetic control relays with status LEDs, test buttons, and wire retaining clips for breaker interlocking and alarm telemetry.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0.4, -0.08, 2.7),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.56, 1.64, 0.26),
+                labelScreenOffset: { x: 105, y: 10 }
+            },
+            {
+                id: 'spd_devices',
+                pin: 12,
+                code: 'SPD-12',
+                category: 'internal',
+                name: 'Surge Protection Devices (SPD)',
+                shortLabel: 'SURGE PROTECTION DEVICE (SPD)',
+                refBasis: 'Ref 2 (Bottom-Right Tier)',
+                material: 'White & Green Pluggable Surge Arresters',
+                axis: '+Z Forward (+2.85m)',
+                desc: 'Bottom DIN-rail array of white and green pluggable Type 1+2 surge arresters protecting switchboard instrumentation against marine switching transients.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0.4, -0.22, 2.85),
+                anchorWorld: new THREE.Vector3(CUB1_X + 0.56, 0.88, 0.25),
+                labelScreenOffset: { x: 105, y: 18 }
+            },
+            {
+                id: 'earthing_busbar',
+                pin: 13,
+                code: 'PE-13',
+                category: 'internal',
+                name: 'Main Earthing Busbar (PE)',
+                shortLabel: 'EARTHING BUSBAR',
+                refBasis: 'Ref 2 (Bottom-Left Compartment)',
+                material: 'Bare Copper Bar + Green/Yellow Earth Lead',
+                axis: '+Z Forward / -Y Down (+1.35m)',
+                desc: 'Bottom bare copper protective earthing bar with five bolted M12 lugs, green/yellow hull earth conductor, and yellow electrical hazard warning sign.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.22, -0.35, 1.35),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 0.92, 0.18),
+                labelScreenOffset: { x: -110, y: 16 }
+            },
+            {
+                id: 'cable_gland_plate',
+                pin: 14,
+                code: 'GLD-14',
+                category: 'internal',
+                name: 'Cable Gland Plate & Armored Feeder Cables',
+                shortLabel: 'CABLE GLAND PLATE',
+                refBasis: 'Ref 2 (Bottom Plinth Trench)',
+                material: 'Steel Gland Plate + Brass Glands + XLPE Cables',
+                axis: '-Y Downward / +Z Forward',
+                desc: 'Bottom steel gland plate with brass compression cable glands and heavy black armored marine feeder cables exiting through the base plinth trench.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.22, -0.75, 1.05),
+                anchorWorld: new THREE.Vector3(CUB1_X - 0.62, 0.42, 0.25),
+                labelScreenOffset: { x: -110, y: 30 }
+            },
+            {
+                id: 'door_mounted_components',
+                pin: 15,
+                code: 'DOR-15',
+                category: 'internal',
+                name: 'Hinged Doors & Door-Mounted Components',
+                shortLabel: 'DOOR MOUNTED COMPONENTS',
+                refBasis: 'Ref 1 & Ref 2 (Open Door 1 & Faceplate)',
+                material: 'RAL 7032 Steel Door + Rear Instrument Casings',
+                axis: '+X / +Z Door Swing Offset',
+                desc: 'Open Cubicle 1 Door (115°) with rear meter casings, rotary cam switch bodies, indicator lamp backs, slotted wire duct, green/yellow earth braid, and flexible hinge harness loop.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(-0.45, 0, 1.95),
+                anchorWorld: new THREE.Vector3(CUB1_X + 1.52, 2.05, 1.55),
+                labelScreenOffset: { x: 92, y: 24 }
+            },
+            {
+                id: 'bustie_breaker',
+                pin: 16,
+                code: 'TIE-16',
+                category: 'bustie',
+                name: 'Bus-Tie Circuit Breaker (ACB)',
+                shortLabel: 'BUS TIE CIRCUIT BREAKER',
+                refBasis: 'Ref 1 & Ref 3 (Center Cubicle 2 Top)',
+                material: 'Withdrawable Bus-Tie ACB + Interlock Cradle',
+                axis: '+Z Center Draw-Out (+2.65m)',
+                desc: 'Central Bus-Tie Air Circuit Breaker in Cubicle 2 allowing parallel operation or split-bus segregation between Main Busbar 1 (Port) and Main Busbar 2 (Starboard).',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0.15, 2.65),
+                anchorWorld: new THREE.Vector3(CUB2_X, 3.85, 0.48),
+                labelScreenOffset: { x: 0, y: -42 }
+            },
+            {
+                id: 'bustie_connection',
+                pin: 17,
+                code: 'TIE-17',
+                category: 'bustie',
+                name: 'Bus-Tie Copper Connection Bars',
+                shortLabel: 'BUS TIE CONNECTION',
+                refBasis: 'Ref 3 (Center Busbar Bridge)',
+                material: 'Heavy Copper Tie Bars + Red Insulator Supports',
+                axis: '+Z Center (+1.55m)',
+                desc: 'Horizontal heavy copper bus-tie connection bars and red phase-insulated tie links bridging Cubicle 1 Main Busbar 1 and Cubicle 3 Main Busbar 2.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0.0, 1.55),
+                anchorWorld: new THREE.Vector3(CUB2_X, 2.82, 0.08),
+                labelScreenOffset: { x: 0, y: -18 }
+            },
+            {
+                id: 'bustie_control_switch',
+                pin: 18,
+                code: 'SW-18',
+                category: 'bustie',
+                name: 'Bus-Tie Control Switch, Indicator Lights & IP22 Canopy',
+                shortLabel: 'CONTROL SWITCH',
+                refBasis: 'Ref 1 & Ref 3 (Center Control & Enclosure)',
+                material: 'Rotary Selector (OPEN/CLOSE) + Pilot Lamps',
+                axis: '+Z Forward / +Y Canopy Lift',
+                desc: 'Lower Bus-Tie rotary control switch (OPEN / CLOSE selector), Red/Yellow/Green indication lights, and the 3-cubicle RAL 7032 marine enclosure with top IP22 drip canopy.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, -0.1, 2.25),
+                anchorWorld: new THREE.Vector3(CUB2_X, 1.65, 0.36),
+                labelScreenOffset: { x: 0, y: 32 }
+            }
+        ];
+
+        // ============================================================================
+        // 2. PROCEDURAL CANVAS TEXTURES (METERS, PMS LCD, MIMIC DIAGRAMS, SAFETY MAT)
+        // ============================================================================
+        function createAnalogMeterTexture(unitLabel, maxVal, readingRatio) {
+            const c = document.createElement('canvas');
+            c.width = 128;
+            c.height = 128;
+            const ctx = c.getContext('2d');
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(4, 4, 120, 120);
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(26, 102, 72, -Math.PI * 0.48, -0.04);
+            ctx.stroke();
+
+            for (let i = 0; i <= 10; i++) {
+                const a = -Math.PI * 0.48 + (i / 10) * (Math.PI * 0.44);
+                const r1 = i % 2 === 0 ? 62 : 67;
+                const r2 = 75;
+                ctx.beginPath();
+                ctx.moveTo(26 + Math.cos(a) * r1, 102 + Math.sin(a) * r1);
+                ctx.lineTo(26 + Math.cos(a) * r2, 102 + Math.sin(a) * r2);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(26, 102, 72, -0.16, -0.04);
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 22px Inter, sans-serif';
+            ctx.fillText(unitLabel, 22, 42);
+            ctx.font = 'bold 12px monospace';
+            ctx.fillStyle = '#475569';
+            ctx.fillText(maxVal, 74, 30);
+
+            const needleAngle = -Math.PI * 0.46 + readingRatio * (Math.PI * 0.40);
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(26, 102);
+            ctx.lineTo(26 + Math.cos(needleAngle) * 68, 102 + Math.sin(needleAngle) * 68);
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(26, 102, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createPMSDisplayTexture(titleText) {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 160;
+            const ctx = c.getContext('2d');
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, 256, 160);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(4, 4, 248, 152);
+
+            ctx.fillStyle = '#083344';
+            ctx.fillRect(20, 20, 216, 100);
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, 20, 216, 100);
+
+            ctx.fillStyle = '#67e8f9';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText(titleText, 30, 42);
+
+            ctx.fillStyle = '#34d399';
+            ctx.font = '13px monospace';
+            ctx.fillText('U: 440 V   f: 60.0 Hz', 30, 66);
+            ctx.fillText('I: 680 A   P: 425 kW', 30, 86);
+            ctx.fillStyle = '#fde047';
+            ctx.fillText('PF: 0.88   SYNC: OK', 30, 106);
+
+            for (let i = 0; i < 5; i++) {
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(36 + i * 40, 130, 24, 14);
+            }
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createNameplateTexture(text) {
+            const c = document.createElement('canvas');
+            c.width = 512;
+            c.height = 64;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#18181b';
+            ctx.fillRect(0, 0, 512, 64);
+            ctx.strokeStyle = '#d4d4d8';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(3, 3, 506, 58);
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 28px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 33);
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createBusTieSwitchTexture() {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 180;
+            const ctx = c.getContext('2d');
+
+            ctx.fillStyle = '#262b33';
+            ctx.fillRect(0, 0, 256, 180);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(4, 4, 248, 172);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('BUS TIE', 128, 34);
+
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(22, 76, 54, 28);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px monospace';
+            ctx.fillText('OPEN', 49, 95);
+
+            ctx.fillStyle = '#16a34a';
+            ctx.fillRect(180, 76, 54, 28);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px monospace';
+            ctx.fillText('CLOSE', 207, 95);
+
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(128, 100, 38, 0, Math.PI * 2);
+            ctx.stroke();
+
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createDeckRubberMatTexture() {
+            const c = document.createElement('canvas');
+            c.width = 512;
+            c.height = 256;
+            const ctx = c.getContext('2d');
+
+            ctx.fillStyle = '#252a30';
+            ctx.fillRect(0, 0, 512, 256);
+
+            ctx.fillStyle = '#1b1f24';
+            for (let y = 0; y < 256; y += 6) {
+                ctx.fillRect(0, y, 512, 3);
+            }
+            for (let x = 0; x < 512; x += 16) {
+                ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                ctx.fillRect(x, 0, 4, 256);
+            }
+
+            ctx.fillStyle = '#eab308';
+            ctx.fillRect(14, 216, 484, 22);
+            ctx.fillRect(14, 14, 22, 224);
+            ctx.fillRect(476, 14, 22, 224);
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.ClampToEdgeWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            return tex;
+        }
+
+        // ============================================================================
+        // 3. INITIALIZE THREE.JS SCENE, CAMERA, LIGHTS & CONTROLS
+        // ============================================================================
+        function initThreeScene() {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(-1.35, 3.45, 9.8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.18;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.target.set(-0.25, 2.85, 0.25);
+            controls.maxDistance = 32;
+            controls.minDistance = 2.2;
+            controls.maxPolarAngle = Math.PI * 0.52;
+
+            const hemiLight = new THREE.HemisphereLight(0xf1f5f9, 0x1e293b, 0.94);
+            scene.add(hemiLight);
+
+            const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.25);
+            keyLight.position.set(5, 14, 12);
+            keyLight.castShadow = true;
+            keyLight.shadow.mapSize.width = 2048;
+            keyLight.shadow.mapSize.height = 2048;
+            keyLight.shadow.camera.near = 1;
+            keyLight.shadow.camera.far = 35;
+            const d = 8.5;
+            keyLight.shadow.camera.left = -d;
+            keyLight.shadow.camera.right = d;
+            keyLight.shadow.camera.top = d;
+            keyLight.shadow.camera.bottom = -d;
+            keyLight.shadow.bias = -0.0005;
+            scene.add(keyLight);
+
+            const interiorLight = new THREE.PointLight(0xfff7ed, 0.95, 8.5);
+            interiorLight.position.set(CUB1_X, 3.3, 1.45);
+            scene.add(interiorLight);
+
+            const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.55);
+            fillLight.position.set(-12, 6, 8);
+            scene.add(fillLight);
+
+            buildMarineSwitchboardAssembly();
+            buildCADAlignmentGuides();
+            buildBOMSidebar();
+            buildCalloutPinsDOM();
+
+            updateExplosionPositions(explodeFactor);
+            setSwitchingMode('parallel');
+
+            setupRaycasting();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // ============================================================================
+        // 4. PROCEDURAL MARINE SWITCHBOARD GEOMETRY BUILDERS
+        // ============================================================================
+        function createSwitchboardMaterials() {
+            const cabinetGrey = new THREE.MeshStandardMaterial({
+                color: 0xb8b6aa, // Authentic RAL 7032 Pebble Grey Marine Switchboard finish
+                roughness: 0.42,
+                metalness: 0.25,
+                side: THREE.DoubleSide
+            });
+            enclosureShellMaterials.push(cabinetGrey);
+
+            const innerPlateGrey = new THREE.MeshStandardMaterial({
+                color: 0x949ba1,
+                roughness: 0.5,
+                metalness: 0.35
+            });
+
+            const copperBus1 = new THREE.MeshStandardMaterial({
+                color: 0xd97736,
+                roughness: 0.24,
+                metalness: 0.88,
+                emissive: 0xd97706,
+                emissiveIntensity: 0.18
+            });
+            busbarGlowMaterials.bus1.push(copperBus1);
+
+            const copperBusTie = new THREE.MeshStandardMaterial({
+                color: 0xd97736,
+                roughness: 0.24,
+                metalness: 0.88,
+                emissive: 0x10b981,
+                emissiveIntensity: 0.22
+            });
+            busbarGlowMaterials.busTie.push(copperBusTie);
+
+            const copperBus2 = new THREE.MeshStandardMaterial({
+                color: 0xd97736,
+                roughness: 0.24,
+                metalness: 0.88,
+                emissive: 0xd97706,
+                emissiveIntensity: 0.18
+            });
+            busbarGlowMaterials.bus2.push(copperBus2);
+
+            return {
+                cabinetGrey,
+                innerPlateGrey,
+                plinthDark: new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.6, metalness: 0.3 }),
+                copperBus1,
+                copperBusTie,
+                copperBus2,
+                copperBare: new THREE.MeshStandardMaterial({ color: 0xd97736, roughness: 0.26, metalness: 0.86 }),
+                phaseRed: new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.38, metalness: 0.15 }),
+                phaseYellow: new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.38, metalness: 0.15 }),
+                phaseBlue: new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.38, metalness: 0.15 }),
+                phaseBlack: new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.45, metalness: 0.15 }),
+                neutralBlue: new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.4, metalness: 0.2 }),
+                insulatorRed: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.35, metalness: 0.12 }),
+                ctBrownResin: new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.42, metalness: 0.15 }),
+                vtRedResin: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.36, metalness: 0.15 }),
+                acbBodyGrey: new THREE.MeshStandardMaterial({ color: 0x525b66, roughness: 0.42, metalness: 0.38 }),
+                acbFaceDark: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.38, metalness: 0.25 }),
+                mccbGrey: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.42, metalness: 0.25 }),
+                pvcDuctGrey: new THREE.MeshStandardMaterial({ color: 0x7c8594, roughness: 0.55, metalness: 0.1 }),
+                dinBlockWhite: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4, metalness: 0.1 }),
+                spdGreen: new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.35, metalness: 0.1 }),
+                steelSilver: new THREE.MeshStandardMaterial({ color: 0xdbe4ee, roughness: 0.22, metalness: 0.9 }),
+                brassGland: new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.28, metalness: 0.85 }),
+                earthGreenYellow: new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.45, metalness: 0.15 }),
+                btnGreen: new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 0.4 }),
+                btnRed: new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xdc2626, emissiveIntensity: 0.4 }),
+                btnAmber: new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.4 })
+            };
+        }
+
+        // Helper: Build a detailed Withdrawable Air Circuit Breaker (ACB) Cassette (Schneider Masterpact Style)
+        function createACBUnit(mats, scaleW = 0.94, scaleH = 0.82, scaleD = 0.56) {
+            const acb = new THREE.Group();
+
+            // Outer Metallic Draw-Out Cassette Body
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(scaleW, scaleH, scaleD), mats.acbBodyGrey);
+            chassis.castShadow = true;
+            acb.add(chassis);
+
+            // Top Arc Chutes (3 phase exhaust grids)
+            [-scaleW * 0.28, 0, scaleW * 0.28].forEach(xChute => {
+                const chute = new THREE.Mesh(new THREE.BoxGeometry(scaleW * 0.22, 0.08, scaleD * 0.65), mats.acbFaceDark);
+                chute.position.set(xChute, scaleH * 0.5 + 0.03, 0);
+                acb.add(chute);
+            });
+
+            // Rear Copper Primary Contact Clusters (6 stabs: 3 upper, 3 lower)
+            [-scaleW * 0.28, 0, scaleW * 0.28].forEach(xStab => {
+                [scaleH * 0.26, -scaleH * 0.26].forEach(yStab => {
+                    const stab = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.16), mats.copperBare);
+                    stab.position.set(xStab, yStab, -scaleD * 0.5 - 0.06);
+                    acb.add(stab);
+                });
+            });
+
+            // Top & Bottom Metallic Terminal Strips with Hex Bolt Heads
+            [-scaleH * 0.42, scaleH * 0.42].forEach(yOff => {
+                const strip = new THREE.Mesh(new THREE.BoxGeometry(scaleW * 0.96, 0.08, 0.05), mats.steelSilver);
+                strip.position.set(0, yOff, scaleD * 0.48);
+                acb.add(strip);
+            });
+
+            // Dark Front Operating Bezel
+            const bezel = new THREE.Mesh(new THREE.BoxGeometry(scaleW * 0.80, scaleH * 0.72, 0.08), mats.acbFaceDark);
+            bezel.position.set(0, 0, scaleD * 0.5 + 0.02);
+            acb.add(bezel);
+
+            // Left Micrologic Protection Trip Unit + LCD Window
+            const lcd = new THREE.Mesh(
+                new THREE.BoxGeometry(scaleW * 0.28, scaleH * 0.22, 0.03),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+            );
+            lcd.position.set(-scaleW * 0.18, scaleH * 0.12, scaleD * 0.5 + 0.06);
+            acb.add(lcd);
+
+            // Mechanical Spring Charging Handle (Vertical black lever on right)
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, scaleH * 0.36, 0.08), mats.phaseBlack);
+            handle.position.set(scaleW * 0.22, -scaleH * 0.04, scaleD * 0.5 + 0.07);
+            acb.add(handle);
+
+            // Green (ON) and Red (OFF) Pushbuttons
+            const onBtn = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, 0.04), mats.btnGreen);
+            onBtn.position.set(scaleW * 0.04, scaleH * 0.09, scaleD * 0.5 + 0.06);
+            acb.add(onBtn);
+
+            const offBtn = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, 0.04), mats.btnRed);
+            offBtn.position.set(scaleW * 0.04, -scaleH * 0.05, scaleD * 0.5 + 0.06);
+            acb.add(offBtn);
+
+            return acb;
+        }
+
+        // Helper: Build a 3-Pole Molded Case Circuit Breaker (MCCB) Module
+        function createMCCBModule(mats, width = 0.21, height = 0.54, depth = 0.28) {
+            const mccb = new THREE.Group();
+
+            // Molded Case Thermoset Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), mats.mccbGrey);
+            body.castShadow = true;
+            mccb.add(body);
+
+            // Top & Bottom White Label Strips (matching Reference 2)
+            [height * 0.36, -height * 0.36].forEach(yStrip => {
+                const strip = new THREE.Mesh(new THREE.BoxGeometry(width * 0.94, 0.09, 0.03), mats.dinBlockWhite);
+                strip.position.set(0, yStrip, depth * 0.5 + 0.01);
+                mccb.add(strip);
+            });
+
+            // Center Dark Toggle Escutcheon
+            const esc = new THREE.Mesh(new THREE.BoxGeometry(width * 0.72, height * 0.38, 0.03), mats.acbFaceDark);
+            esc.position.set(0, 0, depth * 0.5 + 0.015);
+            mccb.add(esc);
+
+            // Toggle Switch Lever
+            const toggle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.06), mats.phaseBlack);
+            toggle.position.set(0, 0.03, depth * 0.5 + 0.04);
+            toggle.rotation.x = -0.3;
+            mccb.add(toggle);
+
+            return mccb;
+        }
+
+        // Helper: Build IEC/SOLAS IP22 Drip-Proof Top Canopy Shield, Overhead Cable Tray & Riser Entry Bushings
+        function createIP22DripCanopyAndBushings(mats, totalW) {
+            const topAssy = new THREE.Group();
+            topAssy.name = 'top_drip_canopy_wrapper';
+
+            // 1. Sloped IEC/SOLAS IP22 Drip-Proof Canopy Hood overhanging the switchboard roof
+            const hoodSheet = new THREE.Mesh(
+                new THREE.BoxGeometry(totalW + 0.32, 0.05, CUB_D + 0.54),
+                mats.cabinetGrey
+            );
+            hoodSheet.position.set(0, PLINTH_H + CUB_H + 0.36, 0.12);
+            hoodSheet.rotation.x = 0.08;
+            hoodSheet.castShadow = true;
+            topAssy.add(hoodSheet);
+
+            // Front upturned condensation gutter lip along the front edge of the IP22 drip canopy
+            const frontLip = new THREE.Mesh(
+                new THREE.BoxGeometry(totalW + 0.32, 0.09, 0.04),
+                mats.innerPlateGrey
+            );
+            frontLip.position.set(0, PLINTH_H + CUB_H + 0.31, (CUB_D + 0.54) / 2 + 0.10);
+            topAssy.add(frontLip);
+
+            // 4 Heavy-Duty Gusset Support Brackets holding the IP22 Drip Shield above the roof
+            [-totalW / 2 + 0.15, -CUB2_W / 2, CUB2_W / 2, totalW / 2 - 0.15].forEach(bx => {
+                const bracket = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.06, 0.26, CUB_D * 0.78),
+                    mats.innerPlateGrey
+                );
+                bracket.position.set(bx, PLINTH_H + CUB_H + 0.22, 0.04);
+                topAssy.add(bracket);
+            });
+
+            // 2. Standard Overhead Perforated Marine Cable Tray Ladder (Rear-Top Entry as seen in Reference 1)
+            const trayY = PLINTH_H + CUB_H + 0.24;
+            const trayZ = -0.36;
+            const trayDeck = new THREE.Mesh(
+                new THREE.BoxGeometry(totalW + 0.4, 0.03, 0.44),
+                mats.steelSilver
+            );
+            trayDeck.position.set(0, trayY, trayZ);
+            topAssy.add(trayDeck);
+
+            [-0.22, 0.22].forEach(dz => {
+                const rail = new THREE.Mesh(
+                    new THREE.BoxGeometry(totalW + 0.4, 0.09, 0.03),
+                    mats.steelSilver
+                );
+                rail.position.set(0, trayY + 0.04, trayZ + dz);
+                topAssy.add(rail);
+            });
+
+            // 3. Insulated Top Riser Entry Bushings & Gland Plates inside Upper Roof Busbar Compartment
+            [CUB1_X, CUB3_X].forEach(cx => {
+                const glandBox = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.38, 0.08, 0.36),
+                    mats.plinthDark
+                );
+                glandBox.position.set(cx - 0.42, PLINTH_H + CUB_H + 0.13, -0.18);
+                topAssy.add(glandBox);
+
+                const bushingOffsets = [-0.95, -0.68, -0.41, -0.16, 0.06];
+                const collarMats = [mats.phaseRed, mats.phaseYellow, mats.phaseBlue, mats.phaseBlack, mats.phaseBlack];
+                bushingOffsets.forEach((dx, bIdx) => {
+                    const insulatorBushing = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.065, 0.078, 0.18, 16),
+                        mats.insulatorRed
+                    );
+                    insulatorBushing.position.set(cx + dx, PLINTH_H + CUB_H + 0.16, -0.18);
+                    topAssy.add(insulatorBushing);
+
+                    const collar = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.048, 0.048, 0.14, 14),
+                        collarMats[bIdx]
+                    );
+                    collar.position.set(cx + dx, PLINTH_H + CUB_H + 0.25, -0.18);
+                    topAssy.add(collar);
+                });
+            });
+
+            return topAssy;
+        }
+
+        function registerSubExplode(meshOrGroup, offsetVec) {
+            subExplodeActors.push({
+                obj: meshOrGroup,
+                basePos: meshOrGroup.position.clone(),
+                offset: offsetVec
+            });
+        }
+
+        function buildMarineSwitchboardAssembly() {
+            const mats = createSwitchboardMaterials();
+
+            // Initialize part groups for all 18 BOM items
+            BOM_PARTS.forEach(part => {
+                const grp = new THREE.Group();
+                grp.name = part.id;
+                grp.userData = { partId: part.id, partInfo: part };
+                partGroups[part.id] = grp;
+                assemblyRoot.add(grp);
+            });
+
+            // ========================================================================
+            // ENCLOSURE SHELL, SIDE PANELS (-X / +X), TOP DRIP CANOPY (+Y) & MAT
+            // ========================================================================
+            const encGrp = new THREE.Group();
+            encGrp.userData = { partId: 'bustie_control_switch' };
+            assemblyRoot.add(encGrp);
+
+            // 1. Engine Control Room Insulated Rubber Mat with Yellow Safety Border (Ref 1)
+            const matGeo = new THREE.BoxGeometry(10.8, 0.04, 5.2);
+            const matMesh = new THREE.Mesh(
+                matGeo,
+                new THREE.MeshStandardMaterial({ map: createDeckRubberMatTexture(), roughness: 0.75 })
+            );
+            matMesh.position.set(0, 0.02, 0.65);
+            matMesh.receiveShadow = true;
+            encGrp.add(matMesh);
+
+            // 2. Dark Base Plinths under the 3 Cubicles (explodes -Y downward)
+            const plinthGroup = new THREE.Group();
+            const rearPlinth = new THREE.Mesh(new THREE.BoxGeometry(TOTAL_W, PLINTH_H, CUB_D - 0.35), mats.plinthDark);
+            rearPlinth.position.set(0, PLINTH_H / 2, -0.15);
+            plinthGroup.add(rearPlinth);
+
+            const rightFrontPlinth = new THREE.Mesh(new THREE.BoxGeometry(CUB2_W + CUB3_W + 0.3, PLINTH_H, 0.35), mats.plinthDark);
+            rightFrontPlinth.position.set(CUB1_W * 0.45, PLINTH_H / 2, CUB_D / 2 - 0.18);
+            plinthGroup.add(rightFrontPlinth);
+
+            const leftCornerPlinth = new THREE.Mesh(new THREE.BoxGeometry(0.45, PLINTH_H, 0.35), mats.plinthDark);
+            leftCornerPlinth.position.set(-TOTAL_W / 2 + 0.22, PLINTH_H / 2, CUB_D / 2 - 0.18);
+            plinthGroup.add(leftCornerPlinth);
+            encGrp.add(plinthGroup);
+            registerSubExplode(plinthGroup, new THREE.Vector3(0, -0.55, 0));
+
+            // 3. Sheet-Steel Enclosure Shell (Rear Wall explodes -Z, Left/Right Side Panels explode -X/+X)
+            const rearWall = new THREE.Mesh(new THREE.BoxGeometry(TOTAL_W, CUB_H, 0.06), mats.cabinetGrey);
+            rearWall.position.set(0, PLINTH_H + CUB_H / 2, -CUB_D / 2);
+            rearWall.receiveShadow = true;
+            encGrp.add(rearWall);
+            registerSubExplode(rearWall, new THREE.Vector3(0, 0, -1.1));
+
+            // Internal Back Mounting Plates for Cubicles 1, 2, 3
+            [
+                { cx: CUB1_X, w: CUB1_W },
+                { cx: CUB2_X, w: CUB2_W },
+                { cx: CUB3_X, w: CUB3_W }
+            ].forEach(c => {
+                const backPan = new THREE.Mesh(new THREE.BoxGeometry(c.w - 0.16, CUB_H - 0.24, 0.04), mats.innerPlateGrey);
+                backPan.position.set(c.cx, PLINTH_H + CUB_H / 2, -CUB_D / 2 + 0.06);
+                encGrp.add(backPan);
+                registerSubExplode(backPan, new THREE.Vector3(0, 0, -0.85));
+            });
+
+            // Left Outer Side Panel (-X outward explosion), Internal Partition Bulkheads, Right Outer Side Panel (+X outward explosion)
+            const wallPositions = [
+                { x: -TOTAL_W / 2, explodeX: -1.35 },
+                { x: -CUB2_W / 2, explodeX: 0 },
+                { x: CUB2_W / 2, explodeX: 0 },
+                { x: TOTAL_W / 2, explodeX: 1.35 }
+            ];
+            wallPositions.forEach(wp => {
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(0.05, CUB_H, CUB_D), mats.cabinetGrey);
+                wall.position.set(wp.x, PLINTH_H + CUB_H / 2, 0);
+                wall.castShadow = true;
+                encGrp.add(wall);
+                if (wp.explodeX !== 0) {
+                    registerSubExplode(wall, new THREE.Vector3(wp.explodeX, 0, 0));
+                }
+            });
+
+            // Internal Vertical Partition & Shelves inside Cubicle 1 (Ref 2)
+            const cub1Divider = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.1, CUB_D * 0.65), mats.innerPlateGrey);
+            cub1Divider.position.set(CUB1_X - 0.04, PLINTH_H + 1.65, 0.05);
+            encGrp.add(cub1Divider);
+
+            [2.95, 2.15, 1.32].forEach(yShelf => {
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(CUB1_W * 0.46, 0.06, CUB_D * 0.62), mats.innerPlateGrey);
+                shelf.position.set(CUB1_X - 0.62, yShelf, 0.05);
+                encGrp.add(shelf);
+            });
+
+            // Top Switchboard Roof Plate + Engraved Nameplates
+            const roofGroup = new THREE.Group();
+            const roofPlate = new THREE.Mesh(new THREE.BoxGeometry(TOTAL_W + 0.12, 0.12, CUB_D + 0.22), mats.cabinetGrey);
+            roofPlate.position.set(0, PLINTH_H + CUB_H + 0.06, 0.06);
+            roofGroup.add(roofPlate);
+
+            [
+                { x: CUB1_X, label: 'GENERATOR 1 INCOMER' },
+                { x: CUB2_X, label: 'BUS-TIE SECTION' },
+                { x: CUB3_X, label: 'MAIN SWITCHBOARD' }
+            ].forEach(h => {
+                const npTex = createNameplateTexture(h.label);
+                const plaque = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.62, 0.19, 0.04),
+                    [
+                        mats.acbFaceDark, mats.acbFaceDark, mats.acbFaceDark,
+                        mats.acbFaceDark,
+                        new THREE.MeshBasicMaterial({ map: npTex }),
+                        mats.acbFaceDark
+                    ]
+                );
+                plaque.position.set(h.x, PLINTH_H + CUB_H - 0.18, CUB_D / 2 + 0.02);
+                roofGroup.add(plaque);
+            });
+
+            // 4. Clean IEC/SOLAS IP22 Drip-Proof Top Canopy Shield, Cable Tray & Insulated Riser Bushings (Explodes +Y upward)
+            const topCanopyAndTray = createIP22DripCanopyAndBushings(mats, TOTAL_W);
+            roofGroup.add(topCanopyAndTray);
+            encGrp.add(roofGroup);
+            registerSubExplode(topCanopyAndTray, new THREE.Vector3(0, 1.45, 0));
+
+            // ========================================================================
+            // PIN 1: MAIN 3-PHASE COPPER BUSBARS (Ref 2 Top Risers + Ref 3 Main Bus 1 & 2)
+            // ========================================================================
+            const mainBusGrp = partGroups['main_busbars'];
+
+            const riserSpecs = [
+                { x: -0.95, mat: mats.phaseRed },
+                { x: -0.68, mat: mats.phaseYellow },
+                { x: -0.41, mat: mats.phaseBlue },
+                { x: -0.16, mat: mats.phaseBlack },
+                { x: 0.06, mat: mats.phaseBlack }
+            ];
+            riserSpecs.forEach(r => {
+                const sleeveBar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.98, 0.05), r.mat);
+                sleeveBar.position.set(CUB1_X + r.x, 4.78, -0.18);
+                mainBusGrp.add(sleeveBar);
+
+                [4.62, 4.22].forEach(yBolt => {
+                    const tab = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.14, 0.07), mats.steelSilver);
+                    tab.position.set(CUB1_X + r.x, yBolt, -0.13);
+                    mainBusGrp.add(tab);
+                });
+            });
+
+            [
+                { cx: CUB1_X, copperMat: mats.copperBus1 },
+                { cx: CUB3_X, copperMat: mats.copperBus2 }
+            ].forEach(busSec => {
+                [4.62, 4.22, 3.96].forEach((yBar, bIdx) => {
+                    const barW = bIdx === 0 ? 1.25 : 2.28;
+                    const barX = bIdx === 0 ? busSec.cx - 0.45 : busSec.cx;
+                    const cBar = new THREE.Mesh(new THREE.BoxGeometry(barW, 0.11, 0.05), busSec.copperMat);
+                    cBar.position.set(barX, yBar, -0.08 + bIdx * 0.04);
+                    mainBusGrp.add(cBar);
+                });
+            });
+
+            // ========================================================================
+            // PIN 2: NEUTRAL BUSBAR (Ref 2 Top Right Blue Horizontal Busbar)
+            // ========================================================================
+            const neutralGrp = partGroups['neutral_busbar'];
+            const neutralBar = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.11, 0.05), mats.neutralBlue);
+            neutralBar.position.set(CUB1_X + 0.52, 5.05, -0.16);
+            neutralGrp.add(neutralBar);
+
+            for (let i = 0; i < 5; i++) {
+                const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.08, 6).rotateX(Math.PI / 2), mats.steelSilver);
+                bolt.position.set(CUB1_X + 0.12 + i * 0.2, 5.05, -0.13);
+                neutralGrp.add(bolt);
+            }
+
+            const topDuctBox = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.24, 0.28), mats.pvcDuctGrey);
+            topDuctBox.position.set(CUB1_X + 0.55, 4.78, 0.02);
+            neutralGrp.add(topDuctBox);
+
+            // ========================================================================
+            // PIN 3: BUSBAR SUPPORT INSULATORS (Red Molded Standoffs & Phase Droppers)
+            // ========================================================================
+            const insGrp = partGroups['busbar_insulators'];
+            [CUB1_X, CUB3_X].forEach(cx => {
+                [-0.95, -0.41, 0.15, 0.52, 0.88].forEach(dx => {
+                    const block = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.52, 0.14), mats.insulatorRed);
+                    block.position.set(cx + dx, 4.22, -0.05);
+                    insGrp.add(block);
+                });
+
+                const dropperMats = [mats.phaseRed, mats.phaseYellow, mats.phaseBlue, mats.phaseRed, mats.phaseBlue];
+                for (let i = 0; i < 5; i++) {
+                    const dropX = cx + 0.05 + i * 0.23;
+                    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.26, 0.08), dropperMats[i]);
+                    sleeve.position.set(dropX, 4.04, 0.04);
+                    insGrp.add(sleeve);
+
+                    const cuDrop = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.25, 0.04), mats.copperBare);
+                    cuDrop.position.set(dropX, 3.84, 0.04);
+                    insGrp.add(cuDrop);
+                }
+            });
+
+            // ========================================================================
+            // PIN 4 & PIN 5: INCOMING ACB & BUS COUPLER ACB CRADLE (Ref 2 & Ref 3)
+            // ========================================================================
+            const acbGrp = partGroups['incoming_acb'];
+            [CUB1_X - 0.60, CUB3_X - 0.45].forEach(ax => {
+                const acbUnit = createACBUnit(mats, 0.94, 0.78, 0.54);
+                acbUnit.position.set(ax, 3.64, 0.20);
+                acbGrp.add(acbUnit);
+            });
+
+            const couplerGrp = partGroups['bus_coupler_acb'];
+            [CUB1_X - 0.60, CUB3_X - 0.45].forEach(ax => {
+                const cradleBase = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.24, 0.56), mats.innerPlateGrey);
+                cradleBase.position.set(ax, 3.12, 0.18);
+                couplerGrp.add(cradleBase);
+
+                // Bolt-on primary terminals along lower ACB bus coupler cradle
+                [-0.32, 0, 0.32].forEach(bx => {
+                    const lug = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 0.08), mats.steelSilver);
+                    lug.position.set(ax + bx, 3.12, 0.45);
+                    couplerGrp.add(lug);
+                });
+            });
+
+            // ========================================================================
+            // PIN 6: OUTGOING MCCB FEEDERS (5x Molded Case Breakers in Cubicle 1 & 3)
+            // ========================================================================
+            const mccbGrp = partGroups['outgoing_mccbs'];
+            [CUB1_X, CUB3_X].forEach(cx => {
+                for (let i = 0; i < 5; i++) {
+                    const mccb = createMCCBModule(mats, 0.21, 0.54, 0.28);
+                    const mx = cx + 0.05 + i * 0.23;
+                    mccb.position.set(mx, 3.45, 0.16);
+                    mccbGrp.add(mccb);
+
+                    [-0.05, 0, 0.05].forEach((wx, wIdx) => {
+                        const wMat = wIdx === 0 ? mats.phaseRed : (wIdx === 1 ? mats.phaseYellow : mats.phaseBlue);
+                        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 8), wMat);
+                        wire.position.set(mx + wx, 3.06, 0.14);
+                        mccbGrp.add(wire);
+                    });
+                }
+            });
+
+            // ========================================================================
+            // PIN 7: CURRENT TRANSFORMERS (3 Toroidal Ring CTs below ACB in Cubicle 1)
+            // ========================================================================
+            const ctGrp = partGroups['current_transformers'];
+            [-0.88, -0.60, -0.32].forEach((dx) => {
+                const xPos = CUB1_X + dx;
+                const riser = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.68, 0.03), mats.copperBare);
+                riser.position.set(xPos, 2.68, 0.08);
+                ctGrp.add(riser);
+
+                const torus = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.042, 16, 28), mats.ctBrownResin);
+                torus.position.set(xPos, 2.52, 0.12);
+                ctGrp.add(torus);
+
+                const ctTerm = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.08), mats.ctBrownResin);
+                ctTerm.position.set(xPos, 2.65, 0.12);
+                ctGrp.add(ctTerm);
+            });
+
+            // ========================================================================
+            // PIN 8: VOLTAGE TRANSFORMERS (3 Red Cast-Resin VTs below CTs in Cubicle 1)
+            // ========================================================================
+            const vtGrp = partGroups['voltage_transformers'];
+            [-0.88, -0.60, -0.32].forEach((dx) => {
+                const xPos = CUB1_X + dx;
+                const vtBlock = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.34, 0.24), mats.vtRedResin);
+                vtBlock.position.set(xPos, 1.72, 0.14);
+                vtBlock.castShadow = true;
+                vtGrp.add(vtBlock);
+
+                const bushTop = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.14, 12), mats.phaseYellow);
+                bushTop.position.set(xPos, 1.94, 0.14);
+                vtGrp.add(bushTop);
+            });
+
+            // ========================================================================
+            // PIN 9: CONTROL WIRING DUCT (Slotted Grey PVC Trunking System — Ref 2)
+            // ========================================================================
+            const ductGrp = partGroups['control_wiring_duct'];
+            [2.88, 2.02, 1.24, 0.52].forEach(yDuct => {
+                const hDuct = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.12, 0.16), mats.pvcDuctGrey);
+                hDuct.position.set(CUB1_X + 0.55, yDuct, 0.18);
+                ductGrp.add(hDuct);
+            });
+            [CUB1_X + 0.0, CUB1_X + 1.12].forEach(xDuct => {
+                const vDuct = new THREE.Mesh(new THREE.BoxGeometry(0.11, 2.48, 0.16), mats.pvcDuctGrey);
+                vDuct.position.set(xDuct, 1.70, 0.18);
+                ductGrp.add(vDuct);
+            });
+
+            // ========================================================================
+            // PIN 10: TERMINAL BLOCKS (DIN-Rail Modular Strip + Ferruled Wires — Ref 2)
+            // ========================================================================
+            const tbGrp = partGroups['terminal_blocks'];
+            const dinRail1 = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.05, 0.03), mats.steelSilver);
+            dinRail1.position.set(CUB1_X + 0.55, 2.45, 0.08);
+            tbGrp.add(dinRail1);
+
+            for (let i = 0; i < 16; i++) {
+                const tx = CUB1_X + 0.11 + i * 0.058;
+                const slice = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.24, 0.16), mats.dinBlockWhite);
+                slice.position.set(tx, 2.45, 0.14);
+                tbGrp.add(slice);
+
+                const wireUp = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.26, 6), mats.phaseYellow);
+                wireUp.position.set(tx, 2.68, 0.14);
+                tbGrp.add(wireUp);
+
+                const wireDn = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.26, 6), mats.phaseBlue);
+                wireDn.position.set(tx, 2.22, 0.14);
+                tbGrp.add(wireDn);
+            }
+
+            // ========================================================================
+            // PIN 11: AUXILIARY RELAYS (5 DIN-Rail Plug-in Relays — Ref 2)
+            // ========================================================================
+            const rlyGrp = partGroups['auxiliary_relays'];
+            for (let i = 0; i < 5; i++) {
+                const rx = CUB1_X + 0.16 + i * 0.19;
+                const socket = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.34, 0.18), mats.acbFaceDark);
+                socket.position.set(rx, 1.64, 0.12);
+                rlyGrp.add(socket);
+
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.22, 0.14), mats.dinBlockWhite);
+                cube.position.set(rx, 1.64, 0.18);
+                rlyGrp.add(cube);
+
+                const led = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.02), mats.btnGreen);
+                led.position.set(rx, 1.68, 0.26);
+                rlyGrp.add(led);
+            }
+
+            // ========================================================================
+            // PIN 12: SURGE PROTECTION DEVICE (SPD Bank at Bottom-Right Tier — Ref 2)
+            // ========================================================================
+            const spdGrp = partGroups['spd_devices'];
+            for (let i = 0; i < 5; i++) {
+                const sx = CUB1_X + 0.16 + i * 0.17;
+                const spdBase = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.18), mats.dinBlockWhite);
+                spdBase.position.set(sx, 0.88, 0.14);
+                spdGrp.add(spdBase);
+
+                if (i >= 2) {
+                    const greenInsert = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.04), mats.spdGreen);
+                    greenInsert.position.set(sx, 0.89, 0.23);
+                    spdGrp.add(greenInsert);
+                }
+            }
+
+            // ========================================================================
+            // PIN 13: EARTHING BUSBAR (Bare Copper PE Bar + Green/Yellow Earth Lead)
+            // ========================================================================
+            const peGrp = partGroups['earthing_busbar'];
+            const peBar = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.11, 0.05), mats.copperBare);
+            peBar.position.set(CUB1_X - 0.60, 0.92, 0.12);
+            peGrp.add(peBar);
+
+            for (let i = 0; i < 5; i++) {
+                const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.08, 12).rotateX(Math.PI / 2), mats.steelSilver);
+                bolt.position.set(CUB1_X - 0.96 + i * 0.18, 0.92, 0.14);
+                peGrp.add(bolt);
+            }
+
+            const earthLead = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.52, 12), mats.earthGreenYellow);
+            earthLead.position.set(CUB1_X - 0.96, 0.65, 0.12);
+            peGrp.add(earthLead);
+
+            const warnSign = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.15, 0.02), mats.phaseYellow);
+            warnSign.position.set(CUB1_X - 0.78, 0.72, -0.45);
+            peGrp.add(warnSign);
+
+            // ========================================================================
+            // PIN 14: CABLE GLAND PLATE & ARMORED FEEDER CABLES (Ref 2 Bottom Trench)
+            // ========================================================================
+            const glandGrp = partGroups['cable_gland_plate'];
+            const glandPlate = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.04, 0.65), mats.innerPlateGrey);
+            glandPlate.position.set(CUB1_X - 0.58, PLINTH_H + 0.04, 0.05);
+            glandGrp.add(glandPlate);
+
+            for (let i = 0; i < 6; i++) {
+                const cx = CUB1_X - 0.92 + i * 0.14;
+                // Brass Cable Gland Nut
+                const brassGland = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.048, 0.09, 8), mats.brassGland);
+                brassGland.position.set(cx, PLINTH_H + 0.08, 0.12);
+                glandGrp.add(brassGland);
+
+                const riser = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.040, 0.52, 12), mats.phaseBlack);
+                riser.position.set(cx, 0.52, 0.12);
+                glandGrp.add(riser);
+
+                const floorCable = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.95, 12).rotateX(Math.PI / 2), mats.phaseBlack);
+                floorCable.position.set(cx, 0.10, 0.85);
+                glandGrp.add(floorCable);
+            }
+
+            // ========================================================================
+            // PIN 16, 17, 18: BUS-TIE BREAKER, TIE CONNECTION BARS & CONTROL SWITCH (Ref 3)
+            // ========================================================================
+            const tieBreakerGrp = partGroups['bustie_breaker'];
+            const busTieACB = createACBUnit(mats, 0.86, 0.92, 0.56);
+            busTieACB.position.set(CUB2_X, 3.85, 0.18);
+            tieBreakerGrp.add(busTieACB);
+
+            const tieConnGrp = partGroups['bustie_connection'];
+            [-0.88, 0.88].forEach(xBridge => {
+                const bridgeBar = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.12, 0.08), mats.insulatorRed);
+                bridgeBar.position.set(xBridge, 3.85, 0.08);
+                tieConnGrp.add(bridgeBar);
+            });
+
+            [2.92, 2.62].forEach(yTie => {
+                const tieBar = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.12, 0.06), mats.copperBusTie);
+                tieBar.position.set(CUB2_X, yTie, -0.04);
+                tieConnGrp.add(tieBar);
+            });
+
+            const ctrlSwitchGrp = partGroups['bustie_control_switch'];
+            const ctrlBox = new THREE.Mesh(
+                new THREE.BoxGeometry(1.18, 0.82, 0.32),
+                [
+                    mats.acbBodyGrey, mats.acbBodyGrey, mats.acbBodyGrey,
+                    mats.acbBodyGrey,
+                    new THREE.MeshBasicMaterial({ map: createBusTieSwitchTexture() }),
+                    mats.acbBodyGrey
+                ]
+            );
+            ctrlBox.position.set(CUB2_X, 1.65, 0.18);
+            ctrlSwitchGrp.add(ctrlBox);
+
+            rotarySwitchHandleMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.34, 0.12), mats.phaseBlack);
+            rotarySwitchHandleMesh.position.set(CUB2_X, 1.56, 0.36);
+            rotarySwitchHandleMesh.rotation.z = -0.45;
+            ctrlSwitchGrp.add(rotarySwitchHandleMesh);
+
+            const lightBox = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.34, 0.25), mats.acbFaceDark);
+            lightBox.position.set(CUB2_X, 0.88, 0.18);
+            ctrlSwitchGrp.add(lightBox);
+
+            const lRed = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), mats.btnRed.clone());
+            lRed.position.set(CUB2_X - 0.32, 0.88, 0.31);
+            ctrlSwitchGrp.add(lRed);
+
+            const lYellow = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), mats.btnAmber.clone());
+            lYellow.position.set(CUB2_X, 0.88, 0.31);
+            ctrlSwitchGrp.add(lYellow);
+
+            const lGreen = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), mats.btnGreen.clone());
+            lGreen.position.set(CUB2_X + 0.32, 0.88, 0.31);
+            ctrlSwitchGrp.add(lGreen);
+
+            busTieIndLights = { red: lRed.material, yellow: lYellow.material, green: lGreen.material };
+
+            const auxPanel2 = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.68, 0.22), mats.innerPlateGrey);
+            auxPanel2.position.set(CUB3_X, 1.35, 0.14);
+            ctrlSwitchGrp.add(auxPanel2);
+
+            const auxScreen2 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.04), new THREE.MeshBasicMaterial({ color: 0x0284c7 }));
+            auxScreen2.position.set(CUB3_X, 1.44, 0.25);
+            ctrlSwitchGrp.add(auxScreen2);
+
+            // ========================================================================
+            // PIN 15: HINGED DOORS (1, 2, 3) & DOOR-MOUNTED COMPONENTS (Ref 1 & Ref 2)
+            // ========================================================================
+            const doorsGrp = partGroups['door_mounted_components'];
+
+            function buildCubicleDoor(cubIdx, hingeX, doorW, swingDirection) {
+                const pivot = new THREE.Group();
+                pivot.position.set(hingeX, PLINTH_H + CUB_H / 2, CUB_D / 2 + 0.02);
+                doorsGrp.add(pivot);
+                doorState[cubIdx].pivot = pivot;
+
+                const doorOffsetX = swingDirection > 0 ? -doorW / 2 : doorW / 2;
+
+                const panel = new THREE.Mesh(new THREE.BoxGeometry(doorW, CUB_H - 0.12, 0.06), mats.cabinetGrey);
+                panel.position.set(doorOffsetX, 0, 0);
+                panel.castShadow = true;
+                panel.receiveShadow = true;
+                pivot.add(panel);
+
+                const innerFrame = new THREE.Mesh(new THREE.BoxGeometry(doorW - 0.16, CUB_H - 0.28, 0.08), mats.innerPlateGrey);
+                innerFrame.position.set(doorOffsetX, 0, -0.04);
+                pivot.add(innerFrame);
+
+                // Bottom Ventilation Louver Grille (Ref 1 & Ref 2)
+                for (let l = 0; l < 8; l++) {
+                    const slat = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.48, 0.035, 0.09), mats.acbBodyGrey);
+                    slat.position.set(doorOffsetX, -CUB_H / 2 + 0.45 + l * 0.07, 0);
+                    pivot.add(slat);
+                }
+
+                const handleX = swingDirection > 0 ? -doorW + 0.16 : doorW - 0.16;
+                const swingHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.08), mats.phaseBlack);
+                swingHandle.position.set(handleX, -0.25, 0.05);
+                pivot.add(swingHandle);
+
+                // Exterior Top Analog Meters (V, A, kW, Hz) + Digital PMS Screen + Flush ACB Bezel + Mimic Bus Lines (Ref 1)
+                const meterUnits = ['V', 'A', 'kW', 'Hz'];
+                meterUnits.forEach((u, mIdx) => {
+                    const mTex = createAnalogMeterTexture(u, u === 'V' ? '500' : (u === 'Hz' ? '65' : '1000'), 0.68);
+                    const meter = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.28, 0.28, 0.12),
+                        [
+                            mats.acbFaceDark, mats.acbFaceDark, mats.acbFaceDark,
+                            mats.acbFaceDark,
+                            new THREE.MeshBasicMaterial({ map: mTex }),
+                            mats.acbFaceDark
+                        ]
+                    );
+                    meter.position.set(doorOffsetX - 0.54 + mIdx * 0.36, 1.72, 0.02);
+                    pivot.add(meter);
+                });
+
+                const pmsTex = createPMSDisplayTexture(`PMS UNIT 0${cubIdx}`);
+                const pmsUnit = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.66, 0.42, 0.14),
+                    [
+                        mats.acbFaceDark, mats.acbFaceDark, mats.acbFaceDark,
+                        mats.acbFaceDark,
+                        new THREE.MeshBasicMaterial({ map: pmsTex }),
+                        mats.acbFaceDark
+                    ]
+                );
+                pmsUnit.position.set(doorOffsetX, 1.15, 0.02);
+                pivot.add(pmsUnit);
+
+                // Exterior Flush ACB Control Bezel Window & Mimic Bus Diagram with Arrows (Ref 1)
+                const extAcbBezel = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.72, 0.06), mats.acbFaceDark);
+                extAcbBezel.position.set(doorOffsetX, 0.15, 0.03);
+                pivot.add(extAcbBezel);
+
+                const mimicV = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.65, 0.02), mats.phaseBlack);
+                mimicV.position.set(doorOffsetX, -0.05, 0.035);
+                pivot.add(mimicV);
+
+                const mimicH = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.68, 0.035, 0.02), mats.phaseBlack);
+                mimicH.position.set(doorOffsetX, -0.72, 0.035);
+                pivot.add(mimicH);
+
+                // INTERIOR REAR DOOR-MOUNTED COMPONENTS (Matches open right door in Reference 2!)
+                const rearBoxes = [
+                    { dy: 0.55, dz: -0.11 },
+                    { dy: 0.05, dz: -0.12 },
+                    { dy: -0.35, dz: -0.12 },
+                    { dy: -0.95, dz: -0.12 }
+                ];
+                rearBoxes.forEach((rb, rIdx) => {
+                    const boxL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.16), mats.acbFaceDark);
+                    boxL.position.set(doorOffsetX - 0.22, rb.dy, rb.dz);
+                    pivot.add(boxL);
+
+                    const boxR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.16), mats.acbFaceDark);
+                    boxR.position.set(doorOffsetX + 0.18, rb.dy, rb.dz);
+                    pivot.add(boxR);
+
+                    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.06, 12), rIdx % 2 === 0 ? mats.phaseRed : mats.spdGreen);
+                    cap.rotation.x = Math.PI / 2;
+                    cap.position.set(doorOffsetX - 0.22, rb.dy, rb.dz - 0.09);
+                    pivot.add(cap);
+                });
+
+                // Slotted wire duct & vertical black bundled door wiring harness on inside of door
+                const doorDuct = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.85, 0.08), mats.pvcDuctGrey);
+                doorDuct.position.set(doorOffsetX * 0.28, -0.15, -0.09);
+                pivot.add(doorDuct);
+
+                const loom = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.2, 12), mats.phaseBlack);
+                loom.position.set(doorOffsetX * 0.45, -0.2, -0.12);
+                pivot.add(loom);
+
+                // Flexible black wiring harness loop & Green/Yellow Earth Bonding Braid bridging hinge to cabinet frame
+                const hingeLoop = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 10, 20, Math.PI), mats.phaseBlack);
+                hingeLoop.position.set(swingDirection > 0 ? -0.12 : 0.12, -0.1, -0.08);
+                pivot.add(hingeLoop);
+
+                const earthStrap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.035, 0.02), mats.earthGreenYellow);
+                earthStrap.position.set(swingDirection > 0 ? -0.16 : 0.16, -CUB_H / 2 + 0.42, -0.06);
+                earthStrap.rotation.z = swingDirection * 0.25;
+                pivot.add(earthStrap);
+
+                const grabRail = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, doorW * 0.76, 12).rotateZ(Math.PI / 2), mats.phaseBlack);
+                grabRail.position.set(doorOffsetX, 0.58, 0.07);
+                pivot.add(grabRail);
+
+                const pBtnG = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.03, 12).rotateX(Math.PI / 2), mats.btnGreen);
+                pBtnG.position.set(doorOffsetX + 0.48, 0.75, 0.04);
+                pivot.add(pBtnG);
+
+                const pBtnR = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.03, 12).rotateX(Math.PI / 2), mats.btnRed);
+                pBtnR.position.set(doorOffsetX + 0.60, 0.75, 0.04);
+                pivot.add(pBtnR);
+            }
+
+            // Build Door 1 (Left Bay Cubicle 1 — Hinged on its right edge so it swings open 115 deg by default!)
+            buildCubicleDoor(1, CUB1_X + CUB1_W / 2 - 0.04, CUB1_W - 0.06, 1);
+
+            // Build Door 2 (Center Narrower Bus-Tie Cubicle 2 — Hinged on left edge)
+            buildCubicleDoor(2, CUB2_X - CUB2_W / 2 + 0.04, CUB2_W - 0.06, -1);
+
+            // Build Door 3 (Right Bay Cubicle 3 — Closed by default to showcase exterior mimic faceplate!)
+            buildCubicleDoor(3, CUB3_X + CUB3_W / 2 - 0.04, CUB3_W - 0.06, 1);
+
+            // Build 3D Anchor Dots for Callout Labels (toggled ON/OFF with Labels Master Switch)
+            const dotGeo = new THREE.SphereGeometry(0.048, 14, 14);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+            BOM_PARTS.forEach(part => {
+                const dot = new THREE.Mesh(dotGeo, dotMat.clone());
+                dot.position.copy(part.anchorWorld);
+                anchorDotMeshes[part.id] = dot;
+                anchorDotsGroup.add(dot);
+            });
+            scene.add(anchorDotsGroup);
+
+            scene.add(assemblyRoot);
+        }
+
+        // ============================================================================
+        // 5. CAD EXPLOSION ALIGNMENT GUIDES
+        // ============================================================================
+        function buildCADAlignmentGuides() {
+            cadTraceLinesGroup = new THREE.Group();
+            const dashMat = new THREE.LineDashedMaterial({
+                color: 0xf59e0b,
+                dashSize: 0.18,
+                gapSize: 0.12,
+                transparent: true,
+                opacity: 0.65
+            });
+
+            // Draw-out guide rails for Cubicle 1 ACB, MCCB bank, Bus-Tie ACB, and DIN rails
+            const guidePaths = [
+                [new THREE.Vector3(CUB1_X - 0.60, 3.64, -0.4), new THREE.Vector3(CUB1_X - 0.60, 3.64, 3.4)],
+                [new THREE.Vector3(CUB1_X + 0.52, 3.45, -0.4), new THREE.Vector3(CUB1_X + 0.52, 3.45, 3.0)],
+                [new THREE.Vector3(CUB1_X + 0.55, 2.45, -0.4), new THREE.Vector3(CUB1_X + 0.55, 2.45, 3.4)],
+                [new THREE.Vector3(CUB2_X, 3.85, -0.4), new THREE.Vector3(CUB2_X, 3.85, 3.5)],
+                [new THREE.Vector3(CUB3_X - 0.45, 3.64, -0.4), new THREE.Vector3(CUB3_X - 0.45, 3.64, 3.4)]
+            ];
+
+            guidePaths.forEach(pts => {
+                const geo = new THREE.BufferGeometry().setFromPoints(pts);
+                const line = new THREE.Line(geo, dashMat);
+                line.computeLineDistances();
+                cadTraceLinesGroup.add(line);
+            });
+
+            scene.add(cadTraceLinesGroup);
+        }
+
+        // ============================================================================
+        // 6. EXPLOSION, DOOR HINGES & SWITCHING STATE INTERACTION
+        // ============================================================================
+        function updateExplosionPositions(factor) {
+            explodeFactor = factor;
+
+            BOM_PARTS.forEach(part => {
+                const grp = partGroups[part.id];
+                if (!grp) return;
+
+                grp.position.x = THREE.MathUtils.lerp(part.basePos.x, part.explodeOffset.x, factor);
+                grp.position.y = THREE.MathUtils.lerp(part.basePos.y, part.explodeOffset.y, factor);
+                grp.position.z = THREE.MathUtils.lerp(part.basePos.z, part.explodeOffset.z, factor);
+
+                // Keep 3D callout anchor dot synchronized with its exploded part
+                const dot = anchorDotMeshes[part.id];
+                if (dot) {
+                    dot.position.copy(part.anchorWorld).add(grp.position);
+                }
+            });
+
+            // Translate multi-axis enclosure panels (-X/+X side panels, +Y drip canopy, -Y base plinth, -Z rear wall)
+            subExplodeActors.forEach(actor => {
+                actor.obj.position.x = actor.basePos.x + actor.offset.x * factor;
+                actor.obj.position.y = actor.basePos.y + actor.offset.y * factor;
+                actor.obj.position.z = actor.basePos.z + actor.offset.z * factor;
+            });
+
+            if (cadTraceLinesGroup) {
+                cadTraceLinesGroup.visible = factor > 0.02;
+            }
+
+            const pct = Math.round(factor * 100);
+            const slider = document.getElementById('explode-slider');
+            if (slider && Math.abs(slider.value - pct) > 1) {
+                slider.value = pct;
+            }
+            const badge = document.getElementById('explode-pct');
+            if (badge) {
+                badge.textContent = pct === 0 ? '0% (Door 1 Open)' : `${pct}% Exploded`;
+            }
+        }
+
+        function onExplodeSliderChange(val) {
+            isAnimatingExplode = false;
+            targetExplodeFactor = parseFloat(val) / 100;
+            updateExplosionPositions(targetExplodeFactor);
+        }
+
+        function animateExplodeTo(target) {
+            targetExplodeFactor = target;
+            isAnimatingExplode = true;
+        }
+
+        function toggleDoor(cubIdx) {
+            const st = doorState[cubIdx];
+            if (!st) return;
+            st.isOpen = !st.isOpen;
+
+            if (cubIdx === 1) {
+                st.targetAngle = st.isOpen ? 2.02 : 0.0;
+            } else if (cubIdx === 2) {
+                st.targetAngle = st.isOpen ? -1.95 : 0.0;
+            } else if (cubIdx === 3) {
+                st.targetAngle = st.isOpen ? 2.02 : 0.0;
+            }
+
+            updateDoorButtonsUI();
+        }
+
+        function updateDoorButtonsUI() {
+            [1, 2, 3].forEach(idx => {
+                const btn = document.getElementById(`btn-door-${idx}`);
+                if (!btn) return;
+                const open = doorState[idx].isOpen;
+                const prefix = idx === 2 ? 'Bus-Tie' : `Door ${idx}`;
+                btn.textContent = `${prefix}: ${open ? 'OPEN' : 'SHUT'}`;
+                btn.className = open
+                    ? 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition'
+                    : 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            });
+        }
+
+        function setSwitchingMode(mode) {
+            switchingMode = mode;
+            const badge = document.getElementById('bus-state-badge');
+            const readout = document.getElementById('energized-readout');
+
+            const btnParallel = document.getElementById('btn-mode-parallel');
+            const btnSplit = document.getElementById('btn-mode-split');
+            const btnIsolated = document.getElementById('btn-mode-isolated');
+            const inactiveCls = 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+
+            btnParallel.className = inactiveCls;
+            btnSplit.className = inactiveCls;
+            btnIsolated.className = inactiveCls;
+
+            const tieBox = document.getElementById('mimic-tie-box');
+            const tieBar = document.getElementById('mimic-tie-bar');
+            const bus1Line = document.getElementById('mimic-bus1');
+            const bus2Line = document.getElementById('mimic-bus2');
+
+            if (mode === 'parallel') {
+                btnParallel.className = 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 transition';
+                badge.textContent = '440V AC 60Hz • BUS-TIE CLOSED';
+                badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono';
+                readout.textContent = 'PARALLEL BUS';
+                readout.className = 'text-[11px] font-bold text-emerald-400 mono';
+
+                if (rotarySwitchHandleMesh) rotarySwitchHandleMesh.rotation.z = -0.45;
+                if (busTieIndLights.green) {
+                    busTieIndLights.green.emissiveIntensity = 0.9;
+                    busTieIndLights.red.emissiveIntensity = 0.1;
+                }
+                tieBox.setAttribute('stroke', '#34d399');
+                tieBar.setAttribute('y2', '36');
+                tieBar.setAttribute('stroke', '#34d399');
+                bus1Line.setAttribute('stroke', '#f59e0b');
+                bus2Line.setAttribute('stroke', '#f59e0b');
+            } else if (mode === 'split') {
+                btnSplit.className = 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+                badge.textContent = '440V AC 60Hz • SPLIT-BUS (TIE OPEN)';
+                badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 mono';
+                readout.textContent = 'SPLIT-BUS MODE';
+                readout.className = 'text-[11px] font-bold text-amber-400 mono';
+
+                if (rotarySwitchHandleMesh) rotarySwitchHandleMesh.rotation.z = 0.45;
+                if (busTieIndLights.red) {
+                    busTieIndLights.red.emissiveIntensity = 0.9;
+                    busTieIndLights.green.emissiveIntensity = 0.1;
+                }
+                tieBox.setAttribute('stroke', '#f87171');
+                tieBar.setAttribute('y2', '30');
+                tieBar.setAttribute('stroke', '#f87171');
+                bus1Line.setAttribute('stroke', '#f59e0b');
+                bus2Line.setAttribute('stroke', '#38bdf8');
+            } else {
+                btnIsolated.className = 'py-1.5 px-2 rounded-lg text-[11px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/50 transition';
+                badge.textContent = '0V DEAD BUS • MAINTENANCE ISOLATED';
+                badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-400/30 mono';
+                readout.textContent = 'DE-ENERGIZED';
+                readout.className = 'text-[11px] font-bold text-rose-400 mono';
+
+                if (rotarySwitchHandleMesh) rotarySwitchHandleMesh.rotation.z = 0.45;
+                tieBox.setAttribute('stroke', '#64748b');
+                tieBar.setAttribute('y2', '30');
+                tieBar.setAttribute('stroke', '#64748b');
+                bus1Line.setAttribute('stroke', '#475569');
+                bus2Line.setAttribute('stroke', '#475569');
+            }
+
+            applyBusbarGlowIntensity();
+        }
+
+        function togglePowerHighlight(checked) {
+            showPowerGlow = checked;
+            applyBusbarGlowIntensity();
+        }
+
+        function applyBusbarGlowIntensity() {
+            const active = showPowerGlow && switchingMode !== 'isolated';
+            busbarGlowMaterials.bus1.forEach(m => {
+                m.emissiveIntensity = active ? 0.28 : 0.0;
+            });
+            busbarGlowMaterials.bus2.forEach(m => {
+                m.emissiveIntensity = active ? 0.28 : 0.0;
+            });
+            busbarGlowMaterials.busTie.forEach(m => {
+                m.emissiveIntensity = (active && switchingMode === 'parallel') ? 0.35 : 0.0;
+            });
+        }
+
+        function toggleDripCanopy(checked) {
+            showDripCanopy = checked;
+            const hoodWrap = partGroups['enclosure_generators']?.getObjectByName('top_drip_canopy_wrapper');
+            if (hoodWrap) hoodWrap.visible = showDripCanopy;
+        }
+
+        function toggleEnclosureXRay() {
+            isEnclosureXRay = !isEnclosureXRay;
+            enclosureShellMaterials.forEach(m => {
+                m.transparent = isEnclosureXRay;
+                m.opacity = isEnclosureXRay ? 0.22 : 1.0;
+                m.needsUpdate = true;
+            });
+
+            const btn = document.getElementById('btn-xray');
+            if (btn) {
+                btn.className = isEnclosureXRay
+                    ? 'px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition'
+                    : 'px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            }
+        }
+
+        // Master Toggle ON/OFF for all 2D Component Callout Labels & 3D Anchor Dots
+        function toggleCalloutPins() {
+            showCalloutPins = !showCalloutPins;
+            const pinsContainer = document.getElementById('pins-container');
+            const leaderSvg = document.getElementById('leader-svg');
+            const filterGroup = document.getElementById('label-filter-group');
+
+            if (pinsContainer) pinsContainer.style.display = showCalloutPins ? 'block' : 'none';
+            if (leaderSvg) {
+                leaderSvg.style.display = showCalloutPins ? 'block' : 'none';
+                if (!showCalloutPins) leaderSvg.innerHTML = '';
+            }
+            if (anchorDotsGroup) anchorDotsGroup.visible = showCalloutPins;
+            if (filterGroup) {
+                filterGroup.style.opacity = showCalloutPins ? '1' : '0.4';
+                filterGroup.style.pointerEvents = showCalloutPins ? 'auto' : 'none';
+            }
+
+            // Update Top Header Button & Right Control Panel Button
+            const topBtn = document.getElementById('btn-labels-top');
+            const topTxt = document.getElementById('txt-labels-top');
+            const topDot = document.getElementById('dot-labels-top');
+
+            const panelBtn = document.getElementById('btn-labels-panel');
+            const panelTxt = document.getElementById('txt-labels-panel');
+            const panelDot = document.getElementById('dot-labels-panel');
+
+            if (topTxt) topTxt.textContent = showCalloutPins ? 'Labels: ON' : 'Labels: OFF';
+            if (panelTxt) panelTxt.textContent = showCalloutPins ? 'Labels: ON' : 'Labels: OFF';
+
+            if (topBtn) {
+                topBtn.className = showCalloutPins
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50 hover:bg-sky-500/35 shadow-sm transition flex items-center gap-1.5'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/90 text-slate-400 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1.5';
+            }
+            if (topDot) {
+                topDot.className = showCalloutPins
+                    ? 'w-2 h-2 rounded-full bg-sky-400 animate-pulse'
+                    : 'w-2 h-2 rounded-full bg-slate-500';
+            }
+
+            if (panelBtn) {
+                panelBtn.className = showCalloutPins
+                    ? 'w-full py-2 px-3 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50 hover:bg-sky-500/35 transition flex items-center justify-between shadow-inner'
+                    : 'w-full py-2 px-3 rounded-lg text-xs font-bold bg-slate-800/90 text-slate-400 border border-slate-700 hover:bg-slate-700 transition flex items-center justify-between';
+            }
+            if (panelDot) {
+                panelDot.className = showCalloutPins
+                    ? 'w-2.5 h-2.5 rounded-full bg-sky-400'
+                    : 'w-2.5 h-2.5 rounded-full bg-slate-500';
+            }
+        }
+
+        // Secondary Filter for Labels when Master Switch is ON ('all' | 'internal' | 'bustie')
+        function setLabelFilter(mode) {
+            labelFilterMode = mode;
+            if (!showCalloutPins) {
+                toggleCalloutPins();
+            }
+
+            const modes = ['all', 'internal', 'bustie'];
+            modes.forEach(m => {
+                const btn = document.getElementById(`btn-filter-${m}`);
+                if (!btn) return;
+                btn.className = (m === mode)
+                    ? 'py-1 px-1.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition'
+                    : 'py-1 px-1.5 rounded text-[10px] font-medium bg-slate-800/90 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            });
+        }
+
+        function isPartLabelVisible(part) {
+            if (!showCalloutPins) return false;
+            if (labelFilterMode === 'all') return true;
+            return part.category === labelFilterMode;
+        }
+
+        // Keyboard Shortcut 'L' to toggle labels immediately
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'l' || e.key === 'L') {
+                if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+                toggleCalloutPins();
+            }
+        });
+
+        function toggleStudioTheme() {
+            const isLight = document.body.classList.toggle('light-studio');
+            const btn = document.getElementById('btn-theme');
+            if (btn) btn.textContent = isLight ? 'Dark CAD' : 'Light Studio';
+        }
+
+        function setCameraPreset(preset) {
+            if (preset === 'open_cubicle') {
+                // Close-up of Cubicle 1 with Door 1 swung open 115 degrees (Reference 2)
+                doorState[1].isOpen = true;
+                doorState[1].targetAngle = 2.02;
+                updateDoorButtonsUI();
+                camera.position.set(CUB1_X - 0.15, 3.05, 5.85);
+                controls.target.set(CUB1_X + 0.1, 2.85, 0.15);
+            } else if (preset === 'bustie_front') {
+                // Full 3-Cubicle Bus-Tie Arrangement View (Reference 3)
+                doorState[1].isOpen = true;
+                doorState[1].targetAngle = 2.02;
+                doorState[2].isOpen = true;
+                doorState[2].targetAngle = -1.95;
+                doorState[3].isOpen = true;
+                doorState[3].targetAngle = 2.02;
+                updateDoorButtonsUI();
+                camera.position.set(0.0, 3.4, 9.8);
+                controls.target.set(0.0, 3.0, 0.0);
+            } else if (preset === 'ecr_corridor') {
+                // Oblique Engine Control Room Perspective (Reference 1 with Cubicle 1 Door Open)
+                doorState[1].isOpen = true;
+                doorState[1].targetAngle = 2.02;
+                doorState[2].isOpen = false;
+                doorState[2].targetAngle = 0.0;
+                doorState[3].isOpen = false;
+                doorState[3].targetAngle = 0.0;
+                updateDoorButtonsUI();
+                camera.position.set(-6.8, 3.2, 7.6);
+                controls.target.set(0.2, 2.7, 0.3);
+            }
+            controls.update();
+        }
+
+        // ============================================================================
+        // 7. KEYED BOM SIDEBAR & NUMBERED CALLOUT PINS (1–15)
+        // ============================================================================
+        function buildBOMSidebar() {
+            const listEl = document.getElementById('bom-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            BOM_PARTS.forEach(part => {
+                const isSelected = selectedPartId === part.id;
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-2.5 py-2 rounded-lg border transition flex items-center gap-2.5 ${
+                    isSelected
+                        ? 'bg-amber-500/25 border-amber-400/60 text-white'
+                        : 'bg-slate-900/65 hover:bg-slate-800/85 border-slate-800 text-slate-300'
+                }`;
+                btn.onclick = () => selectPart(part.id);
+
+                btn.innerHTML = `
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mono shrink-0 ${
+                        isSelected ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-amber-400 border border-slate-700'
+                    }">${part.pin}</span>
+                    <div class="truncate flex-1">
+                        <span class="text-xs font-semibold truncate block">${part.shortLabel}</span>
+                        <span class="text-[10px] text-slate-400 truncate block">${part.refBasis}</span>
+                    </div>
+                `;
+                listEl.appendChild(btn);
+            });
+        }
+
+        function selectPart(partId) {
+            selectedPartId = partId;
+            const isolateBtn = document.getElementById('btn-isolate');
+
+            if (!partId) {
+                isIsolated = false;
+                isolateBtn.classList.add('hidden');
+                document.getElementById('part-pin-badge').textContent = 'SYS-MSB';
+                document.getElementById('part-ref-badge').textContent = 'Ref 1, 2 & 3';
+                document.getElementById('part-title').textContent = '3-Cubicle Marine Main Switchboard';
+                document.getElementById('part-desc').textContent =
+                    'Dead-front, drip-proof marine main switchboard (RAL 7032) segregated into Generator 1 Incomer (Cubicle 1 with open inspection door), Central Bus-Tie Breaker Section (Cubicle 2), and Generator 2 Incomer (Cubicle 3).';
+                document.getElementById('part-material').textContent = 'RAL 7032 Steel & Cu-ETP';
+                document.getElementById('part-axis').textContent = '+Z Draw-out & -Z Rear';
+
+                BOM_PARTS.forEach(p => {
+                    if (partGroups[p.id]) partGroups[p.id].visible = true;
+                });
+            } else {
+                const part = BOM_PARTS.find(p => p.id === partId);
+                if (part) {
+                    isolateBtn.classList.remove('hidden');
+                    isolateBtn.textContent = isIsolated ? 'Show All' : 'Isolate';
+                    document.getElementById('part-pin-badge').textContent = `PIN #${part.pin} • ${part.code}`;
+                    document.getElementById('part-ref-badge').textContent = part.refBasis;
+                    document.getElementById('part-title').textContent = part.name;
+                    document.getElementById('part-desc').textContent = part.desc;
+                    document.getElementById('part-material').textContent = part.material;
+                    document.getElementById('part-axis').textContent = part.axis;
+
+                    if (isIsolated) {
+                        BOM_PARTS.forEach(p => {
+                            if (partGroups[p.id]) {
+                                partGroups[p.id].visible = p.id === selectedPartId;
+                            }
+                        });
+                    }
+                }
+            }
+            buildBOMSidebar();
+        }
+
+        function toggleIsolateSelected() {
+            if (!selectedPartId) return;
+            isIsolated = !isIsolated;
+            selectPart(selectedPartId);
+        }
+
+        const pinDOMMap = {};
+        function buildCalloutPinsDOM() {
+            const container = document.getElementById('pins-container');
+            container.innerHTML = '';
+
+            BOM_PARTS.forEach(part => {
+                const el = document.createElement('div');
+                el.className = 'callout-pin flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/70 text-[10px] font-bold text-slate-100 shadow-lg mono whitespace-nowrap';
+                el.innerHTML = `<span class="w-4 h-4 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">${part.pin}</span><span>${part.shortLabel}</span>`;
+                el.onclick = () => selectPart(part.id);
+                container.appendChild(el);
+                pinDOMMap[part.id] = el;
+            });
+        }
+
+        function updateCalloutPinsProjection() {
+            const svg = document.getElementById('leader-svg');
+            if (!showCalloutPins) {
+                if (svg && svg.innerHTML !== '') svg.innerHTML = '';
+                return;
+            }
+            svg.innerHTML = '';
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            BOM_PARTS.forEach(part => {
+                const domEl = pinDOMMap[part.id];
+                const grp = partGroups[part.id];
+                const dot = anchorDotMeshes[part.id];
+                const allowedByFilter = isPartLabelVisible(part);
+
+                if (!domEl || !grp || !grp.visible || !allowedByFilter) {
+                    if (domEl) domEl.style.display = 'none';
+                    if (dot) dot.visible = false;
+                    return;
+                }
+
+                const worldPos = part.anchorWorld.clone().add(grp.position);
+                const projected = worldPos.clone().project(camera);
+
+                if (projected.z > 1) {
+                    domEl.style.display = 'none';
+                    if (dot) dot.visible = false;
+                    return;
+                }
+
+                domEl.style.display = 'flex';
+                if (dot) dot.visible = true;
+
+                const anchorX = (projected.x * 0.5 + 0.5) * width;
+                const anchorY = (-(projected.y * 0.5) + 0.5) * height;
+
+                const offX = part.labelScreenOffset ? part.labelScreenOffset.x : 0;
+                const offY = part.labelScreenOffset ? part.labelScreenOffset.y : 0;
+                const labelX = anchorX + offX;
+                const labelY = anchorY + offY;
+
+                domEl.style.left = `${labelX}px`;
+                domEl.style.top = `${labelY}px`;
+
+                const isSel = selectedPartId === part.id;
+                domEl.style.opacity = isSel ? '1' : '0.9';
+                domEl.style.borderColor = isSel ? '#fbbf24' : 'rgba(245, 158, 11, 0.55)';
+                domEl.style.background = isSel ? 'rgba(120, 53, 15, 0.95)' : 'rgba(15, 23, 42, 0.92)';
+                if (dot) {
+                    dot.material.color.setHex(isSel ? 0x38bdf8 : 0xfbbf24);
+                }
+
+                // Draw leader line connecting 3D anchor dot to floating 2D callout badge
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', anchorX);
+                line.setAttribute('y1', anchorY);
+                line.setAttribute('x2', labelX);
+                line.setAttribute('y2', labelY);
+                line.setAttribute('stroke', isSel ? '#fbbf24' : 'rgba(245, 158, 11, 0.55)');
+                line.setAttribute('stroke-width', isSel ? '2' : '1.2');
+                line.setAttribute('stroke-dasharray', isSel ? 'none' : '3,3');
+                svg.appendChild(line);
+            });
+        }
+
+        function setupRaycasting() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let downTime = 0;
+
+            renderer.domElement.addEventListener('pointerdown', () => {
+                downTime = performance.now();
+            });
+
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (performance.now() - downTime > 220) return;
+
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
+
+                if (intersects.length > 0) {
+                    let obj = intersects[0].object;
+                    while (obj && !obj.userData?.partId) {
+                        obj = obj.parent;
+                    }
+                    if (obj && obj.userData?.partId) {
+                        selectPart(obj.userData.partId);
+                    }
+                }
+            });
+        }
+
+        // ============================================================================
+        // 8. ANIMATION LOOP (EXPLOSION INTERPOLATION & SMOOTH DOOR HINGES)
+        // ============================================================================
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth explosion interpolation
+            if (isAnimatingExplode) {
+                const diff = targetExplodeFactor - explodeFactor;
+                if (Math.abs(diff) < 0.002) {
+                    updateExplosionPositions(targetExplodeFactor);
+                    isAnimatingExplode = false;
+                } else {
+                    updateExplosionPositions(explodeFactor + diff * 0.09);
+                }
+            }
+
+            // Smooth door hinge rotation (Door 1 stays open at 115 degrees when assembled!)
+            [1, 2, 3].forEach(idx => {
+                const st = doorState[idx];
+                if (st && st.pivot) {
+                    st.currentAngle += (st.targetAngle - st.currentAngle) * 0.1;
+                    st.pivot.rotation.y = st.currentAngle;
+                }
+            });
+
+            controls.update();
+            updateCalloutPinsProjection();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            initThreeScene();
+            animate();
+        };
+    </script>
+</body>
+</html>

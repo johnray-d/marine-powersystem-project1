@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HI-SEA Bow Thruster — 3D Explodable CAD Assembly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --terracotta: #b8442a;
+            --bronze: #d4a857;
+            --cad-blue: #38bdf8;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0b111e;
+            color: #f1f5f9;
+            user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 65%, #070b14 100%);
+        }
+        body.light-studio #canvas-container {
+            background: radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%);
+        }
+        /* Blueprint subtle grid overlay */
+        .cad-grid-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background-image: 
+                linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+            background-size: 36px 36px;
+        }
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f97316;
+            border: 2px solid #fff;
+            margin-top: -7px;
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #fb923c;
+        }
+        /* 3D HTML Callout Labels */
+        .callout-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.15s ease;
+            z-index: 10;
+        }
+        .callout-label:hover {
+            transform: translate(-50%, -50%) scale(1.06);
+            z-index: 25;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
+
+    <!-- 3D WebGL Viewport -->
+    <div id="canvas-container"></div>
+    <div class="cad-grid-overlay"></div>
+
+    <!-- SVG Overlay for Callout Leader Lines -->
+    <svg id="leader-svg" class="fixed inset-0 w-full h-full pointer-events-none z-10"></svg>
+
+    <!-- HTML Container for 3D Floating Callout Badges -->
+    <div id="labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- Top Header Bar -->
+    <header class="fixed top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <!-- Brand & Title -->
+        <div class="glass-panel px-4 py-2.5 rounded-xl flex items-center gap-3.5 pointer-events-auto shadow-2xl">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-600 to-red-700 flex items-center justify-center shadow-inner border border-orange-400/30">
+                <svg class="w-6 h-6 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 9a6 6 0 0 0-6-4c0 3 2 5 3 6"></path>
+                    <path d="M15 12a6 6 0 0 0 4-6c-3 0-5 2-6 3"></path>
+                    <path d="M12 15a6 6 0 0 0 6 4c0-3-2-5-3-6"></path>
+                    <path d="M9 12a6 6 0 0 0-4 6c3 0 5-2 6-3"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 mono">HI-SEA MARINE CAD</span>
+                    <span id="status-badge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono">GEAR MESH SYNCED</span>
+                </div>
+                <h1 class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">Bow Thruster Tunnel &amp; Right-Angle Bevel Drive Assembly</h1>
+            </div>
+        </div>
+
+        <!-- Top Right Quick View & Mode Controls -->
+        <div class="glass-panel p-1.5 rounded-xl flex flex-wrap items-center gap-1.5 pointer-events-auto shadow-2xl">
+            <button id="btn-tunnel-mode" onclick="toggleTunnelCutaway()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/40 hover:bg-orange-500/30 transition flex items-center gap-1.5" title="Switch between HI-SEA Cutaway Shell and Full Ribbed Tunnel">
+                <span class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
+                <span id="tunnel-mode-text">Tunnel: HI-SEA Cutaway</span>
+            </button>
+            <button id="btn-xray" onclick="toggleXRayHousing()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                X-Ray Pod
+            </button>
+            <button id="btn-labels" onclick="toggleCallouts()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition">
+                Labels: ON
+            </button>
+            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition" title="Toggle Dark CAD vs Light Blueprint Background">
+                Light CAD
+            </button>
+            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+            <button onclick="setCameraPreset('iso')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Iso View</button>
+            <button onclick="setCameraPreset('hisea')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">HI-SEA Angle</button>
+            <button onclick="setCameraPreset('diagram')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Diagram Angle</button>
+        </div>
+    </header>
+
+    <!-- Left Sidebar: Bill of Materials & Sub-Assemblies -->
+    <aside id="left-panel" class="fixed top-20 left-3 bottom-28 w-72 z-20 flex flex-col gap-2 pointer-events-none hidden lg:flex">
+        <div class="glass-panel rounded-xl p-3.5 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-700/80">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Assembly BOM (11 Units)</h2>
+                    <p class="text-[11px] text-slate-400">Click any component to inspect</p>
+                </div>
+                <button onclick="selectPart(null)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 transition">
+                    Reset Focus
+                </button>
+            </div>
+
+            <!-- Parts List populated dynamically -->
+            <div id="bom-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+
+            <!-- Legend / Axis Indicator -->
+            <div class="pt-2.5 mt-2 border-t border-slate-700/80 grid grid-cols-2 gap-1.5 text-[11px] text-slate-400 mono">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#b8442a] inline-block"></span> Cast Steel Primer
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#d4a857] inline-block"></span> Ni-Al Bronze
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#94a3b8] inline-block"></span> Machined Alloy
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#2d5a43] inline-block"></span> Electric Drive
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Sidebar: Part Inspector & Ship Thrust Control -->
+    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-11rem)]">
+        <!-- Selected Component Details Card -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl transition-all duration-200">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <span id="part-code" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 mono">ASSY-00</span>
+                    <h3 id="part-title" class="text-base font-bold text-white mt-1">Complete Bow Thruster Unit</h3>
+                </div>
+                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 font-medium transition">
+                    Isolate
+                </button>
+            </div>
+            <p id="part-desc" class="text-xs text-slate-300 leading-relaxed mt-2">
+                Fixed-pitch or controllable-pitch tunnel thruster installed transversely in the vessel's bow. Electric motor torque is transmitted vertically through the input shaft into a 90° bevel gear pod driving the 4-blade bronze propeller.
+            </p>
+            <div class="mt-3 pt-2.5 border-t border-slate-700/70 grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Material Spec</span>
+                    <span id="part-material" class="text-slate-100 font-semibold mono">Marine Cast Steel &amp; Cu3</span>
+                </div>
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Explosion Axis</span>
+                    <span id="part-axis" class="text-sky-300 font-semibold mono">Multi-Axis (Y &amp; Z)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bow Thruster Joystick & Hydrodynamic Operation Panel -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Bridge Thruster Control
+                </span>
+                <span id="rpm-readout" class="text-xs font-bold text-amber-400 mono">320 RPM (PORT)</span>
+            </div>
+
+            <!-- Ship Hull Top-Down Visual Indicator -->
+            <div class="bg-slate-900/90 rounded-lg p-2.5 border border-slate-800 mb-3 flex items-center justify-between gap-2">
+                <div id="port-arrow" class="flex flex-col items-center text-[10px] font-bold text-emerald-400 transition-opacity">
+                    <span>◄ PORT</span>
+                    <span class="text-[9px] text-slate-400">Bow Left</span>
+                </div>
+                <!-- Mini SVG Ship Bow -->
+                <svg class="w-28 h-10" viewBox="0 0 120 42">
+                    <!-- Water wake -->
+                    <rect id="jet-right" x="62" y="14" width="40" height="14" fill="url(#waterGrad)" opacity="0.8" rx="4"/>
+                    <rect id="jet-left" x="18" y="14" width="40" height="14" fill="url(#waterGrad)" opacity="0.0" rx="4"/>
+                    <defs>
+                        <linearGradient id="waterGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.7"/>
+                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Ship Hull Outline -->
+                    <path d="M60 3 C74 12 78 24 78 39 L42 39 C42 24 46 12 60 3 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.8"/>
+                    <!-- Thruster Tunnel inside Bow -->
+                    <rect x="47" y="17" width="26" height="8" fill="#b8442a" stroke="#f97316" stroke-width="1"/>
+                    <!-- Propeller icon -->
+                    <line x1="60" y1="16" x2="60" y2="26" stroke="#fbbf24" stroke-width="2.5"/>
+                </svg>
+                <div id="stbd-arrow" class="flex flex-col items-center text-[10px] font-bold text-rose-400 opacity-30 transition-opacity">
+                    <span>STBD ►</span>
+                    <span class="text-[9px] text-slate-400">Bow Right</span>
+                </div>
+            </div>
+
+            <!-- Direction Buttons -->
+            <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                <button id="btn-port" onclick="setThrustDirection(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition">
+                    ◄ Thrust Port
+                </button>
+                <button id="btn-stop" onclick="setThrustDirection(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                    STOP
+                </button>
+                <button id="btn-stbd" onclick="setThrustDirection(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                    Thrust Stbd ►
+                </button>
+            </div>
+
+            <!-- Toggle Electric Motor & Water Flow -->
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                    <input type="checkbox" id="chk-water" checked onchange="toggleWaterParticles(this.checked)" class="rounded accent-sky-400">
+                    <span>Water Streamlines</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                    <input type="checkbox" id="chk-motor" onchange="toggleTopMotor(this.checked)" class="rounded accent-emerald-400">
+                    <span>Top Electric Motor</span>
+                </label>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bottom Master Explosion Controller -->
+    <footer class="fixed bottom-3 left-3 right-3 z-30 flex justify-center pointer-events-none">
+        <div class="glass-panel px-5 py-3.5 rounded-2xl w-full max-w-3xl pointer-events-auto shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-orange-400 mono flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                        Assembly Explosion Factor
+                    </span>
+                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-400/30 text-orange-300 text-xs font-bold mono">65%</span>
+                </div>
+
+                <!-- Quick Stage Presets -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        0% Assembled
+                    </button>
+                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        45% Sub-Assy
+                    </button>
+                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 transition">
+                        100% Full Exploded View
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Slider -->
+            <div class="flex items-center gap-4">
+                <span class="text-[11px] font-medium text-slate-400 mono">LOCKED</span>
+                <input id="explode-slider" type="range" min="0" max="100" value="65" class="w-full" oninput="onExplodeSliderChange(this.value)">
+                <span class="text-[11px] font-medium text-slate-400 mono">EXPLODED</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // 1. GLOBAL STATE & CONFIGURATION
+        // ============================================================================
+        let scene, camera, renderer, controls;
+        let explodeFactor = 0.65;
+        let targetExplodeFactor = 0.65;
+        let isAnimatingExplode = false;
+
+        let thrustDirection = 1; // 1 = Port, 0 = Stop, -1 = Starboard
+        let propAngularVel = 0.045;
+        let isCutawayTunnel = true;
+        let isXRayPod = false;
+        let showCallouts = true;
+        let showWater = true;
+        let showElectricMotor = false;
+        let selectedPartId = null;
+        let isIsolated = false;
+
+        // Groups and Rotating References
+        const assemblyRoot = new THREE.Group();
+        const partGroups = {};
+        const rotatingMeshes = {
+            verticalShaft: [],
+            horizontalShaft: []
+        };
+        let tunnelCutawayGroup, tunnelFullGroup;
+        let gearPodOuterMaterial, tunnelOuterMaterial;
+        let waterParticlesGroup;
+        let cadTraceLinesGroup;
+
+        // Detailed Engineering Bill of Materials matching the Exploded Diagram
+        const BOM_PARTS = [
+            {
+                id: 'splined_shaft',
+                code: 'PRT-01',
+                name: 'Splined Input Shaft & Coupling',
+                shortLabel: 'SPLINED INPUT SHAFT',
+                material: '42CrMo4 Hardened Alloy Steel',
+                axis: '+Y Vertical (+7.8m)',
+                desc: 'Machined multi-spline vertical input shaft and claw coupling that receives high-torque rotational power from the vertical electric motor above.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 9.2, 0),
+                labelAnchorOffset: new THREE.Vector3(0, 6.2, 0),
+                labelScreenDir: { x: 115, y: -45 }
+            },
+            {
+                id: 'mounting_bracket',
+                code: 'PRT-02',
+                name: 'Mounting Bracket & Upper Casing',
+                shortLabel: 'MOUNTING BRACKET & CASING',
+                material: 'Cast Steel + Machined Flanges',
+                axis: '+Y Vertical (+6.2m)',
+                desc: 'Heavy-duty upper pedestal housing with machined grey triangular gusset ribs, open coupling window, and bolted lower mounting flange.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 6.4, 0),
+                labelAnchorOffset: new THREE.Vector3(-1.3, 4.3, 0.5),
+                labelScreenDir: { x: -140, y: -35 }
+            },
+            {
+                id: 'vertical_drive_shaft',
+                code: 'PRT-03',
+                name: 'Vertical Drive Shaft, Seals & Pinion',
+                shortLabel: 'VERTICAL DRIVE SHAFT',
+                material: 'Forged Ni-Cr-Mo Steel + Spiral Bevel',
+                axis: '+Y Vertical (+3.4m)',
+                desc: 'Main vertical transmission shaft equipped with upper/lower cylindrical roller bearings, copper lip seals, flanges, and the driving spiral bevel pinion gear.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 3.6, 0),
+                labelAnchorOffset: new THREE.Vector3(-0.6, 2.3, 0),
+                labelScreenDir: { x: -145, y: 10 }
+            },
+            {
+                id: 'tunnel_casing',
+                code: 'PRT-04',
+                name: 'Thruster Tunnel Casing',
+                shortLabel: 'TUNNEL CASING',
+                material: 'Marine Grade A/AH36 Steel Plate',
+                axis: 'Fixed Reference Datum (0,0,0)',
+                desc: 'Transverse cylindrical steel tunnel welded directly into the ship’s bow hull structure. Reinforced with circumferential stiffening ribs and top gear-neck flange.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, 0),
+                labelAnchorOffset: new THREE.Vector3(-2.6, 1.8, 1.5),
+                labelScreenDir: { x: -135, y: -25 }
+            },
+            {
+                id: 'gear_pod',
+                code: 'PRT-05',
+                name: 'Right-Angle Gear Pod',
+                shortLabel: 'RIGHT-ANGLE GEAR POD',
+                material: 'GGG40 Nodular Cast Iron',
+                axis: '-Z Aft Axial (-5.5m)',
+                desc: 'Hydrodynamically streamlined torpedo-shaped bevel gearbox housing suspended inside the tunnel. Houses the 90° bevel gear mesh in a pressurized oil bath.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, -5.2),
+                labelAnchorOffset: new THREE.Vector3(0, 1.8, -0.4),
+                labelScreenDir: { x: 120, y: -65 }
+            },
+            {
+                id: 'internal_bevel_gears',
+                code: 'PRT-06',
+                name: 'Internal Bevel Gears & Prop Shaft',
+                shortLabel: 'INTERNAL BEVEL GEARS & SHAFT',
+                material: '18CrNiMo7-6 Case-Hardened Steel',
+                axis: '-Z Aft Axial (-8.6m)',
+                desc: 'Horizontal propeller shaft assembly featuring the precision-ground spiral bevel ring gear (90° mesh with vertical pinion) and heavy tapered roller bearings.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, -8.5),
+                labelAnchorOffset: new THREE.Vector3(0.4, 0, -1.2),
+                labelScreenDir: { x: 135, y: 45 }
+            },
+            {
+                id: 'propeller_bearing',
+                code: 'PRT-07',
+                name: 'Propeller Thrust Bearing & Seal',
+                shortLabel: 'PROPELLER ASSEMBLY BEARING',
+                material: 'Bronze Cage + Double Lip Sea Seal',
+                axis: '+Z Forward Axial (+3.4m)',
+                desc: 'High-load thrust bearing and marine shaft sealing ring that absorbs axial hydrodynamic thrust in both Port and Starboard operating directions.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, 3.3),
+                labelAnchorOffset: new THREE.Vector3(0, -0.5, 1.8),
+                labelScreenDir: { x: 95, y: 75 }
+            },
+            {
+                id: 'propeller_blades',
+                code: 'PRT-08',
+                name: '4-Blade Skewed Kaplan Propeller',
+                shortLabel: '4-BLADE PROPELLER',
+                material: 'Cu3 Nickel-Aluminum Bronze',
+                axis: '+Z Forward Axial (+5.8m)',
+                desc: 'Four high-skew Kaplan-style hydrofoil blades engineered to minimize cavitation, vibration, and acoustic noise while delivering symmetrical bidirectional thrust.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, 5.8),
+                labelAnchorOffset: new THREE.Vector3(-1.4, 1.5, 2.0),
+                labelScreenDir: { x: -120, y: -45 }
+            },
+            {
+                id: 'propeller_hub',
+                code: 'PRT-09',
+                name: 'Propeller Boss / Hub',
+                shortLabel: 'PROPELLER HUB',
+                material: 'Cu3 Nickel-Aluminum Bronze',
+                axis: '+Z Forward Axial (+5.8m)',
+                desc: 'Precision-machined central bronze hub keyed to the horizontal propeller drive shaft, transferring torque smoothly to the 4 hydrofoil blades.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, 5.8),
+                labelAnchorOffset: new THREE.Vector3(0, -0.6, 2.1),
+                labelScreenDir: { x: 60, y: 85 }
+            },
+            {
+                id: 'cap_fasteners',
+                code: 'PRT-10',
+                name: ' Fairing Cap, Lock Nut & Fasteners',
+                shortLabel: 'CAP & FASTENERS',
+                material: '316L Stainless Steel & Alloy Bolts',
+                axis: '+Z Forward Axial (+8.5m)',
+                desc: 'Hydrodynamic hub nose cone cap, slotted castle nut, forward guide bearing, and corrosion-resistant socket head cap bolts securing the propeller assembly.',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 0, 8.5),
+                labelAnchorOffset: new THREE.Vector3(-0.3, -0.4, 2.9),
+                labelScreenDir: { x: -85, y: 65 }
+            },
+            {
+                id: 'electric_motor',
+                code: 'PRT-11',
+                name: 'Vertical Marine Electric Drive Motor',
+                shortLabel: 'ELECTRIC MOTOR (OPTIONAL)',
+                material: 'Cast Iron Finned Stator Frame',
+                axis: '+Y Vertical (+12.5m)',
+                desc: 'High-output marine squirrel-cage induction motor mounted vertically atop the thruster pedestal (toggleable from the Bridge Thruster Control panel).',
+                basePos: new THREE.Vector3(0, 0, 0),
+                explodeOffset: new THREE.Vector3(0, 11.8, 0),
+                labelAnchorOffset: new THREE.Vector3(0, 8.5, 0),
+                labelScreenDir: { x: -130, y: -40 }
+            }
+        ];
+
+        // ============================================================================
+        // 2. PROCEDURAL TEXTURES FOR REALISTIC MARINE ENGINEERING SURFACES
+        // ============================================================================
+        function createBronzeCrosshatchTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Base warm golden bronze
+            ctx.fillStyle = '#d1a654';
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Distinctive HI-SEA machined cross-hatch / knurled CNC grinding pattern on blades
+            ctx.strokeStyle = 'rgba(120, 80, 20, 0.35)';
+            ctx.lineWidth = 3;
+            const step = 16;
+            for (let i = -256; i < 512; i += step) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i + 256, 256);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(i + 256, 0);
+                ctx.lineTo(i, 256);
+                ctx.stroke();
+            }
+
+            // Subtle specular highlights in grid intersections
+            ctx.fillStyle = 'rgba(255, 240, 190, 0.25)';
+            for (let x = 0; x < 256; x += step) {
+                for (let y = 0; y < 256; y += step) {
+                    ctx.fillRect(x, y, 4, 4);
+                }
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(3, 3);
+            return tex;
+        }
+
+        function createCastIronTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(0, 0, 256, 256);
+
+            for (let i = 0; i < 4500; i++) {
+                const v = 100 + Math.floor(Math.random() * 55);
+                ctx.fillStyle = `rgb(${v},${v},${v})`;
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(4, 4);
+            return tex;
+        }
+
+        // ============================================================================
+        // 3. INITIALIZE SCENE, CAMERA, LIGHTS & CONTROLS
+        // ============================================================================
+        function initThreeScene() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(-13.5, 9.5, 15.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.15;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.target.set(0, 1.2, 0.5);
+            controls.maxDistance = 45;
+            controls.minDistance = 4;
+
+            // Studio + Marine Engineering Lighting Setup
+            const hemiLight = new THREE.HemisphereLight(0xe2e8f0, 0x1e293b, 0.85);
+            scene.add(hemiLight);
+
+            const keyLight = new THREE.DirectionalLight(0xfff7ed, 1.35);
+            keyLight.position.set(-14, 22, 18);
+            keyLight.castShadow = true;
+            keyLight.shadow.mapSize.width = 2048;
+            keyLight.shadow.mapSize.height = 2048;
+            keyLight.shadow.camera.near = 2;
+            keyLight.shadow.camera.far = 50;
+            const d = 14;
+            keyLight.shadow.camera.left = -d;
+            keyLight.shadow.camera.right = d;
+            keyLight.shadow.camera.top = d;
+            keyLight.shadow.camera.bottom = -d;
+            keyLight.shadow.bias = -0.0005;
+            scene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.75);
+            fillLight.position.set(16, 8, -12);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xfdba74, 0.6);
+            rimLight.position.set(0, -12, 10);
+            scene.add(rimLight);
+
+            // Build all mechanical components
+            buildBowThrusterAssembly();
+            buildCADTraceLines();
+            buildWaterStreamlines();
+            buildBOMSidebar();
+            buildCalloutDOMElements();
+
+            // Set initial explosion state
+            updateExplosionPositions(explodeFactor);
+
+            // Raycasting for clicking 3D parts
+            setupRaycasting();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // ============================================================================
+        // 4. PROCEDURAL 3D MECHANICAL GEOMETRY BUILDERS
+        // ============================================================================
+        function createMaterials() {
+            const bronzeTex = createBronzeCrosshatchTexture();
+            const castBump = createCastIronTexture();
+
+            tunnelOuterMaterial = new THREE.MeshStandardMaterial({
+                color: 0xb54328, // Authentic HI-SEA Red-Oxide Terracotta Primer
+                roughness: 0.52,
+                metalness: 0.22,
+                bumpMap: castBump,
+                bumpScale: 0.015,
+                side: THREE.DoubleSide
+            });
+
+            gearPodOuterMaterial = new THREE.MeshStandardMaterial({
+                color: 0xba472c,
+                roughness: 0.45,
+                metalness: 0.25,
+                bumpMap: castBump,
+                bumpScale: 0.012,
+                transparent: false,
+                opacity: 1.0
+            });
+
+            return {
+                terracotta: tunnelOuterMaterial,
+                podTerracotta: gearPodOuterMaterial,
+                innerPrimerGrey: new THREE.MeshStandardMaterial({
+                    color: 0x7c858e,
+                    roughness: 0.6,
+                    metalness: 0.3,
+                    side: THREE.DoubleSide
+                }),
+                machinedGrey: new THREE.MeshStandardMaterial({
+                    color: 0x9aa3ad,
+                    roughness: 0.35,
+                    metalness: 0.75
+                }),
+                polishedSteel: new THREE.MeshStandardMaterial({
+                    color: 0xdbe4ee,
+                    roughness: 0.2,
+                    metalness: 0.9
+                }),
+                darkSteel: new THREE.MeshStandardMaterial({
+                    color: 0x475569,
+                    roughness: 0.35,
+                    metalness: 0.85
+                }),
+                bronzeBlade: new THREE.MeshStandardMaterial({
+                    color: 0xe0b869,
+                    map: bronzeTex,
+                    bumpMap: bronzeTex,
+                    bumpScale: 0.02,
+                    roughness: 0.28,
+                    metalness: 0.82
+                }),
+                bronzeHub: new THREE.MeshStandardMaterial({
+                    color: 0xc89d51,
+                    roughness: 0.32,
+                    metalness: 0.85
+                }),
+                copperSeal: new THREE.MeshStandardMaterial({
+                    color: 0xc26d38,
+                    roughness: 0.35,
+                    metalness: 0.75
+                }),
+                rubberBlack: new THREE.MeshStandardMaterial({
+                    color: 0x1e293b,
+                    roughness: 0.85,
+                    metalness: 0.1
+                }),
+                motorGreen: new THREE.MeshStandardMaterial({
+                    color: 0x3b5e4c,
+                    roughness: 0.45,
+                    metalness: 0.4,
+                    bumpMap: castBump,
+                    bumpScale: 0.01
+                })
+            };
+        }
+
+        // Helper: Create a realistic 3D Bevel / Spur Gear with individual teeth
+        function createBevelGearMesh(radiusTop, radiusBottom, height, numTeeth, mat) {
+            const gearGroup = new THREE.Group();
+
+            // Core frustum body
+            const coreGeo = new THREE.CylinderGeometry(radiusTop * 0.86, radiusBottom * 0.86, height, 32);
+            const coreMesh = new THREE.Mesh(coreGeo, mat);
+            coreMesh.castShadow = true;
+            gearGroup.add(coreMesh);
+
+            // Inner recessed web
+            const hubGeo = new THREE.CylinderGeometry(radiusTop * 0.48, radiusBottom * 0.48, height * 1.08, 24);
+            const hubMesh = new THREE.Mesh(hubGeo, mat);
+            gearGroup.add(hubMesh);
+
+            // Individual bevel teeth arranged radially
+            const avgR = (radiusTop + radiusBottom) * 0.5;
+            const toothWidth = (2 * Math.PI * avgR) / (numTeeth * 2.1);
+            const toothDepth = (radiusBottom - radiusTop) * 0.35 + 0.12;
+            const slopeAngle = Math.atan2(radiusBottom - radiusTop, height);
+
+            const toothGeo = new THREE.BoxGeometry(toothWidth, height * 0.96, toothDepth);
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i / numTeeth) * Math.PI * 2;
+                const tooth = new THREE.Mesh(toothGeo, mat);
+                const r = avgR * 0.88;
+                tooth.position.set(Math.sin(angle) * r, 0, Math.cos(angle) * r);
+                tooth.rotation.y = angle;
+                tooth.rotation.x = -slopeAngle;
+                tooth.castShadow = true;
+                gearGroup.add(tooth);
+            }
+
+            return gearGroup;
+        }
+
+        // Helper: Create detailed Roller Bearing Assembly (Outer ring, Inner ring, Cage + Spherical/Cylindrical Rollers)
+        function createBearingAssembly(outerR, innerR, width, mats, isBronzeOuter = false) {
+            const bearingGroup = new THREE.Group();
+            const midR = (outerR + innerR) * 0.5;
+            const ringThickness = (outerR - innerR) * 0.28;
+
+            // Outer Race Ring
+            const outerGeo = new THREE.CylinderGeometry(outerR, outerR, width, 36, 1, true);
+            const outerMat = isBronzeOuter ? mats.bronzeHub : mats.darkSteel;
+            const outerRing = new THREE.Mesh(outerGeo, outerMat);
+            bearingGroup.add(outerRing);
+
+            // Inner Race Ring
+            const innerGeo = new THREE.CylinderGeometry(innerR, innerR, width * 1.05, 36);
+            const innerRing = new THREE.Mesh(innerGeo, mats.polishedSteel);
+            bearingGroup.add(innerRing);
+
+            // Top & Bottom Annular Caps for races
+            const capRingGeo = new THREE.RingGeometry(outerR - ringThickness, outerR, 36);
+            const capTop = new THREE.Mesh(capRingGeo, outerMat);
+            capTop.rotation.x = -Math.PI / 2;
+            capTop.position.y = width / 2;
+            bearingGroup.add(capTop);
+
+            const capBot = capTop.clone();
+            capBot.rotation.x = Math.PI / 2;
+            capBot.position.y = -width / 2;
+            bearingGroup.add(capBot);
+
+            // Rollers / Balls inside cage
+            const numRollers = 14;
+            const rollerR = (outerR - innerR) * 0.26;
+            const rollerGeo = new THREE.CylinderGeometry(rollerR, rollerR, width * 0.82, 16);
+            for (let i = 0; i < numRollers; i++) {
+                const a = (i / numRollers) * Math.PI * 2;
+                const roller = new THREE.Mesh(rollerGeo, mats.polishedSteel);
+                roller.position.set(Math.cos(a) * midR, 0, Math.sin(a) * midR);
+                bearingGroup.add(roller);
+            }
+
+            return bearingGroup;
+        }
+
+        // Helper: Hex Bolt
+        function createBolt(radius, length, mat) {
+            const bolt = new THREE.Group();
+            const headGeo = new THREE.CylinderGeometry(radius * 1.6, radius * 1.6, radius * 1.1, 6);
+            const head = new THREE.Mesh(headGeo, mat);
+            head.position.y = length / 2;
+            bolt.add(head);
+
+            const shankGeo = new THREE.CylinderGeometry(radius, radius, length, 12);
+            const shank = new THREE.Mesh(shankGeo, mat);
+            bolt.add(shank);
+            return bolt;
+        }
+
+        function buildBowThrusterAssembly() {
+            const mats = createMaterials();
+
+            // Initialize containers for every BOM part
+            BOM_PARTS.forEach(part => {
+                const grp = new THREE.Group();
+                grp.name = part.id;
+                grp.userData = { partId: part.id, partInfo: part };
+                partGroups[part.id] = grp;
+                assemblyRoot.add(grp);
+            });
+
+            // ------------------------------------------------------------------------
+            // PART 4: TUNNEL CASING (Both HI-SEA Cutaway Mode & Full Ribbed Tunnel Mode)
+            // ------------------------------------------------------------------------
+            const tunnelGrp = partGroups['tunnel_casing'];
+            tunnelCutawayGroup = new THREE.Group();
+            tunnelFullGroup = new THREE.Group();
+            tunnelGrp.add(tunnelCutawayGroup);
+            tunnelGrp.add(tunnelFullGroup);
+
+            const tunnelRadius = 2.55;
+            const tunnelLength = 3.8;
+
+            // --- A) FULL RIBBED TUNNEL (Matches the Exploded View Diagram) ---
+            const fullWallOuter = new THREE.CylinderGeometry(tunnelRadius, tunnelRadius, tunnelLength, 64, 1, true);
+            fullWallOuter.rotateX(Math.PI / 2);
+            const fullOuterMesh = new THREE.Mesh(fullWallOuter, mats.terracotta);
+            fullOuterMesh.castShadow = true;
+            fullOuterMesh.receiveShadow = true;
+            tunnelFullGroup.add(fullOuterMesh);
+
+            const fullWallInner = new THREE.CylinderGeometry(tunnelRadius - 0.16, tunnelRadius - 0.16, tunnelLength, 64, 1, true);
+            fullWallInner.rotateX(Math.PI / 2);
+            const fullInnerMesh = new THREE.Mesh(fullWallInner, mats.innerPrimerGrey);
+            tunnelFullGroup.add(fullInnerMesh);
+
+            // Front & Rear Flanged Rings with Bolt Holes
+            [-tunnelLength / 2, tunnelLength / 2].forEach(zPos => {
+                const flangeGeo = new THREE.RingGeometry(tunnelRadius - 0.16, tunnelRadius + 0.32, 64);
+                const flange = new THREE.Mesh(flangeGeo, mats.terracotta);
+                flange.position.z = zPos;
+                tunnelFullGroup.add(flange);
+
+                const rimGeo = new THREE.CylinderGeometry(tunnelRadius + 0.32, tunnelRadius + 0.32, 0.16, 64, 1, true);
+                rimGeo.rotateX(Math.PI / 2);
+                const rim = new THREE.Mesh(rimGeo, mats.terracotta);
+                rim.position.z = zPos + (zPos > 0 ? -0.08 : 0.08);
+                tunnelFullGroup.add(rim);
+
+                // Bolt holes around tunnel flange
+                for (let i = 0; i < 24; i++) {
+                    const a = (i / 24) * Math.PI * 2;
+                    const holeGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.2, 12);
+                    holeGeo.rotateX(Math.PI / 2);
+                    const hole = new THREE.Mesh(holeGeo, mats.darkSteel);
+                    hole.position.set(Math.cos(a) * (tunnelRadius + 0.14), Math.sin(a) * (tunnelRadius + 0.14), zPos);
+                    tunnelFullGroup.add(hole);
+                }
+            });
+
+            // Circumferential & Longitudinal Reinforcement Ribs on Full Tunnel
+            [-0.95, 0, 0.95].forEach(zRib => {
+                const ribGeo = new THREE.TorusGeometry(tunnelRadius + 0.08, 0.11, 16, 64);
+                const rib = new THREE.Mesh(ribGeo, mats.terracotta);
+                rib.position.z = zRib;
+                tunnelFullGroup.add(rib);
+            });
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                // Skip top opening area where vertical neck mounts
+                if (Math.sin(a) > 0.75) continue;
+                const longRibGeo = new THREE.BoxGeometry(0.14, 0.18, tunnelLength - 0.2);
+                const longRib = new THREE.Mesh(longRibGeo, mats.terracotta);
+                longRib.position.set(Math.cos(a) * (tunnelRadius + 0.09), Math.sin(a) * (tunnelRadius + 0.09), 0);
+                longRib.rotation.z = a - Math.PI / 2;
+                tunnelFullGroup.add(longRib);
+            }
+
+            // --- B) HI-SEA CUTAWAY TUNNEL (Matches the First Reference Photo `image_b91eb0.png`) ---
+            // Main circular left/rear ring and partial cutaway hood + bottom trough with ribs
+            const arcStart = Math.PI * 0.42;
+            const arcLen = Math.PI * 1.48;
+            const cutShellGeo = new THREE.CylinderGeometry(tunnelRadius, tunnelRadius, tunnelLength, 64, 1, true, arcStart, arcLen);
+            cutShellGeo.rotateX(Math.PI / 2);
+            const cutShellMesh = new THREE.Mesh(cutShellGeo, mats.terracotta);
+            cutShellMesh.castShadow = true;
+            tunnelCutawayGroup.add(cutShellMesh);
+
+            const cutInnerGeo = new THREE.CylinderGeometry(tunnelRadius - 0.15, tunnelRadius - 0.15, tunnelLength, 64, 1, true, arcStart, arcLen);
+            cutInnerGeo.rotateX(Math.PI / 2);
+            const cutInnerMesh = new THREE.Mesh(cutInnerGeo, mats.innerPrimerGrey);
+            tunnelCutawayGroup.add(cutInnerMesh);
+
+            // Extended lower trough cradle extending rightward/aft like the HI-SEA display photo
+            const troughArcStart = Math.PI * 0.78;
+            const troughArcLen = Math.PI * 0.62;
+            const troughGeo = new THREE.CylinderGeometry(tunnelRadius, tunnelRadius, tunnelLength * 1.45, 48, 1, true, troughArcStart, troughArcLen);
+            troughGeo.rotateX(Math.PI / 2);
+            const troughMesh = new THREE.Mesh(troughGeo, mats.terracotta);
+            troughMesh.position.z = -tunnelLength * 0.22;
+            tunnelCutawayGroup.add(troughMesh);
+
+            // External bottom ribs on cutaway trough (signature detail in photo 1)
+            [-2.2, -1.1, 0, 1.1].forEach(zPos => {
+                const ribArcGeo = new THREE.TorusGeometry(tunnelRadius + 0.1, 0.1, 12, 48, Math.PI * 0.65);
+                const ribArc = new THREE.Mesh(ribArcGeo, mats.terracotta);
+                ribArc.rotation.z = -Math.PI * 0.82;
+                ribArc.position.z = zPos;
+                tunnelCutawayGroup.add(ribArc);
+            });
+
+            // Front full ring flange on cutaway so propeller sits clearly inside tunnel mouth
+            const frontRingGeo = new THREE.RingGeometry(tunnelRadius - 0.16, tunnelRadius + 0.25, 64);
+            const frontRing = new THREE.Mesh(frontRingGeo, mats.terracotta);
+            frontRing.position.z = tunnelLength / 2;
+            tunnelCutawayGroup.add(frontRing);
+
+            // Shared Top Cylindrical Neck & Flange on Tunnel Casing (where bracket & pod meet)
+            const neckGroup = new THREE.Group();
+            const neckCylGeo = new THREE.CylinderGeometry(1.18, 1.24, 1.05, 40, 1, true);
+            const neckCyl = new THREE.Mesh(neckCylGeo, mats.terracotta);
+            neckCyl.position.set(0, tunnelRadius + 0.28, -0.35);
+            neckGroup.add(neckCyl);
+
+            const topFlangeGeo = new THREE.CylinderGeometry(1.52, 1.52, 0.18, 40);
+            const topFlange = new THREE.Mesh(topFlangeGeo, mats.terracotta);
+            topFlange.position.set(0, tunnelRadius + 0.78, -0.35);
+            neckGroup.add(topFlange);
+
+            // Top flange bore
+            const topBoreGeo = new THREE.CylinderGeometry(1.05, 1.05, 0.22, 36);
+            const topBore = new THREE.Mesh(topBoreGeo, mats.innerPrimerGrey);
+            topBore.position.set(0, tunnelRadius + 0.78, -0.35);
+            neckGroup.add(topBore);
+
+            tunnelGrp.add(neckGroup);
+            updateTunnelModeVisibility();
+
+            // ------------------------------------------------------------------------
+            // PART 2: MOUNTING BRACKET & UPPER CASING (Red body + Grey triangular gussets)
+            // ------------------------------------------------------------------------
+            const bracketGrp = partGroups['mounting_bracket'];
+            const bracketCenterZ = -0.35;
+            const bracketBaseY = tunnelRadius + 0.88;
+
+            // Circular Bolted Base Flange
+            const bFlangeGeo = new THREE.CylinderGeometry(1.52, 1.52, 0.2, 40);
+            const bFlange = new THREE.Mesh(bFlangeGeo, mats.terracotta);
+            bFlange.position.set(0, bracketBaseY, bracketCenterZ);
+            bFlange.castShadow = true;
+            bracketGrp.add(bFlange);
+
+            // Base Flange Fastener Bolts (hanging below & around flange as in diagram)
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                const bolt = createBolt(0.06, 0.42, mats.darkSteel);
+                bolt.position.set(
+                    Math.cos(a) * 1.32,
+                    bracketBaseY - 0.12,
+                    bracketCenterZ + Math.sin(a) * 1.32
+                );
+                bracketGrp.add(bolt);
+            }
+
+            // Upper Open Inspection Box (Red Cast Frame)
+            const backWallGeo = new THREE.BoxGeometry(1.75, 1.65, 0.22);
+            const backWall = new THREE.Mesh(backWallGeo, mats.terracotta);
+            backWall.position.set(0, bracketBaseY + 0.9, bracketCenterZ - 0.65);
+            bracketGrp.add(backWall);
+
+            // Left & Right Vertical Pillars of the Coupling Window
+            [-0.78, 0.78].forEach(xSide => {
+                const pillarGeo = new THREE.BoxGeometry(0.28, 1.65, 1.35);
+                const pillar = new THREE.Mesh(pillarGeo, mats.terracotta);
+                pillar.position.set(xSide, bracketBaseY + 0.9, bracketCenterZ - 0.05);
+                pillar.castShadow = true;
+                bracketGrp.add(pillar);
+
+                // Machined Grey Outer Side Cladding + Angled Triangular Gusset Plate (Signature HI-SEA look!)
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(1.75, 0);
+                shape.lineTo(0.85, 1.68);
+                shape.lineTo(0, 1.68);
+                shape.closePath();
+
+                const extrudeSettings = { depth: 0.12, bevelEnabled: false };
+                const gussetGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                gussetGeo.rotateY(Math.PI / 2);
+                const gussetMesh = new THREE.Mesh(gussetGeo, mats.machinedGrey);
+                gussetMesh.position.set(xSide + (xSide > 0 ? 0.14 : -0.26), bracketBaseY + 0.08, bracketCenterZ - 0.55);
+                gussetMesh.castShadow = true;
+                bracketGrp.add(gussetMesh);
+            });
+
+            // Forward Sloped Support Foot with Bolt Bosses
+            const frontFootGeo = new THREE.BoxGeometry(1.75, 0.22, 0.9);
+            const frontFoot = new THREE.Mesh(frontFootGeo, mats.terracotta);
+            frontFoot.position.set(0, bracketBaseY + 0.1, bracketCenterZ + 0.85);
+            bracketGrp.add(frontFoot);
+
+            // Top Machined Grey Motor Deck Plate
+            const topDeckGeo = new THREE.BoxGeometry(1.95, 0.18, 1.55);
+            const topDeck = new THREE.Mesh(topDeckGeo, mats.machinedGrey);
+            topDeck.position.set(0, bracketBaseY + 1.75, bracketCenterZ - 0.05);
+            topDeck.castShadow = true;
+            bracketGrp.add(topDeck);
+
+            // ------------------------------------------------------------------------
+            // PART 1: SPLINED INPUT SHAFT & FLEXIBLE JAW COUPLING
+            // ------------------------------------------------------------------------
+            const inputShaftGrp = partGroups['splined_shaft'];
+            const inputSpinGroup = new THREE.Group();
+            inputSpinGroup.position.set(0, bracketBaseY + 1.55, bracketCenterZ);
+            inputShaftGrp.add(inputSpinGroup);
+            rotatingMeshes.verticalShaft.push(inputSpinGroup);
+
+            // Lower & Upper Machined Jaw Coupling Hubs (Visible inside the bracket window in Photo 1!)
+            const jawHubGeo = new THREE.CylinderGeometry(0.46, 0.46, 0.55, 24);
+            const jawHub = new THREE.Mesh(jawHubGeo, mats.polishedSteel);
+            jawHub.position.y = -0.55;
+            inputSpinGroup.add(jawHub);
+
+            // Interlocking radial lugs around coupling
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                const lugGeo = new THREE.BoxGeometry(0.18, 0.42, 0.18);
+                const lug = new THREE.Mesh(lugGeo, mats.machinedGrey);
+                lug.position.set(Math.cos(a) * 0.46, -0.55, Math.sin(a) * 0.46);
+                lug.rotation.y = -a;
+                inputSpinGroup.add(lug);
+            }
+
+            // Stepped Collar & Vertical Shaft Neck
+            const collarGeo = new THREE.CylinderGeometry(0.38, 0.42, 0.45, 32);
+            const collar = new THREE.Mesh(collarGeo, mats.machinedGrey);
+            collar.position.y = 0.35;
+            inputSpinGroup.add(collar);
+
+            // Splined Upper Shaft Cylinder with Longitudinal Spline Ridges
+            const splineCoreGeo = new THREE.CylinderGeometry(0.26, 0.26, 1.15, 24);
+            const splineCore = new THREE.Mesh(splineCoreGeo, mats.polishedSteel);
+            splineCore.position.y = 1.05;
+            inputSpinGroup.add(splineCore);
+
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                const ridgeGeo = new THREE.BoxGeometry(0.045, 0.85, 0.06);
+                const ridge = new THREE.Mesh(ridgeGeo, mats.darkSteel);
+                ridge.position.set(Math.cos(a) * 0.26, 1.12, Math.sin(a) * 0.26);
+                ridge.rotation.y = -a;
+                inputSpinGroup.add(ridge);
+            }
+
+            // ------------------------------------------------------------------------
+            // PART 3: VERTICAL DRIVE SHAFT, GASKETS, BEARINGS & TOP BEVEL PINION GEAR
+            // ------------------------------------------------------------------------
+            const vShaftGrp = partGroups['vertical_drive_shaft'];
+
+            // Stationary Gaskets, Seals & Bearing Outer Races
+            const gasketGeo = new THREE.RingGeometry(0.85, 1.28, 36);
+            const upperGasket = new THREE.Mesh(gasketGeo, mats.darkSteel);
+            upperGasket.rotation.x = -Math.PI / 2;
+            upperGasket.position.set(0, bracketBaseY - 0.15, bracketCenterZ);
+            vShaftGrp.add(upperGasket);
+
+            // Copper & Rubber Lip Seals
+            const sealBlackGeo = new THREE.TorusGeometry(0.45, 0.06, 16, 36);
+            const sealBlack = new THREE.Mesh(sealBlackGeo, mats.rubberBlack);
+            sealBlack.rotation.x = Math.PI / 2;
+            sealBlack.position.set(0, bracketBaseY - 0.35, bracketCenterZ);
+            vShaftGrp.add(sealBlack);
+
+            const sealCopperGeo = new THREE.TorusGeometry(0.48, 0.055, 16, 36);
+            const sealCopper = new THREE.Mesh(sealCopperGeo, mats.copperSeal);
+            sealCopper.rotation.x = Math.PI / 2;
+            sealCopper.position.set(0, bracketBaseY - 0.58, bracketCenterZ);
+            vShaftGrp.add(sealCopper);
+
+            // Double Tapered Roller Bearing Stack on Vertical Shaft
+            const vBearing1 = createBearingAssembly(0.55, 0.28, 0.32, mats);
+            vBearing1.position.set(0, bracketBaseY - 1.15, bracketCenterZ);
+            vShaftGrp.add(vBearing1);
+
+            const vBearing2 = createBearingAssembly(0.55, 0.28, 0.32, mats);
+            vBearing2.position.set(0, bracketBaseY - 1.52, bracketCenterZ);
+            vShaftGrp.add(vBearing2);
+
+            // Lower Neck Gasket Ring
+            const lowerGasket = new THREE.Mesh(gasketGeo, mats.machinedGrey);
+            lowerGasket.rotation.x = -Math.PI / 2;
+            lowerGasket.position.set(0, bracketBaseY - 2.35, bracketCenterZ);
+            vShaftGrp.add(lowerGasket);
+
+            // Rotating Vertical Shaft + Spiral Bevel Pinion Gear
+            const vSpinGroup = new THREE.Group();
+            vSpinGroup.position.set(0, 0, bracketCenterZ);
+            vShaftGrp.add(vSpinGroup);
+            rotatingMeshes.verticalShaft.push(vSpinGroup);
+
+            const mainVShaftGeo = new THREE.CylinderGeometry(0.26, 0.26, 2.9, 32);
+            const mainVShaft = new THREE.Mesh(mainVShaftGeo, mats.polishedSteel);
+            mainVShaft.position.y = bracketBaseY - 1.05;
+            vSpinGroup.add(mainVShaft);
+
+            // Driving Bevel Pinion Gear at bottom of vertical shaft (meshes at 90 deg!)
+            const bevelPinion = createBevelGearMesh(0.32, 0.68, 0.42, 18, mats.darkSteel);
+            bevelPinion.rotation.x = Math.PI; // Cone faces downward toward center
+            bevelPinion.position.y = 0.68;
+            vSpinGroup.add(bevelPinion);
+
+            // ------------------------------------------------------------------------
+            // PART 5: RIGHT-ANGLE GEAR POD (Bulbous Hydrodynamic Housing)
+            // ------------------------------------------------------------------------
+            const podGrp = partGroups['gear_pod'];
+            const podZ = -0.35;
+
+            // Main Torpedo/Bulbous Center Body
+            const podBodyGeo = new THREE.CylinderGeometry(1.12, 0.98, 1.85, 40);
+            podBodyGeo.rotateX(Math.PI / 2);
+            const podBody = new THREE.Mesh(podBodyGeo, mats.podTerracotta);
+            podBody.position.set(0, 0, podZ);
+            podBody.castShadow = true;
+            podGrp.add(podBody);
+
+            // Rear Streamlined Tail Cone Dome
+            const tailDomeGeo = new THREE.SphereGeometry(0.98, 40, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+            tailDomeGeo.rotateX(-Math.PI / 2);
+            const tailDome = new THREE.Mesh(tailDomeGeo, mats.podTerracotta);
+            tailDome.scale.set(1, 1, 1.15);
+            tailDome.position.set(0, 0, podZ - 0.92);
+            podGrp.add(tailDome);
+
+            // Forward Ribbed Nose Cone Collar (Distinctive slotted/ribbed ring seen in both images)
+            const noseCollarGeo = new THREE.CylinderGeometry(0.78, 1.12, 0.65, 36);
+            noseCollarGeo.rotateX(Math.PI / 2);
+            const noseCollar = new THREE.Mesh(noseCollarGeo, mats.podTerracotta);
+            noseCollar.position.set(0, 0, podZ + 1.22);
+            podGrp.add(noseCollar);
+
+            // Radial bolt pockets around the nose collar (signature HI-SEA pod detail)
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                const pocketGeo = new THREE.BoxGeometry(0.16, 0.14, 0.35);
+                const pocket = new THREE.Mesh(pocketGeo, mats.darkSteel);
+                pocket.position.set(Math.cos(a) * 0.94, Math.sin(a) * 0.94, podZ + 1.18);
+                pocket.rotation.z = a;
+                podGrp.add(pocket);
+            }
+
+            // Vertical Neck on Gear Pod + Bolted Top Flange
+            const podNeckGeo = new THREE.CylinderGeometry(0.88, 0.98, 1.65, 36);
+            const podNeck = new THREE.Mesh(podNeckGeo, mats.podTerracotta);
+            podNeck.position.set(0, 1.1, podZ);
+            podGrp.add(podNeck);
+
+            const podFlangeGeo = new THREE.CylinderGeometry(1.32, 1.32, 0.18, 36);
+            const podFlange = new THREE.Mesh(podFlangeGeo, mats.podTerracotta);
+            podFlange.position.set(0, 1.92, podZ);
+            podGrp.add(podFlange);
+
+            const podHoleGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.22, 32);
+            const podHole = new THREE.Mesh(podHoleGeo, mats.innerPrimerGrey);
+            podHole.position.set(0, 1.92, podZ);
+            podGrp.add(podHole);
+
+            // Rear Fastener Bolts exploding slightly behind pod
+            for (let i = 0; i < 4; i++) {
+                const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                const bolt = createBolt(0.055, 0.38, mats.darkSteel);
+                bolt.rotation.x = Math.PI / 2;
+                bolt.position.set(Math.cos(a) * 0.95, Math.sin(a) * 0.95, podZ + 1.75);
+                podGrp.add(bolt);
+            }
+
+            // ------------------------------------------------------------------------
+            // PART 6: INTERNAL BEVEL GEARS & HORIZONTAL PROPELLER SHAFT
+            // ------------------------------------------------------------------------
+            const hShaftGrp = partGroups['internal_bevel_gears'];
+
+            // Stationary Rear Tapered Roller Bearing
+            const hBearing = createBearingAssembly(0.62, 0.32, 0.36, mats);
+            hBearing.rotation.x = Math.PI / 2;
+            hBearing.position.set(0, 0, podZ - 0.65);
+            hShaftGrp.add(hBearing);
+
+            // Rotating Horizontal Shaft + Driven Spiral Bevel Gear
+            const hSpinGroup = new THREE.Group();
+            hShaftGrp.add(hSpinGroup);
+            rotatingMeshes.horizontalShaft.push(hSpinGroup);
+
+            // Long Horizontal Drive Shaft with Keyway
+            const hShaftGeo = new THREE.CylinderGeometry(0.28, 0.28, 3.6, 32);
+            hShaftGeo.rotateX(Math.PI / 2);
+            const hShaftMesh = new THREE.Mesh(hShaftGeo, mats.polishedSteel);
+            hShaftMesh.position.set(0, 0, podZ + 0.35);
+            hSpinGroup.add(hShaftMesh);
+
+            // Machined Keyway Bar on Shaft
+            const keyGeo = new THREE.BoxGeometry(0.08, 0.08, 0.95);
+            const keyMesh = new THREE.Mesh(keyGeo, mats.darkSteel);
+            keyMesh.position.set(0, 0.27, podZ - 1.35);
+            hSpinGroup.add(keyMesh);
+
+            // Driven Bevel Ring Gear (Meshes at 90 degrees with Vertical Pinion!)
+            const drivenBevel = createBevelGearMesh(0.34, 0.72, 0.45, 18, mats.darkSteel);
+            drivenBevel.rotation.x = Math.PI / 2;
+            drivenBevel.position.set(0, 0, podZ + 0.48);
+            hSpinGroup.add(drivenBevel);
+
+            // ------------------------------------------------------------------------
+            // PART 7: PROPELLER ASSEMBLY THRUST BEARING
+            // ------------------------------------------------------------------------
+            const propBearingGrp = partGroups['propeller_bearing'];
+            const thrustBearing = createBearingAssembly(0.76, 0.38, 0.42, mats, true);
+            thrustBearing.rotation.x = Math.PI / 2;
+            thrustBearing.position.set(0, 0, 1.35);
+            propBearingGrp.add(thrustBearing);
+
+            // ------------------------------------------------------------------------
+            // PART 9: PROPELLER HUB (Central Bronze Boss)
+            // ------------------------------------------------------------------------
+            const hubGrp = partGroups['propeller_hub'];
+            const hubSpinGroup = new THREE.Group();
+            hubSpinGroup.position.set(0, 0, 1.95);
+            hubGrp.add(hubSpinGroup);
+            rotatingMeshes.horizontalShaft.push(hubSpinGroup);
+
+            const mainHubGeo = new THREE.CylinderGeometry(0.58, 0.68, 0.95, 36);
+            mainHubGeo.rotateX(Math.PI / 2);
+            const mainHub = new THREE.Mesh(mainHubGeo, mats.bronzeHub);
+            mainHub.castShadow = true;
+            hubSpinGroup.add(mainHub);
+
+            // Recessed Center Bore & Bolt Ring on Hub Face
+            const boreHubGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.98, 28);
+            boreHubGeo.rotateX(Math.PI / 2);
+            const boreHub = new THREE.Mesh(boreHubGeo, mats.darkSteel);
+            hubSpinGroup.add(boreHub);
+
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.97, 12).rotateX(Math.PI / 2), mats.darkSteel);
+                hole.position.set(Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0);
+                hubSpinGroup.add(hole);
+            }
+
+            // ------------------------------------------------------------------------
+            // PART 8: 4-BLADE SKEWED KAPLAN PROPELLER (Realistic Twisted Bronze Blades)
+            // ------------------------------------------------------------------------
+            const bladesGrp = partGroups['propeller_blades'];
+            const bladesSpinGroup = new THREE.Group();
+            bladesSpinGroup.position.set(0, 0, 1.95);
+            bladesGrp.add(bladesSpinGroup);
+            rotatingMeshes.horizontalShaft.push(bladesSpinGroup);
+
+            // Custom Skewed Kaplan Hydrofoil Blade Geometry
+            function createKaplanBladeGeometry() {
+                const shape = new THREE.Shape();
+                // Root at (0, 0)
+                shape.moveTo(-0.22, 0.45);
+                // Leading edge sweeping forward with skew
+                shape.bezierCurveTo(-0.68, 0.85, -0.88, 1.55, -0.45, 2.05);
+                // Broad curved Kaplan outer tip (matches tunnel radius contour)
+                shape.bezierCurveTo(-0.1, 2.28, 0.48, 2.24, 0.72, 1.92);
+                // Trailing edge sweeping back to root fillet
+                shape.bezierCurveTo(0.86, 1.45, 0.55, 0.82, 0.22, 0.45);
+                shape.closePath();
+
+                const extrudeSettings = {
+                    steps: 16,
+                    depth: 0.075,
+                    bevelEnabled: true,
+                    bevelThickness: 0.035,
+                    bevelSize: 0.04,
+                    bevelSegments: 4
+                };
+
+                const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                geo.center();
+
+                // Apply realistic hydrofoil pitch twist along radial span
+                const pos = geo.attributes.position;
+                for (let i = 0; i < pos.count; i++) {
+                    const x = pos.getX(i);
+                    const y = pos.getY(i); // radial distance from center
+                    const z = pos.getZ(i);
+
+                    const normalizedR = (y + 0.9) / 1.8;
+                    const pitchAngle = 0.52 - normalizedR * 0.26; // hydrodynamic pitch twist
+                    const cosA = Math.cos(pitchAngle);
+                    const sinA = Math.sin(pitchAngle);
+
+                    const rx = x * cosA - z * sinA;
+                    const rz = x * sinA + z * cosA;
+                    pos.setXYZ(i, rx, y + 1.38, rz);
+                }
+                geo.computeVertexNormals();
+                return geo;
+            }
+
+            const singleBladeGeo = createKaplanBladeGeometry();
+            for (let i = 0; i < 4; i++) {
+                const bladeHolder = new THREE.Group();
+                bladeHolder.rotation.z = (i / 4) * Math.PI * 2 + 0.35;
+
+                const bladeMesh = new THREE.Mesh(singleBladeGeo, mats.bronzeBlade);
+                bladeMesh.castShadow = true;
+                bladeMesh.receiveShadow = true;
+                bladeHolder.add(bladeMesh);
+
+                // Root palm fillet bolting onto hub
+                const rootFilletGeo = new THREE.CylinderGeometry(0.22, 0.28, 0.18, 20);
+                const rootFillet = new THREE.Mesh(rootFilletGeo, mats.bronzeHub);
+                rootFillet.position.y = 0.58;
+                bladeHolder.add(rootFillet);
+
+                bladesSpinGroup.add(bladeHolder);
+            }
+
+            // ------------------------------------------------------------------------
+            // PART 10: CAP, CASTLE NUT, FRONT BEARING & FASTENERS
+            // ------------------------------------------------------------------------
+            const capGrp = partGroups['cap_fasteners'];
+
+            // Forward Guide Bearing & Castle Lock Nut
+            const fwdBearing = createBearingAssembly(0.38, 0.18, 0.22, mats);
+            fwdBearing.rotation.x = Math.PI / 2;
+            fwdBearing.position.set(0, 0, 2.35);
+            capGrp.add(fwdBearing);
+
+            const castleNut = createBevelGearMesh(0.24, 0.24, 0.18, 10, mats.darkSteel);
+            castleNut.rotation.x = Math.PI / 2;
+            castleNut.position.set(0, 0, 2.58);
+            capGrp.add(castleNut);
+
+            // Rotating Nose Cone Cap & Fastener Bolts
+            const capSpinGroup = new THREE.Group();
+            capSpinGroup.position.set(0, 0, 2.88);
+            capGrp.add(capSpinGroup);
+            rotatingMeshes.horizontalShaft.push(capSpinGroup);
+
+            // Flanged Base of Cap
+            const capFlangeGeo = new THREE.CylinderGeometry(0.62, 0.62, 0.12, 36);
+            capFlangeGeo.rotateX(Math.PI / 2);
+            const capFlange = new THREE.Mesh(capFlangeGeo, mats.machinedGrey);
+            capSpinGroup.add(capFlange);
+
+            // Stepped Nose Cone Boss
+            const capBossGeo = new THREE.CylinderGeometry(0.42, 0.48, 0.28, 36);
+            capBossGeo.rotateX(Math.PI / 2);
+            const capBoss = new THREE.Mesh(capBossGeo, mats.machinedGrey);
+            capBoss.position.z = 0.18;
+            capSpinGroup.add(capBoss);
+
+            // 6 Socket Head Cap Fastener Bolts arranged around cap
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2;
+                const bolt = createBolt(0.045, 0.34, mats.darkSteel);
+                bolt.rotation.x = -Math.PI / 2;
+                bolt.position.set(Math.cos(a) * 0.52, Math.sin(a) * 0.52, 0.25);
+                capSpinGroup.add(bolt);
+            }
+
+            // ------------------------------------------------------------------------
+            // PART 11: OPTIONAL ELECTRIC DRIVE MOTOR (From Diagram 2)
+            // ------------------------------------------------------------------------
+            const motorGrp = partGroups['electric_motor'];
+            const motorCenterY = bracketBaseY + 3.6;
+
+            // Finned Cylindrical Stator Frame
+            const motorBodyGeo = new THREE.CylinderGeometry(1.05, 1.05, 2.2, 32);
+            const motorBody = new THREE.Mesh(motorBodyGeo, mats.motorGreen);
+            motorBody.position.set(0, motorCenterY, bracketCenterZ);
+            motorBody.castShadow = true;
+            motorGrp.add(motorBody);
+
+            // Cooling Fins around Electric Motor
+            for (let i = 0; i < 24; i++) {
+                const a = (i / 24) * Math.PI * 2;
+                const finGeo = new THREE.BoxGeometry(0.05, 1.95, 0.22);
+                const fin = new THREE.Mesh(finGeo, mats.motorGreen);
+                fin.position.set(
+                    Math.cos(a) * 1.08,
+                    motorCenterY,
+                    bracketCenterZ + Math.sin(a) * 1.08
+                );
+                fin.rotation.y = -a;
+                motorGrp.add(fin);
+            }
+
+            // Motor Top Fan Cowl & Terminal Box
+            const cowlGeo = new THREE.CylinderGeometry(0.92, 1.08, 0.55, 32);
+            const cowl = new THREE.Mesh(cowlGeo, mats.motorGreen);
+            cowl.position.set(0, motorCenterY + 1.35, bracketCenterZ);
+            motorGrp.add(cowl);
+
+            const termBoxGeo = new THREE.BoxGeometry(0.55, 0.65, 0.45);
+            const termBox = new THREE.Mesh(termBoxGeo, mats.motorGreen);
+            termBox.position.set(1.15, motorCenterY + 0.2, bracketCenterZ);
+            motorGrp.add(termBox);
+
+            motorGrp.visible = showElectricMotor;
+
+            scene.add(assemblyRoot);
+        }
+
+        // ============================================================================
+        // 5. CAD EXPLOSION TRACE LINES & HYDRODYNAMIC WATER STREAMLINES
+        // ============================================================================
+        function buildCADTraceLines() {
+            cadTraceLinesGroup = new THREE.Group();
+            const dashMat = new THREE.LineDashedMaterial({
+                color: 0x38bdf8,
+                dashSize: 0.22,
+                gapSize: 0.14,
+                transparent: true,
+                opacity: 0.65
+            });
+
+            // 1. Horizontal Propeller & Gear Pod Axis Line (Z-axis)
+            const hPoints = [
+                new THREE.Vector3(0, 0, -11.5),
+                new THREE.Vector3(0, 0, 12.5)
+            ];
+            const hLineGeo = new THREE.BufferGeometry().setFromPoints(hPoints);
+            const hLine = new THREE.Line(hLineGeo, dashMat);
+            hLine.computeLineDistances();
+            cadTraceLinesGroup.add(hLine);
+
+            // 2. Vertical Drive Shaft Axis Line (Y-axis)
+            const vPoints = [
+                new THREE.Vector3(0, 0, -0.35),
+                new THREE.Vector3(0, 16.5, -0.35)
+            ];
+            const vLineGeo = new THREE.BufferGeometry().setFromPoints(vPoints);
+            const vLine = new THREE.Line(vLineGeo, dashMat);
+            vLine.computeLineDistances();
+            cadTraceLinesGroup.add(vLine);
+
+            // 3. Fastener Trace Lines for Cap & Bracket Bolts
+            const subDashMat = new THREE.LineDashedMaterial({
+                color: 0x60a5fa,
+                dashSize: 0.12,
+                gapSize: 0.1,
+                transparent: true,
+                opacity: 0.4
+            });
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2;
+                const pts = [
+                    new THREE.Vector3(Math.cos(a) * 0.52, Math.sin(a) * 0.52, 1.9),
+                    new THREE.Vector3(Math.cos(a) * 0.52, Math.sin(a) * 0.52, 11.5)
+                ];
+                const lGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                const l = new THREE.Line(lGeo, subDashMat);
+                l.computeLineDistances();
+                cadTraceLinesGroup.add(l);
+            }
+
+            scene.add(cadTraceLinesGroup);
+        }
+
+        function buildWaterStreamlines() {
+            waterParticlesGroup = new THREE.Group();
+            const numStreams = 75;
+            const streamMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.45
+            });
+
+            for (let i = 0; i < numStreams; i++) {
+                const r = 0.75 + Math.random() * 1.55;
+                const angle = Math.random() * Math.PI * 2;
+                const len = 0.35 + Math.random() * 0.55;
+                const geo = new THREE.CylinderGeometry(0.022, 0.008, len, 6);
+                geo.rotateX(Math.PI / 2);
+                const mesh = new THREE.Mesh(geo, streamMat);
+
+                mesh.position.set(
+                    Math.cos(angle) * r,
+                    Math.sin(angle) * r,
+                    (Math.random() - 0.5) * 4.8
+                );
+                mesh.userData = {
+                    radius: r,
+                    angle: angle,
+                    speedOffset: 0.75 + Math.random() * 0.5
+                };
+                waterParticlesGroup.add(mesh);
+            }
+
+            scene.add(waterParticlesGroup);
+        }
+
+        // ============================================================================
+        // 6. EXPLOSION LOGIC, UI INTERACTION & CALLOUT PROJECTION
+        // ============================================================================
+        function updateExplosionPositions(factor) {
+            explodeFactor = factor;
+
+            BOM_PARTS.forEach(part => {
+                const grp = partGroups[part.id];
+                if (!grp) return;
+
+                grp.position.x = THREE.MathUtils.lerp(part.basePos.x, part.explodeOffset.x, factor);
+                grp.position.y = THREE.MathUtils.lerp(part.basePos.y, part.explodeOffset.y, factor);
+                grp.position.z = THREE.MathUtils.lerp(part.basePos.z, part.explodeOffset.z, factor);
+            });
+
+            // Scale CAD trace lines opacity with explosion factor
+            if (cadTraceLinesGroup) {
+                cadTraceLinesGroup.visible = factor > 0.03;
+            }
+
+            // Update UI slider & badge
+            const pct = Math.round(factor * 100);
+            const slider = document.getElementById('explode-slider');
+            if (slider && Math.abs(slider.value - pct) > 1) {
+                slider.value = pct;
+            }
+            const badge = document.getElementById('explode-pct');
+            if (badge) badge.textContent = `${pct}%`;
+        }
+
+        function onExplodeSliderChange(val) {
+            isAnimatingExplode = false;
+            targetExplodeFactor = parseFloat(val) / 100;
+            updateExplosionPositions(targetExplodeFactor);
+        }
+
+        function animateExplodeTo(target) {
+            targetExplodeFactor = target;
+            isAnimatingExplode = true;
+        }
+
+        function toggleTunnelCutaway() {
+            isCutawayTunnel = !isCutawayTunnel;
+            updateTunnelModeVisibility();
+        }
+
+        function updateTunnelModeVisibility() {
+            if (!tunnelCutawayGroup || !tunnelFullGroup) return;
+            tunnelCutawayGroup.visible = isCutawayTunnel;
+            tunnelFullGroup.visible = !isCutawayTunnel;
+
+            const btnText = document.getElementById('tunnel-mode-text');
+            if (btnText) {
+                btnText.textContent = isCutawayTunnel ? 'Tunnel: HI-SEA Cutaway' : 'Tunnel: Full Ribbed';
+            }
+        }
+
+        function toggleXRayHousing() {
+            isXRayPod = !isXRayPod;
+            gearPodOuterMaterial.transparent = isXRayPod;
+            gearPodOuterMaterial.opacity = isXRayPod ? 0.28 : 1.0;
+            gearPodOuterMaterial.needsUpdate = true;
+
+            const btn = document.getElementById('btn-xray');
+            if (btn) {
+                btn.className = isXRayPod
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            }
+        }
+
+        function toggleCallouts() {
+            showCallouts = !showCallouts;
+            document.getElementById('labels-container').style.display = showCallouts ? 'block' : 'none';
+            document.getElementById('leader-svg').style.display = showCallouts ? 'block' : 'none';
+
+            const btn = document.getElementById('btn-labels');
+            if (btn) {
+                btn.textContent = showCallouts ? 'Labels: ON' : 'Labels: OFF';
+                btn.className = showCallouts
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 transition';
+            }
+        }
+
+        function toggleStudioTheme() {
+            const isLight = document.body.classList.toggle('light-studio');
+            const btn = document.getElementById('btn-theme');
+            if (btn) {
+                btn.textContent = isLight ? 'Dark CAD' : 'Light CAD';
+            }
+        }
+
+        function toggleWaterParticles(checked) {
+            showWater = checked;
+            if (waterParticlesGroup) {
+                waterParticlesGroup.visible = showWater && thrustDirection !== 0;
+            }
+        }
+
+        function toggleTopMotor(checked) {
+            showElectricMotor = checked;
+            if (partGroups['electric_motor']) {
+                partGroups['electric_motor'].visible = showElectricMotor;
+            }
+            buildBOMSidebar();
+        }
+
+        function setThrustDirection(dir) {
+            thrustDirection = dir;
+            const rpmReadout = document.getElementById('rpm-readout');
+            const portArrow = document.getElementById('port-arrow');
+            const stbdArrow = document.getElementById('stbd-arrow');
+            const jetRight = document.getElementById('jet-right');
+            const jetLeft = document.getElementById('jet-left');
+
+            const btnPort = document.getElementById('btn-port');
+            const btnStop = document.getElementById('btn-stop');
+            const btnStbd = document.getElementById('btn-stbd');
+
+            const inactiveClass = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+
+            btnPort.className = inactiveClass;
+            btnStop.className = inactiveClass;
+            btnStbd.className = inactiveClass;
+
+            if (dir === 1) {
+                rpmReadout.textContent = '320 RPM (PORT)';
+                rpmReadout.className = 'text-xs font-bold text-emerald-400 mono';
+                portArrow.style.opacity = '1';
+                stbdArrow.style.opacity = '0.25';
+                jetRight.setAttribute('opacity', '0.85');
+                jetLeft.setAttribute('opacity', '0.0');
+                btnPort.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 transition';
+            } else if (dir === -1) {
+                rpmReadout.textContent = '320 RPM (STBD)';
+                rpmReadout.className = 'text-xs font-bold text-rose-400 mono';
+                portArrow.style.opacity = '0.25';
+                stbdArrow.style.opacity = '1';
+                jetRight.setAttribute('opacity', '0.0');
+                jetLeft.setAttribute('opacity', '0.85');
+                btnStbd.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-rose-500/25 text-rose-300 border border-rose-500/50 transition';
+            } else {
+                rpmReadout.textContent = '0 RPM (STOPPED)';
+                rpmReadout.className = 'text-xs font-bold text-slate-400 mono';
+                portArrow.style.opacity = '0.25';
+                stbdArrow.style.opacity = '0.25';
+                jetRight.setAttribute('opacity', '0.0');
+                jetLeft.setAttribute('opacity', '0.0');
+                btnStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+            }
+
+            if (waterParticlesGroup) {
+                waterParticlesGroup.visible = showWater && thrustDirection !== 0;
+            }
+        }
+
+        function setCameraPreset(preset) {
+            if (preset === 'iso') {
+                camera.position.set(-14.5, 9.5, 15.5);
+                controls.target.set(0, 1.2, 0.2);
+            } else if (preset === 'hisea') {
+                // Matches first photo angle (HI-SEA Cutaway view)
+                isCutawayTunnel = true;
+                updateTunnelModeVisibility();
+                animateExplodeTo(0.0);
+                camera.position.set(-8.5, 3.2, 9.8);
+                controls.target.set(0, 1.0, 0.2);
+            } else if (preset === 'diagram') {
+                // Matches the Exploded View Diagram angle
+                isCutawayTunnel = false;
+                updateTunnelModeVisibility();
+                animateExplodeTo(0.85);
+                camera.position.set(-13.8, 10.5, 14.2);
+                controls.target.set(0, 1.5, 0.0);
+            }
+            controls.update();
+        }
+
+        // ============================================================================
+        // 7. BILL OF MATERIALS & PART SELECTION / ISOLATION
+        // ============================================================================
+        function buildBOMSidebar() {
+            const listEl = document.getElementById('bom-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            BOM_PARTS.forEach(part => {
+                if (part.id === 'electric_motor' && !showElectricMotor) return;
+
+                const isSelected = selectedPartId === part.id;
+                const item = document.createElement('button');
+                item.className = `w-full text-left px-3 py-2 rounded-lg border transition flex items-center justify-between gap-2 ${
+                    isSelected
+                        ? 'bg-orange-500/25 border-orange-400/60 text-white'
+                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-300'
+                }`;
+                item.onclick = () => selectPart(part.id);
+
+                item.innerHTML = `
+                    <div class="truncate">
+                        <span class="text-[10px] font-bold text-orange-400 mono block">${part.code}</span>
+                        <span class="text-xs font-medium truncate block">${part.name}</span>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 mono shrink-0">Inspect</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function selectPart(partId) {
+            selectedPartId = partId;
+            const isolateBtn = document.getElementById('btn-isolate');
+
+            if (!partId) {
+                isIsolated = false;
+                isolateBtn.classList.add('hidden');
+                document.getElementById('part-code').textContent = 'ASSY-00';
+                document.getElementById('part-title').textContent = 'Complete Bow Thruster Unit';
+                document.getElementById('part-desc').textContent =
+                    'Fixed-pitch or controllable-pitch tunnel thruster installed transversely in the vessel\'s bow. Electric motor torque is transmitted vertically through the input shaft into a 90° bevel gear pod driving the 4-blade bronze propeller.';
+                document.getElementById('part-material').textContent = 'Marine Cast Steel & Cu3';
+                document.getElementById('part-axis').textContent = 'Multi-Axis (Y & Z)';
+
+                // Restore visibility of all parts
+                BOM_PARTS.forEach(p => {
+                    if (partGroups[p.id]) {
+                        partGroups[p.id].visible = p.id === 'electric_motor' ? showElectricMotor : true;
+                    }
+                });
+            } else {
+                const part = BOM_PARTS.find(p => p.id === partId);
+                if (part) {
+                    isolateBtn.classList.remove('hidden');
+                    isolateBtn.textContent = isIsolated ? 'Show All' : 'Isolate';
+                    document.getElementById('part-code').textContent = part.code;
+                    document.getElementById('part-title').textContent = part.name;
+                    document.getElementById('part-desc').textContent = part.desc;
+                    document.getElementById('part-material').textContent = part.material;
+                    document.getElementById('part-axis').textContent = part.axis;
+
+                    if (isIsolated) {
+                        BOM_PARTS.forEach(p => {
+                            if (partGroups[p.id]) {
+                                partGroups[p.id].visible = p.id === selectedPartId;
+                            }
+                        });
+                    }
+                }
+            }
+
+            buildBOMSidebar();
+        }
+
+        function toggleIsolateSelected() {
+            if (!selectedPartId) return;
+            isIsolated = !isIsolated;
+            selectPart(selectedPartId);
+        }
+
+        // 3D Floating Callout Labels & SVG Leader Lines
+        const calloutDOMMap = {};
+
+        function buildCalloutDOMElements() {
+            const container = document.getElementById('labels-container');
+            container.innerHTML = '';
+
+            BOM_PARTS.forEach(part => {
+                const div = document.createElement('div');
+                div.className = 'callout-label px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-600/80 text-[10px] font-bold tracking-wider text-slate-100 shadow-lg mono whitespace-nowrap';
+                div.textContent = part.shortLabel;
+                div.onclick = () => selectPart(part.id);
+                container.appendChild(div);
+                calloutDOMMap[part.id] = div;
+            });
+        }
+
+        function updateCalloutPositions() {
+            if (!showCallouts) return;
+            const svg = document.getElementById('leader-svg');
+            svg.innerHTML = '';
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            BOM_PARTS.forEach(part => {
+                const domEl = calloutDOMMap[part.id];
+                const grp = partGroups[part.id];
+                if (!domEl || !grp) return;
+
+                if (!grp.visible || explodeFactor < 0.12) {
+                    domEl.style.opacity = '0';
+                    domEl.style.pointerEvents = 'none';
+                    return;
+                }
+
+                // Compute 3D world anchor point of this part
+                const worldPos = grp.position.clone().add(part.labelAnchorOffset);
+                const projected = worldPos.clone().project(camera);
+
+                if (projected.z > 1) {
+                    domEl.style.opacity = '0';
+                    return;
+                }
+
+                const anchorX = (projected.x * 0.5 + 0.5) * width;
+                const anchorY = (-(projected.y * 0.5) + 0.5) * height;
+
+                const labelX = Math.max(90, Math.min(width - 90, anchorX + part.labelScreenDir.x));
+                const labelY = Math.max(70, Math.min(height - 90, anchorY + part.labelScreenDir.y));
+
+                domEl.style.left = `${labelX}px`;
+                domEl.style.top = `${labelY}px`;
+                domEl.style.opacity = selectedPartId === part.id ? '1' : '0.88';
+                domEl.style.pointerEvents = 'auto';
+                domEl.style.borderColor = selectedPartId === part.id ? '#f97316' : 'rgba(100,116,139,0.7)';
+
+                // Draw crisp CAD leader line on SVG overlay
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                const elbowX = anchorX + part.labelScreenDir.x * 0.55;
+                const elbowY = labelY;
+                line.setAttribute('points', `${anchorX},${anchorY} ${elbowX},${elbowY} ${labelX},${labelY}`);
+                line.setAttribute('fill', 'none');
+                line.setAttribute('stroke', selectedPartId === part.id ? '#f97316' : '#64748b');
+                line.setAttribute('stroke-width', selectedPartId === part.id ? '2' : '1.2');
+                svg.appendChild(line);
+
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', anchorX);
+                dot.setAttribute('cy', anchorY);
+                dot.setAttribute('r', '3');
+                dot.setAttribute('fill', selectedPartId === part.id ? '#f97316' : '#38bdf8');
+                svg.appendChild(dot);
+            });
+        }
+
+        function setupRaycasting() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let downTime = 0;
+
+            renderer.domElement.addEventListener('pointerdown', () => {
+                downTime = performance.now();
+            });
+
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (performance.now() - downTime > 220) return; // Ignore orbit drags
+
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
+
+                if (intersects.length > 0) {
+                    let obj = intersects[0].object;
+                    while (obj && !obj.userData?.partId) {
+                        obj = obj.parent;
+                    }
+                    if (obj && obj.userData?.partId) {
+                        selectPart(obj.userData.partId);
+                        return;
+                    }
+                }
+            });
+        }
+
+        // ============================================================================
+        // 8. MAIN ANIMATION LOOP & SYNCHRONIZED MECHANICAL ROTATION
+        // ============================================================================
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smoothly interpolate explosion factor when preset buttons are clicked
+            if (isAnimatingExplode) {
+                const diff = targetExplodeFactor - explodeFactor;
+                if (Math.abs(diff) < 0.002) {
+                    updateExplosionPositions(targetExplodeFactor);
+                    isAnimatingExplode = false;
+                } else {
+                    updateExplosionPositions(explodeFactor + diff * 0.09);
+                }
+            }
+
+            // Synchronized 90-Degree Bevel Gear & Propeller Rotation
+            if (thrustDirection !== 0) {
+                const deltaAngle = propAngularVel * thrustDirection;
+
+                // Rotate Vertical Drive Shaft & Input Spline around Y-axis
+                rotatingMeshes.verticalShaft.forEach(grp => {
+                    grp.rotation.y += deltaAngle;
+                });
+
+                // Rotate Horizontal Propeller Shaft, Bevel Gear, Hub, 4-Blade Propeller & Cap around Z-axis
+                rotatingMeshes.horizontalShaft.forEach(grp => {
+                    grp.rotation.z += deltaAngle;
+                });
+
+                // Animate Hydrodynamic Water Streamlines through the Thruster Tunnel
+                if (waterParticlesGroup && showWater) {
+                    waterParticlesGroup.children.forEach(p => {
+                        p.position.z -= deltaAngle * 3.2 * p.userData.speedOffset;
+                        p.userData.angle += deltaAngle * 0.35;
+                        p.position.x = Math.cos(p.userData.angle) * p.userData.radius;
+                        p.position.y = Math.sin(p.userData.angle) * p.userData.radius;
+
+                        if (p.position.z < -2.6) p.position.z = 2.6;
+                        if (p.position.z > 2.6) p.position.z = -2.6;
+                    });
+                }
+            }
+
+            controls.update();
+            updateCalloutPositions();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            initThreeScene();
+            animate();
+        };
+    </script>
+</body>
+</html>
