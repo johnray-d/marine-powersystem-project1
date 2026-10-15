@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc && vite build",
+    "build:hull": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender-hull-2-V6.py",
+    "build:prop": "\"D:\\Blender\\blender.exe\" --background --python scripts/propeller_assembly.py",
     "check:layout": "node scripts/check-layout.mjs",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "shot": "node scripts/shot.mjs",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview"
   },
   "dependencies": {
     "three": "^0.186.1"
