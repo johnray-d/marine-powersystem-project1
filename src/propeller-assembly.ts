@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { resolvePublicAsset } from './assets';
 
 export interface PropellerComponentMeta {
   name: string;
@@ -378,12 +379,9 @@ export class PropellerExplodedAssembly {
   /**
    * Asynchronously loads the 3D GLB model and sets up materials and groups
    */
-  public async loadModel(url = '/marine_propeller_assembly.glb'): Promise<void> {
+  public async loadModel(url = 'marine_propeller_assembly.glb'): Promise<void> {
     const loader = new GLTFLoader();
-    const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL ? import.meta.env.BASE_URL : '/';
-    const cleanUrl = url.startsWith('/') && base && base !== './' && base !== '/'
-      ? `${base.replace(/\/$/, '')}${url}`
-      : url;
+    const cleanUrl = resolvePublicAsset(url);
 
     const gltf = await loader.loadAsync(cleanUrl);
     const scene = gltf.scene;

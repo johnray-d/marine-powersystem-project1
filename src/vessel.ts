@@ -4,6 +4,7 @@ import { CARGO, vesselLayout } from './vessel-layout';
 import { createModel } from './models';
 import type { Equipment } from './network';
 import { propellerAssembly } from './propeller-assembly';
+import { resolvePublicAsset } from './assets';
 export { propellerAssembly } from './propeller-assembly';
 
 const steel = 0x83a7b7;
@@ -77,10 +78,7 @@ export function createVessel(): THREE.Group {
 
   // Load the upgraded Blender 3D ship hull model
   const loader = new GLTFLoader();
-  const base = import.meta.env.BASE_URL;
-  const modelUrl = base && base !== './' && base !== '/'
-    ? `${base.replace(/\/$/, '')}/blender-hull-V6.glb`
-    : '/blender-hull-V6.glb';
+  const modelUrl = resolvePublicAsset('blender-hull-V6.glb');
 
   loader.load(
     modelUrl,

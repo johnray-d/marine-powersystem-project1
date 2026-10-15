@@ -3,6 +3,7 @@ import { byId, connections, edgeById, equipment, initialState, powered, connecti
 import { modelParts } from './models';
 import { VesselView, ExplodedView } from './scene';
 import { propellerAssembly } from './propeller-assembly';
+import { resolveAssemblyUrl } from './assets';
 
 type View='vessel'|'schematic';
 let state:SimState=initialState();
@@ -111,22 +112,7 @@ interface AssemblyPageInfo {
   tag: string;
 }
 
-function resolveAssemblyUrl(filename: string): string {
-  const base = import.meta.env.BASE_URL;
-  if (base && base.startsWith('/') && base !== '/') {
-    const cleanBase = base.endsWith('/') ? base : `${base}/`;
-    return `${window.location.origin}${cleanBase}assemblies/${filename}`;
-  }
-  let path = window.location.pathname;
-  if (!path.endsWith('/')) {
-    if (path.endsWith('.html') || path.endsWith('.htm')) {
-      path = path.substring(0, path.lastIndexOf('/') + 1);
-    } else {
-      path = `${path}/`;
-    }
-  }
-  return `${window.location.origin}${path}assemblies/${filename}`;
-}
+
 
 function getAssemblyPage(selectedId: string, model: ModelType | undefined): AssemblyPageInfo | null {
   if (model === 'thruster' || selectedId === 'bow') {

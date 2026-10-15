@@ -24,10 +24,13 @@ jobs:
           node-version: 22
           cache: npm
       - uses: actions/configure-pages@v5
+        id: pages
         with:
           enablement: true
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path || '/marine-powersystem-project1/' }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
