@@ -110,10 +110,27 @@ interface AssemblyPageInfo {
   tag: string;
 }
 
+function resolveAssemblyUrl(filename: string): string {
+  const base = import.meta.env.BASE_URL;
+  if (base && base.startsWith('/') && base !== '/') {
+    const cleanBase = base.endsWith('/') ? base : `${base}/`;
+    return `${window.location.origin}${cleanBase}assemblies/${filename}`;
+  }
+  let path = window.location.pathname;
+  if (!path.endsWith('/')) {
+    if (path.endsWith('.html') || path.endsWith('.htm')) {
+      path = path.substring(0, path.lastIndexOf('/') + 1);
+    } else {
+      path = `${path}/`;
+    }
+  }
+  return `${window.location.origin}${path}assemblies/${filename}`;
+}
+
 function getAssemblyPage(selectedId: string, model: ModelType | undefined): AssemblyPageInfo | null {
   if (model === 'thruster' || selectedId === 'bow' || selectedId === 'stern') {
     return {
-      url: '/assemblies/3d_bow_thruster_explodable_assembly.html',
+      url: resolveAssemblyUrl('3d_bow_thruster_explodable_assembly.html'),
       title: 'HI-SEA Marine Bow Thruster — 3D Explodable CAD Assembly',
       subtitle: 'Right-Angle Spiral Bevel Drive · 4-Blade Kaplan Bronze Propeller · Bridge Joystick · Hydrodynamic Flow · Bill of Materials',
       tag: 'HI-SEA CAD ASSEMBLY & SPECS'
@@ -121,7 +138,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (model === 'hv-board' || model === 'lv-board' || selectedId === 'busA' || selectedId === 'busB' || selectedId === 'tie') {
     return {
-      url: '/assemblies/3d_marine_main_switchboard_bus_tie_assembly.html',
+      url: resolveAssemblyUrl('3d_marine_main_switchboard_bus_tie_assembly.html'),
       title: 'IEC 60092-302 Marine Main Switchboard & Bus-Tie Assembly',
       subtitle: 'Cubicle 1 Open 115° · Center Withdrawable Bus-Tie ACB · Three-Phase Copper Busbars · IP22 Canopy · Engineering BOM',
       tag: 'IEC 60092-302 CAD ASSEMBLY & SPECS'
@@ -142,9 +159,7 @@ function openAssemblyModal(info: AssemblyPageInfo) {
   subtitle.textContent = info.subtitle;
   badge.textContent = info.tag;
   link.href = info.url;
-  if (!frame.src.endsWith(info.url)) {
-    frame.src = info.url;
-  }
+  frame.src = info.url;
   modal.classList.remove('hidden');
   document.body.classList.add('has-assembly-modal');
 }
