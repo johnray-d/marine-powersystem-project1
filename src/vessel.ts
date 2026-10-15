@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { SHIP, CARGO, halfBeamAt, keelAt, hullStart, hullEnd, vesselLayout } from './vessel-layout';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CARGO, vesselLayout } from './vessel-layout';
 import { createModel } from './models';
 import type { Equipment } from './network';
+import { propellerAssembly } from './propeller-assembly';
+export { propellerAssembly } from './propeller-assembly';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.
@@ -21,19 +24,9 @@ function cylinder(parent: THREE.Group, radius: number, length: number, at: [numb
   if (axis === 'z') mesh.rotation.x = Math.PI / 2;
   mesh.position.set(...at); parent.add(mesh); return mesh;
 }
-function line(parent: THREE.Group, points: THREE.Vector3[], color: number, opacity = 0.5) {
-  const mesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: deepen(color), transparent: true, opacity: Math.min(1, opacity * 1.5) }));
-  parent.add(mesh); return mesh;
-}
 function outlineBox(parent: THREE.Group, size: [number, number, number], at: [number, number, number], color = steel, opacity = 0.4) {
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...size)), new THREE.LineBasicMaterial({ color: deepen(color), transparent: true, opacity: Math.min(1, opacity * 1.5) }));
   edges.position.set(...at); parent.add(edges);
-}
-function ring(parent: THREE.Object3D, radius: number, tube: number, at: [number, number, number], color: number, axis: 'x' | 'y' | 'z' = 'x') {
-  const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 8, 24), material(color));
-  if (axis === 'x') mesh.rotation.y = Math.PI / 2;
-  if (axis === 'y') mesh.rotation.x = Math.PI / 2;
-  mesh.position.set(...at); parent.add(mesh); return mesh;
 }
 function strut(parent: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3, radius: number, color: number) {
   const d = b.clone().sub(a);
@@ -41,25 +34,6 @@ function strut(parent: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3, radiu
   mesh.position.copy(a).add(b).multiplyScalar(.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   parent.add(mesh); return mesh;
-}
-/** Plan positions along the hull, sampled with high density through curved bow and stern. */
-function hullXs(): number[] {
-  const xs: number[] = [];
-  for (let x = hullStart; x < -14.0; x += 0.25) xs.push(x);
-  for (let x = -14.0; x < 12.0; x += 0.35) xs.push(x);
-  for (let x = 12.0; x < hullEnd - 1e-6; x += 0.12) xs.push(x);
-  xs.push(hullEnd);
-  return xs;
-}
-function deck(parent: THREE.Group, height: number, opacity: number) {
-  const xs = hullXs();
-  const outline = [...xs.map(x => new THREE.Vector2(x, halfBeamAt(x, height))),
-    ...[...xs].reverse().map(x => new THREE.Vector2(x, -halfBeamAt(x, height)))];
-  const shape = new THREE.Shape(outline);
-  const geometry = new THREE.ShapeGeometry(shape); geometry.rotateX(Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, material(0x7097a5, opacity)); mesh.position.y = height; parent.add(mesh);
-  const points = outline.map(v => new THREE.Vector3(v.x, height, -v.y)); points.push(points[0].clone());
-  line(parent, points, 0x8abac8, 0.46);
 }
 
 function cargo(parent: THREE.Group) {
@@ -95,346 +69,125 @@ function cargo(parent: THREE.Group) {
   parent.add(new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:0x3d6978,transparent:true,opacity:0.3})));
 }
 
-// Hull colours: blue topsides and a darker underwater body, both translucent so the machinery stays visible.
-const HULL = { top: 0x2f7fb8, under: 0x24445a, waterline: 0x0d5d86 };
-function hullMaterial(color: number, opacity: number) {
-  return new THREE.MeshStandardMaterial({ color, metalness: .15, roughness: .65, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false });
-}
-// Finely sampled vertical levels ensuring smooth bilge curvature and an exact split at the waterline
-const UNDER_LEVELS = [-2.65, -2.48, -2.30, -2.12, -1.94, -1.76, -1.58, -1.41, SHIP.waterline];
-const TOP_LEVELS = [SHIP.waterline, -1.05, -0.85, -0.65, -0.45, -0.25, -0.05, 0.15, 0.35, 0.55, 0.73, SHIP.mainDeck];
-const LEVELS = [...UNDER_LEVELS, ...TOP_LEVELS.slice(1)];
-const WATER_INDEX = UNDER_LEVELS.length - 1;
-
-function hullPoint(x: number, level: number, side: number) {
-  const y = Math.max(level, keelAt(x));
-  return new THREE.Vector3(x, y, side * halfBeamAt(x, y));
-}
-/** Cross-section at x as an ordered polyline: down one side from `top`, across the bottom, up the other side. */
-function hullLoop(x: number, top = LEVELS.length - 1, bottom = 0) {
-  const left: THREE.Vector3[] = [], right: THREE.Vector3[] = [];
-  for (let j = top; j >= bottom; j--) { left.push(hullPoint(x, LEVELS[j], -1)); right.push(hullPoint(x, LEVELS[j], 1)); }
-  return [...left, ...right.reverse()];
-}
-function hullSide(x: number, side: number) {
-  const points: THREE.Vector3[] = [];
-  for (let j = LEVELS.length - 1; j >= WATER_INDEX; j--) points.push(hullPoint(x, LEVELS[j], side));
-  return points;
-}
-function strip(xs: number[], polyline: (x: number) => THREE.Vector3[]) {
-  const rows = xs.map(polyline), width = rows[0].length, positions: number[] = [];
-  for (let i = 1; i < rows.length; i++) for (let j = 1; j < width; j++) {
-    const a = rows[i - 1][j - 1], b = rows[i][j - 1], c = rows[i - 1][j], d = rows[i][j];
-    for (const p of [a, b, c, b, d, c]) positions.push(p.x, p.y, p.z);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geometry.computeVertexNormals();
-  return geometry;
-}
-function rawLine(parent: THREE.Group, points: THREE.Vector3[], color: number, opacity: number) {
-  parent.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color, transparent: true, opacity })));
-}
-
-/** Hydrodynamic Nabla bulbous bow seamlessly integrated with the hull forefoot and keel */
-function createBulbousBow(parent: THREE.Group) {
-  const xStart = 14.5, xEnd = 19.3, xNose = 19.3;
-  const rings = 28, radials = 32;
-  const positions: number[] = [];
-  
-  const bulbPoint = (x: number, theta: number): THREE.Vector3 => {
-    const u = Math.max(0, Math.min(1, (x - xStart) / (xEnd - xStart)));
-    const rBase = Math.sin(Math.pow(u, 0.62) * Math.PI);
-    const rz = 0.72 * rBase;
-    const ry = 0.62 * rBase;
-    const nabla = 1 - 0.15 * Math.sin(theta);
-    const yc = -1.72 + 0.08 * Math.cos(u * Math.PI);
-    return new THREE.Vector3(x, yc + ry * Math.sin(theta) * nabla, rz * Math.cos(theta));
-  };
-
-  for (let i = 0; i < rings; i++) {
-    const x0 = xStart + (xEnd - xStart) * (i / rings);
-    const x1 = xStart + (xEnd - xStart) * ((i + 1) / rings);
-    for (let j = 0; j < radials; j++) {
-      const th0 = (j / radials) * Math.PI * 2;
-      const th1 = ((j + 1) / radials) * Math.PI * 2;
-      const p00 = bulbPoint(x0, th0), p10 = bulbPoint(x1, th0);
-      const p01 = bulbPoint(x0, th1), p11 = bulbPoint(x1, th1);
-      positions.push(p00.x, p00.y, p00.z, p10.x, p10.y, p10.z, p01.x, p01.y, p01.z);
-      positions.push(p10.x, p10.y, p10.z, p11.x, p11.y, p11.z, p01.x, p01.y, p01.z);
-    }
-  }
-
-  const noseCenter = new THREE.Vector3(xNose, -1.72, 0);
-  for (let j = 0; j < radials; j++) {
-    const th0 = (j / radials) * Math.PI * 2;
-    const th1 = ((j + 1) / radials) * Math.PI * 2;
-    const p0 = bulbPoint(xEnd, th0), p1 = bulbPoint(xEnd, th1);
-    positions.push(p0.x, p0.y, p0.z, noseCenter.x, noseCenter.y, noseCenter.z, p1.x, p1.y, p1.z);
-  }
-
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geom.computeVertexNormals();
-  const mesh = new THREE.Mesh(geom, hullMaterial(HULL.under, 0.42));
-  parent.add(mesh);
-
-  // Upper faired stem connecting top of bulb into forecastle stem head
-  const stemPlate: THREE.Vector3[] = [];
-  for (let t = 0; t <= 1; t += 0.05) {
-    const x = 17.5 + t * (18.7 - 17.5);
-    const y = -1.14 + t * (1.63 - (-1.14));
-    stemPlate.push(new THREE.Vector3(x, y, 0));
-  }
-  rawLine(parent, stemPlate, 0x8abac8, 0.8);
-}
-
-/** Raised forecastle with sheer rise, plated solid bulwarks, breakwater, windlasses and bower anchors */
-function createForecastle(parent: THREE.Group) {
-  const xStart = 12.6, xEnd = 18.7;
-  const fcHeight = (x: number) => 1.02 + 0.61 * Math.pow(Math.max(0, (x - xStart) / (xEnd - xStart)), 1.35);
-  
-  // 1. Forecastle Deck polygon
-  const xs: number[] = [];
-  for (let x = xStart; x <= xEnd; x += 0.15) xs.push(x);
-  if (xs[xs.length - 1] !== xEnd) xs.push(xEnd);
-
-  const deckPts: THREE.Vector3[] = [];
-  for (const x of xs) {
-    const y = fcHeight(x);
-    const z = Math.max(0.04, halfBeamAt(x, y));
-    deckPts.push(new THREE.Vector3(x, y, -z));
-  }
-  for (let i = xs.length - 1; i >= 0; i--) {
-    const x = xs[i], y = fcHeight(x), z = Math.max(0.04, halfBeamAt(x, y));
-    deckPts.push(new THREE.Vector3(x, y, z));
-  }
-
-  const deckPos: number[] = [];
-  const n = xs.length;
-  for (let i = 1; i < n; i++) {
-    const pPort0 = deckPts[i - 1], pPort1 = deckPts[i];
-    const pStbd0 = deckPts[deckPts.length - i], pStbd1 = deckPts[deckPts.length - 1 - i];
-    deckPos.push(pPort0.x, pPort0.y, pPort0.z, pPort1.x, pPort1.y, pPort1.z, pStbd0.x, pStbd0.y, pStbd0.z);
-    deckPos.push(pPort1.x, pPort1.y, pPort1.z, pStbd1.x, pStbd1.y, pStbd1.z, pStbd0.x, pStbd0.y, pStbd0.z);
-  }
-  const deckGeom = new THREE.BufferGeometry();
-  deckGeom.setAttribute('position', new THREE.Float32BufferAttribute(deckPos, 3));
-  deckGeom.computeVertexNormals();
-  parent.add(new THREE.Mesh(deckGeom, material(0x527b8c, 0.45)));
-
-  // 2. Forecastle Solid Bulwark (Steel wall rising 0.38 above forecastle deck)
-  const bwHeight = 0.38;
-  for (const side of [-1, 1]) {
-    const bwPos: number[] = [];
-    for (let i = 1; i < xs.length; i++) {
-      const x0 = xs[i - 1], y0 = fcHeight(x0), z0 = side * Math.max(0.04, halfBeamAt(x0, y0));
-      const x1 = xs[i], y1 = fcHeight(x1), z1 = side * Math.max(0.04, halfBeamAt(x1, y1));
-      const b0 = new THREE.Vector3(x0, y0, z0), t0 = new THREE.Vector3(x0, y0 + bwHeight, z0);
-      const b1 = new THREE.Vector3(x1, y1, z1), t1 = new THREE.Vector3(x1, y1 + bwHeight, z1);
-      bwPos.push(b0.x, b0.y, b0.z, t0.x, t0.y, t0.z, b1.x, b1.y, b1.z);
-      bwPos.push(t0.x, t0.y, t0.z, t1.x, t1.y, t1.z, b1.x, b1.y, b1.z);
-    }
-    const bwGeom = new THREE.BufferGeometry();
-    bwGeom.setAttribute('position', new THREE.Float32BufferAttribute(bwPos, 3));
-    bwGeom.computeVertexNormals();
-    parent.add(new THREE.Mesh(bwGeom, material(HULL.top, 0.55)));
-
-    // Top cap rail along the bulwark
-    const railPts = xs.map(x => {
-      const y = fcHeight(x) + bwHeight;
-      return new THREE.Vector3(x, y, side * Math.max(0.04, halfBeamAt(x, fcHeight(x))));
-    });
-    rawLine(parent, railPts, 0x223c4a, 0.85);
-
-    // Stiffener stays every ~0.8 units
-    for (let x = xStart + 0.5; x < xEnd - 0.3; x += 0.85) {
-      const y = fcHeight(x), z = side * Math.max(0.04, halfBeamAt(x, y));
-      const inZ = z - side * 0.12;
-      const gusset = [new THREE.Vector3(x, y, z), new THREE.Vector3(x, y + bwHeight * 0.9, z), new THREE.Vector3(x, y, inZ), new THREE.Vector3(x, y, z)];
-      rawLine(parent, gusset, 0x486c7d, 0.5);
-    }
-  }
-
-  // 3. Forward V-shaped Breakwater
-  const bwApexX = 13.75, bwApexY = fcHeight(bwApexX), bwH = 0.54;
-  for (const side of [-1, 1]) {
-    const pA = new THREE.Vector3(bwApexX, bwApexY, 0);
-    const pB = new THREE.Vector3(13.15, fcHeight(13.15), side * 2.35);
-    const tA = pA.clone().add(new THREE.Vector3(0, bwH, 0));
-    const tB = pB.clone().add(new THREE.Vector3(0, bwH, 0));
-    const plPos = [pA.x, pA.y, pA.z, tA.x, tA.y, tA.z, pB.x, pB.y, pB.z, tA.x, tA.y, tA.z, tB.x, tB.y, tB.z, pB.x, pB.y, pB.z];
-    const plGeom = new THREE.BufferGeometry();
-    plGeom.setAttribute('position', new THREE.Float32BufferAttribute(plPos, 3));
-    plGeom.computeVertexNormals();
-    parent.add(new THREE.Mesh(plGeom, material(0x385565, 0.85)));
-    rawLine(parent, [tA, tB], 0x223c4a, 0.9);
-    for (let f = 0.25; f <= 0.85; f += 0.3) {
-      const bPt = pA.clone().lerp(pB, f);
-      const aftPt = bPt.clone().add(new THREE.Vector3(-0.24, 0, 0));
-      const topPt = bPt.clone().add(new THREE.Vector3(0, bwH * 0.8, 0));
-      rawLine(parent, [bPt, topPt, aftPt, bPt], 0x223c4a, 0.6);
-    }
-  }
-
-  // 4. Companionway stair from cargo deck (0.90) to forecastle (1.02)
-  for (const z of [-0.6, 0.6]) {
-    box(parent, [0.38, 0.14, 0.42], [12.5, 0.96, z], 0x3f5c6c, 0.8);
-    for (let s = 0; s < 3; s++) box(parent, [0.1, 0.04, 0.38], [12.4 + s * 0.08, 0.92 + s * 0.04, z], 0x6e8e9e);
-  }
-
-  // 5. Twin Anchor Windlasses & Mooring Winches
-  for (const side of [-1, 1]) {
-    const wX = 15.6, wY = fcHeight(wX) + 0.02, wZ = side * 0.95;
-    box(parent, [1.1, 0.08, 0.72], [wX, wY + 0.04, wZ], 0x2a3e4d);
-    box(parent, [0.45, 0.38, 0.28], [wX - 0.22, wY + 0.24, wZ], 0x385565);
-    cylinder(parent, 0.12, 0.26, [wX - 0.22, wY + 0.24, wZ - side * 0.22], 0x223a4a, 'z');
-    cylinder(parent, 0.04, 0.64, [wX + 0.12, wY + 0.24, wZ], 0x8aa4b0, 'z');
-    cylinder(parent, 0.22, 0.12, [wX + 0.12, wY + 0.24, wZ], 0x607d8b, 'z');
-    ring(parent, 0.22, 0.025, [wX + 0.12, wY + 0.24, wZ - 0.06], 0x455a64, 'z');
-    ring(parent, 0.22, 0.025, [wX + 0.12, wY + 0.24, wZ + 0.06], 0x455a64, 'z');
-    cylinder(parent, 0.16, 0.22, [wX + 0.12, wY + 0.24, wZ + side * 0.26], 0x4c6575, 'z');
-    ring(parent, 0.19, 0.02, [wX + 0.12, wY + 0.24, wZ + side * 0.35], 0x364854, 'z');
-    ring(parent, 0.14, 0.015, [wX + 0.12, wY + 0.44, wZ - side * 0.12], 0xc7542e, 'y');
-    cylinder(parent, 0.018, 0.16, [wX + 0.12, wY + 0.36, wZ - side * 0.12], 0x20323d, 'y');
-
-    const spurlingPt = new THREE.Vector3(wX - 0.38, wY + 0.05, wZ);
-    cylinder(parent, 0.08, 0.08, [spurlingPt.x, spurlingPt.y, spurlingPt.z], 0x1d2c37);
-    const wildcatPt = new THREE.Vector3(wX + 0.12, wY + 0.46, wZ);
-    const hawseDeckPt = new THREE.Vector3(16.7, fcHeight(16.7) + 0.04, side * 0.82);
-    cylinder(parent, 0.1, 0.06, [hawseDeckPt.x, hawseDeckPt.y, hawseDeckPt.z], 0x1d2c37);
-    rawLine(parent, [spurlingPt, wildcatPt, hawseDeckPt], 0x15222b, 0.9);
-    for (let c = 0; c <= 8; c++) {
-      const pt = wildcatPt.clone().lerp(hawseDeckPt, c / 8);
-      cylinder(parent, 0.03, 0.05, [pt.x, pt.y, pt.z], 0x36444e, 'x');
-    }
-
-    const hawseHullX = 17.2, hawseHullY = 0.45, hawseHullZ = side * 1.08;
-    cylinder(parent, 0.14, 0.1, [hawseHullX, hawseHullY, hawseHullZ], 0x1e2f3b, 'z');
-    ring(parent, 0.15, 0.03, [hawseHullX, hawseHullY, hawseHullZ + side * 0.05], 0x15222b, 'z');
-    const shankTop = new THREE.Vector3(hawseHullX, hawseHullY, hawseHullZ + side * 0.06);
-    const shankBottom = shankTop.clone().add(new THREE.Vector3(-0.06, -0.42, side * 0.04));
-    strut(parent, shankTop, shankBottom, 0.035, 0x1b2832);
-    box(parent, [0.12, 0.08, 0.32], [shankBottom.x, shankBottom.y, shankBottom.z], 0x1b2832);
-    for (const dz of [-0.14, 0.14]) {
-      const flukeBase = new THREE.Vector3(shankBottom.x, shankBottom.y, shankBottom.z + dz);
-      const flukeTip = flukeBase.clone().add(new THREE.Vector3(0.08, 0.28, 0));
-      strut(parent, flukeBase, flukeTip, 0.03, 0x1b2832);
-    }
-  }
-
-  // 6. Double Bitt Mooring Bollards
-  for (const side of [-1, 1]) {
-    for (const x of [14.6, 16.3, 17.8]) {
-      const y = fcHeight(x) + 0.01;
-      const z = side * (Math.max(0.04, halfBeamAt(x, y)) - 0.22);
-      box(parent, [0.24, 0.03, 0.14], [x, y + 0.015, z], 0x223440);
-      for (const dx of [-0.07, 0.07]) {
-        cylinder(parent, 0.038, 0.16, [x + dx, y + 0.09, z], 0x5a7585, 'y');
-        cylinder(parent, 0.046, 0.02, [x + dx, y + 0.17, z], 0x364a57, 'y');
-      }
-      cylinder(parent, 0.016, 0.26, [x, y + 0.11, z], 0x5a7585, 'x');
-    }
-  }
-
-  // 7. Jackstaff & Forward Navigation Light
-  const jsX = 18.64, jsY = fcHeight(jsX), jsTopY = jsY + 0.88;
-  cylinder(parent, 0.018, 0.88, [jsX, jsY + 0.44, 0], 0x8faab8, 'y');
-  const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  lantern.position.set(jsX, jsTopY, 0);
-  parent.add(lantern);
-  rawLine(parent, [new THREE.Vector3(jsX, jsTopY, 0), new THREE.Vector3(18.2, fcHeight(18.2) + bwHeight, -0.22)], 0x6e8e9e, 0.5);
-  rawLine(parent, [new THREE.Vector3(jsX, jsTopY, 0), new THREE.Vector3(18.2, fcHeight(18.2) + bwHeight, 0.22)], 0x6e8e9e, 0.5);
-}
-
-/** Athwartships bow thruster tunnel through the hull with collar rings and debris grates */
-function createBowThrusterTunnel(parent: THREE.Group) {
-  const tX = 14.1, tY = -2.55;
-  const halfB = halfBeamAt(tX, tY);
-  const radius = 0.52;
-  cylinder(parent, radius, halfB * 2 + 0.06, [tX, tY, 0], 0x183344, 'z');
-  for (const side of [-1, 1]) {
-    const z = side * halfB;
-    ring(parent, radius, 0.045, [tX, tY, z], 0x142735, 'z');
-    for (const dx of [-0.26, 0, 0.26]) {
-      const barLen = Math.sqrt(Math.max(0.04, radius * radius - dx * dx)) * 2 - 0.04;
-      cylinder(parent, 0.018, barLen, [tX + dx, tY, z], 0x365061, 'y');
-    }
-  }
-}
-
 export function createVessel(): THREE.Group {
   const ship = new THREE.Group();
-  const xs = hullXs();
-  // Underwater body (including flat bottom) and topsides bands above the waterline.
-  ship.add(new THREE.Mesh(strip(xs, x => hullLoop(x, WATER_INDEX, 0)), hullMaterial(HULL.under, .3)));
-  for (const side of [-1, 1]) ship.add(new THREE.Mesh(strip(xs, x => hullSide(x, side)), hullMaterial(HULL.top, .26)));
-  deck(ship, SHIP.mainDeck, 0.045);
-  // Waterline stripe round the whole hull.
-  const waterline = [...xs.map(x => hullPoint(x, SHIP.waterline, -1)), ...[...xs].reverse().map(x => hullPoint(x, SHIP.waterline, 1))];
-  waterline.push(waterline[0].clone()); rawLine(ship, waterline, HULL.waterline, .85);
-  // Shaped transom, hull frames, and longitudinal stringers.
-  const transom = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(hullLoop(hullStart).map(p => new THREE.Vector2(p.z, p.y)))), hullMaterial(HULL.top, .3));
-  transom.geometry.rotateY(-Math.PI / 2); transom.position.x = hullStart; ship.add(transom);
-  for(let x = -16; x < 17; x += 1.6) line(ship, hullLoop(x), 0x73a7b7, 0.22);
-  for(const y of [-2.0, -0.6]) for(const side of [-1, 1]) line(ship, xs.filter(x => keelAt(x) <= y).map(x => new THREE.Vector3(x, y, side * halfBeamAt(x, y))), 0x548da1, 0.3);
-  // Machinery floor, upper switchgear platforms and separated compartments.
-  box(ship, [12.8, .035, 4.65], [-8.4, -1.76, 0], 0x547487, 0.08);
-  box(ship, [6.65, .035, 2.1], [-6.85, -.33, -.3], 0x6b9baf, 0.07);
-  for(const x of [-14.5, -3, 11]){
-    box(ship, [.035, 2.45, halfBeamAt(x, -1.5) * 2], [x, -.37, 0], 0x8badb9, 0.035);
-    line(ship, [new THREE.Vector3(x, -1.65, -2.1), new THREE.Vector3(x, .75, -2.1), new THREE.Vector3(x, .75, 2.1), new THREE.Vector3(x, -1.65, 2.1)], 0x75aeb5, 0.28);
-  }
-  // Cargo deck sheer bulwark coaming and railings (height 1.22 above waterline -1.25)
-  for(const side of [-1, 1]){
-    const coamPts: THREE.Vector3[] = [];
-    for(let x = -13.5; x <= 12.6; x += 0.4) coamPts.push(new THREE.Vector3(x, 1.22, side * Math.max(.04, halfBeamAt(x, .90) - .04)));
-    rawLine(ship, coamPts, 0x2a4657, 0.7);
-    for(const y of [1.06, 1.22]) line(ship, hullXs().filter(x => x <= 12.6).map(x => new THREE.Vector3(x, y, side * Math.max(.02, halfBeamAt(x) - .08))), 0xa1c6cf, .45);
-    for(let x = -17; x < 12.6; x += .9) line(ship, [new THREE.Vector3(x, .9, side * Math.max(.02, halfBeamAt(x) - .08)), new THREE.Vector3(x, 1.22, side * Math.max(.02, halfBeamAt(x) - .08))], 0x91b9c3, .45);
-  }
-  // Aft accommodation block, deck divisions, bridge wings, windows and exterior ladders.
-  box(ship, [6.2, 3.1, 5.3], [-10.4, 2.45, 0], 0xa7d4de, .055);
-  outlineBox(ship, [6.2, 3.1, 5.3], [-10.4, 2.45, 0], 0x92c9d5, .37);
-  for(const y of [.98, 2.12, 3.3, 4.02]){
-    box(ship, [6.3, .06, 5.42], [-10.4, y, 0], 0x92becb, .10);
-    outlineBox(ship, [6.3, .06, 5.42], [-10.4, y, 0], 0x83bdca, .35);
-  }
-  box(ship, [2.4, .73, 6.1], [-8.55, 3.77, 0], 0x99d9e2, .07);
-  outlineBox(ship, [2.4, .73, 6.1], [-8.55, 3.77, 0], 0xacdce4, .45);
-  for(let z = -2.65; z <= 2.65; z += .55) box(ship, [.035, .30, .42], [-7.32, 3.87, z], 0x397d9d, .52);
-  for(const side of [-1, 1]) for(const y of [1.5, 2.65, 3.7]) for(let x = -12.6; x < -8.0; x += .75){
-    box(ship, [.43, .23, .025], [x, y, side * 2.665], 0x72a8bf, .33);
-  }
-  for(const z of [-2.72, 2.72]){
-    line(ship, [new THREE.Vector3(-12.9, 1, z), new THREE.Vector3(-12.9, 4.15, z)], 0xb0ced5, .6);
-    line(ship, [new THREE.Vector3(-12.65, 1, z), new THREE.Vector3(-12.65, 4.15, z)], 0xb0ced5, .6);
-    for(let y = 1.05; y < 4.1; y += .18) line(ship, [new THREE.Vector3(-12.9, y, z), new THREE.Vector3(-12.65, y, z)], 0xb0ced5, .6);
-  }
-  box(ship, [1.45, 1.22, 1.15], [-12.2, 4.45, .7], 0x547e90, .28);
-  for(let x = -12.65; x < -11.6; x += .29) cylinder(ship, .09, .28, [x, 5.18, .7], 0x446477);
-  cylinder(ship, .035, 1.9, [-8.7, 4.98, 0], 0xa9d1db);
-  box(ship, [1.3, .09, .13], [-8.7, 5.45, 0], 0xb6d8dd, .8);
-  cylinder(ship, .16, .10, [-8.7, 5.91, 0], 0xc5e1e6);
-  // Rudder blade aft of propeller
-  box(ship, [.38, 1.3, .10], [-18.45, -1.45, 0], 0x7b9ead, .55);
-  // High-fidelity bow assemblies:
-  createBulbousBow(ship);
-  createForecastle(ship);
-  createBowThrusterTunnel(ship);
+
+  // Container stacks on weather deck
   cargo(ship);
+
+  // Load the upgraded Blender 3D ship hull model
+  const loader = new GLTFLoader();
+  const base = import.meta.env.BASE_URL;
+  const modelUrl = base && base !== './' && base !== '/'
+    ? `${base.replace(/\/$/, '')}/blender-hull-V6.glb`
+    : '/blender-hull-V6.glb';
+
+  loader.load(
+    modelUrl,
+    (gltf) => {
+      gltf.scene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((mat) => {
+            // Disable transmission if present so standard alpha blending works reliably
+            if ('transmission' in mat) {
+              (mat as THREE.MeshPhysicalMaterial).transmission = 0;
+            }
+
+            const matName = mat.name || '';
+            const meshName = child.name || '';
+
+            // 1. Translucent hull plating (underwater red oxide, navy cyan topsides, rudder blade, bossings)
+            if (
+              matName.includes('Hull_Under') ||
+              matName.includes('Hull_Topsides') ||
+              matName.includes('Topsides') ||
+              (meshName === 'ShipHull' && (matName.includes('RedOxide') || matName.includes('NavyCyan'))) ||
+              meshName.includes('Bossing') ||
+              meshName.includes('Boss_Fairing') ||
+              meshName === 'SemiBalanced_Rudder'
+            ) {
+              mat.transparent = true;
+              mat.opacity = 0.35;
+              mat.depthWrite = false;
+              mat.side = THREE.DoubleSide;
+            }
+            // 2. Waterline stripe (crisp boot-topping band)
+            else if (matName.includes('Waterline')) {
+              mat.transparent = true;
+              mat.opacity = 0.75;
+              mat.depthWrite = false;
+              mat.side = THREE.DoubleSide;
+            }
+            // 3. Superstructure & accommodation house (translucent so interior switchboards/generators are visible)
+            else if (matName.includes('Superstructure') || meshName.includes('Accommodation')) {
+              mat.transparent = true;
+              mat.opacity = 0.35;
+              mat.depthWrite = false;
+              mat.side = THREE.DoubleSide;
+            }
+            // 4. Equipment foundation pads (solid & clearly legible under machinery)
+            else if (matName.includes('Equipment_Foundation_Pad') || meshName.startsWith('Pad_')) {
+              mat.transparent = false;
+              mat.opacity = 1.0;
+              mat.depthWrite = true;
+            }
+            // 5. Decks and cargo bay pads (clearly legible)
+            else if (
+              matName.includes('Deck_Marine_Slate') ||
+              meshName.includes('CargoBay_Pad') ||
+              meshName.includes('House_Deck')
+            ) {
+              mat.transparent = true;
+              mat.opacity = 0.65;
+              mat.depthWrite = true;
+              mat.side = THREE.DoubleSide;
+            }
+            // 6. Internal deck flats and watertight bulkheads (machinery platforms)
+            else if (
+              matName.includes('Internal_Deck_Bulkhead') ||
+              meshName.includes('TankTop') ||
+              meshName.includes('Mezzanine') ||
+              meshName.includes('Bulkhead')
+            ) {
+              mat.transparent = true;
+              mat.opacity = 0.50;
+              mat.depthWrite = false;
+              mat.side = THREE.DoubleSide;
+            }
+            // 7. Navigation bridge windows
+            else if (matName.includes('Window') || meshName.includes('Window')) {
+              mat.transparent = true;
+              mat.opacity = 0.55;
+              mat.depthWrite = false;
+            }
+            // 8. Funnel casing & accents
+            else if (matName.includes('Funnel') || meshName.includes('Funnel')) {
+              mat.transparent = true;
+              mat.opacity = 0.75;
+              mat.depthWrite = false;
+              mat.side = THREE.DoubleSide;
+            }
+            // 9. Deck hardware, winches, bollards, rails & thruster grates
+            else {
+              mat.transparent = matName.includes('Rail');
+              mat.opacity = matName.includes('Rail') ? 0.75 : 0.95;
+              mat.depthWrite = true;
+            }
+          });
+        }
+      });
+      ship.add(gltf.scene);
+    },
+    undefined,
+    (error) => {
+      console.error('Failed to load 3D ship hull model (/blender-hull-V6.glb):', error);
+    }
+  );
+
   return ship;
 }
 
-function propeller(): THREE.Group {
-  const group = new THREE.Group();
-  const rotor = new THREE.Group(); rotor.userData.spinProp = true;
-  cylinder(rotor, .14, .47, [0, 0, 0], 0xc7aa72, 'x');
-  const shape = new THREE.Shape(); shape.moveTo(.04, .09); shape.bezierCurveTo(.32, .08, .53, .43, .36, .65); shape.bezierCurveTo(.19, .77, .05, .53, .04, .09);
-  const blade = new THREE.ExtrudeGeometry(shape, { depth: .045, bevelEnabled: true, bevelSize: .02, bevelThickness: .02, bevelSegments: 2, steps: 1 }); blade.rotateY(Math.PI / 2);
-  for(let i = 0; i < 5; i++){ const mesh = new THREE.Mesh(blade, material(0xc5a66a)); mesh.rotation.x = i * Math.PI * 2 / 5; rotor.add(mesh); }
-  group.add(rotor);
-  return group;
-}
 
 /** Slewing deck crane: x is the direction the boom points, y is up. */
 function craneModel(g:THREE.Group){
@@ -540,7 +293,7 @@ function reeferContainer(g:THREE.Group){
 
 function loadModel(e:Equipment):THREE.Group {
   const g=new THREE.Group();
-  if(e.kind==='propeller')return propeller();
+  if(e.kind==='propeller'||e.id==='prop')return propellerAssembly.group;
   if(e.id==='crane'){craneModel(g);return g;}
   if(e.id==='reeferUnit'){reeferContainer(g);return g;}
   if(e.id==='steering'){
@@ -573,6 +326,13 @@ function loadModel(e:Equipment):THREE.Group {
 export function createVesselEquipment(e:Equipment):THREE.Group {
   const placement=vesselLayout[e.id];
   const root=new THREE.Group();root.position.set(...placement.position);root.userData.eqId=e.id;
+  if(e.id==='prop'||e.kind==='propeller'){
+    root.add(propellerAssembly.group);
+    root.userData.height=placement.size[1];
+    root.userData.propellerAssembly=propellerAssembly;
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
   const model=e.model?createModel(e.model).group:loadModel(e);
   model.rotation.y=placement.rotation||0;model.updateMatrixWorld(true);
   let bounds=new THREE.Box3().setFromObject(model);const raw=bounds.getSize(new THREE.Vector3());
@@ -580,7 +340,7 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
   model.scale.setScalar(scale);model.updateMatrixWorld(true);bounds=new THREE.Box3().setFromObject(model);
   const center=bounds.getCenter(new THREE.Vector3());model.position.set(-center.x,-bounds.min.y,-center.z);
   root.add(model);root.userData.height=bounds.max.y-bounds.min.y;
-  if(placement.space!=='external'&&placement.space!=='cargo'){
+  if(placement.space!=='external'&&placement.space!=='cargo'&&e.id!=='bow'&&e.kind!=='thruster'){
     const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
   }
   root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});

@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
-import { createVessel, createVesselEquipment } from './vessel';
-import { vesselLayout, SHIP, halfBeamAt, hullStart, hullEnd } from './vessel-layout';
+import { createVessel, createVesselEquipment, propellerAssembly } from './vessel';
+import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
 const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
 const BG = { vessel: 0xdfeaf1, exploded: 0xe9f1f6 };
@@ -255,16 +255,17 @@ export class VesselView {
     (this.sea.material as THREE.ShaderMaterial).uniforms.uTime.value = this.phase;
     // The reefer's condenser fan turns only while the container is supplied.
     if (this.live.has('reeferUnit')) this.objects.get('reeferUnit')?.traverse(o => { if (o.userData.spin) o.rotation.x += dt * 9; });
-    // Main propulsion propeller spins when propulsion is energized
-    if (this.live.has('prop') || this.live.has('motor')) {
-      this.objects.get('prop')?.traverse(o => { if (o.userData.spinProp) o.rotation.x += dt * 14; });
+    // Main propulsion propeller spins when propulsion is energized, or continuously in inspect mode
+    const isPropulsionActive = this.live.has('prop') || this.live.has('motor');
+    const isInspectingPropeller = this.selection === 'prop';
+    if (isPropulsionActive || isInspectingPropeller) {
+      propellerAssembly.updateRotation(dt, isPropulsionActive ? 45 : 18);
     }
-    // Bow and stern thrusters spin when energized
+    // Update explosion lerp interpolation smoothly every frame
+    propellerAssembly.updateExplosion(dt);
+    // Bow thruster spins when energized
     if (this.live.has('bow')) {
       this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
-    }
-    if (this.live.has('stern')) {
-      this.objects.get('stern')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
     }
     this.controls.update(); this.updateLabels();
     if (this.state) for (const c of connections) {

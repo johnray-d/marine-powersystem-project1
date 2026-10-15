@@ -72,10 +72,8 @@ export const vesselLayout: Record<string, VesselPlacement> = {
   busB: { position: [-6.8, -0.3, -0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
   drive: { position: [-11.3, -1.7, 1.25], size: [1.4, 1.15, 0.65], space: 'hull' },
   motor: { position: [-13.5, -2.02, 0], size: [2.0, 1.17, 1.08], rotation: Math.PI, space: 'hull' },
-  prop: { position: [-17.8, -2.22, 0], size: [0.65, 1.52, 1.52], space: 'external' },
-  // Both thrusters sit at keel level. The stern one is sized so its top stays under the propeller shaft line (y about -1.5).
+  prop: { position: [-17.38, -2.22, 0], size: [0.65, 1.0, 1.0], space: 'external' },
   bow: { position: [14.1, -2.55, 0], size: [0.95, 1.72, 2.55], rotation: Math.PI / 2, space: 'hull' },
-  stern: { position: [-15.7, -2.55, 0], size: [0.65, 0.88, 1.04], rotation: Math.PI / 2, space: 'hull' },
   txA: { position: [-4.0, -1.72, -1.12], size: [1.08, 1.0, 0.85], space: 'hull' },
   txB: { position: [-4.0, -1.72, 1.12], size: [1.08, 1.0, 0.85], space: 'hull' },
   lvBus: { position: [-4.25, -0.30, 0], size: [1.45, 0.82, 0.56], space: 'hull' },

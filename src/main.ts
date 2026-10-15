@@ -2,6 +2,7 @@ import './style.css';
 import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, VOLTAGES, type SimState, type Equipment, type ModelType } from './network';
 import { modelParts } from './models';
 import { VesselView, ExplodedView } from './scene';
+import { propellerAssembly } from './propeller-assembly';
 
 type View='vessel'|'schematic';
 let state:SimState=initialState();
@@ -83,7 +84,7 @@ function renderScenarios(){const el=document.querySelector('#scenarios')!;el.inn
 function sourceRow(id:string){const e=byId[id],breaker=id==='eg'?'egBreaker':`gb${id.slice(2)}`;return `<div class="generator-row"><button class="item-name" data-select="${id}" type="button"><span class="state-dot ${state.running[id]?'on':''}"></span>${e.short}</button><button class="mini-toggle ${state.running[id]?'on':''}" data-source="${id}" type="button" aria-label="${state.running[id]?'Stop':'Start'} ${e.name}">${state.running[id]?'RUNNING':'STOPPED'}</button><button class="mini-toggle ${state.closed[breaker]?'closed':''}" data-breaker="${breaker}" type="button" aria-label="${state.closed[breaker]?'Open':'Close'} ${edgeById[breaker].name}">CB ${state.closed[breaker]?'CLOSED':'OPEN'}</button></div>`;}
 function renderControls(){document.querySelector('#generators')!.innerHTML=['dg1','dg2','dg3','dg4'].map(sourceRow).join('');
   document.querySelector('#tieControl')!.innerHTML=`<div class="tie-row"><button class="item-name" data-select="tie" type="button">Main bus A ↔ B</button><button class="switch ${state.closed.tie?'on':''}" id="tieSwitch" type="button" role="switch" aria-checked="${state.closed.tie}" aria-label="Bus tie breaker"><span></span></button><strong>${state.closed.tie?'CLOSED':'OPEN'}</strong></div>`;
-  const groups=[[VOLTAGES.hv,'propFeed','bowFeed','sternFeed','txAFeed','txBFeed'],[VOLTAGES.lv,'reeferFeed','reeferPlug','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed'],[VOLTAGES.consumer,'galleyFeed','lightFeed','outletFeed']];
+  const groups=[[VOLTAGES.hv,'propFeed','bowFeed','txAFeed','txBFeed'],[VOLTAGES.lv,'reeferFeed','reeferPlug','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed'],[VOLTAGES.consumer,'galleyFeed','lightFeed','outletFeed']];
   document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>`<div class="feeder-group"><div class="feeder-label">${title}</div>${ids.map(id=>{const c=edgeById[id];return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`).join('');
   document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">No automatic transfer is modeled. Start the emergency generator and close its breaker to energize the separate board.</p>`;
   document.querySelector('#tieSwitch')!.addEventListener('click',()=>toggleBreaker('tie'));
@@ -128,7 +129,7 @@ function resolveAssemblyUrl(filename: string): string {
 }
 
 function getAssemblyPage(selectedId: string, model: ModelType | undefined): AssemblyPageInfo | null {
-  if (model === 'thruster' || selectedId === 'bow' || selectedId === 'stern') {
+  if (model === 'thruster' || selectedId === 'bow') {
     return {
       url: resolveAssemblyUrl('3d_bow_thruster_explodable_assembly.html'),
       title: 'HI-SEA Marine Bow Thruster — 3D Explodable CAD Assembly',
@@ -142,6 +143,14 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       title: 'IEC 60092-302 Marine Main Switchboard & Bus-Tie Assembly',
       subtitle: 'Cubicle 1 Open 115° · Center Withdrawable Bus-Tie ACB · Three-Phase Copper Busbars · IP22 Canopy · Engineering BOM',
       tag: 'IEC 60092-302 CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'prop') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_propeller_assembly.html'),
+      title: 'Marine Propeller & Stern Tube — 3D Explodable Assembly',
+      subtitle: 'Controllable Pitch / Fixed Pitch Propeller · Stern Tube Bearings · Lip Seals · Intermediate Coupling · Exploded View & BOM',
+      tag: 'PROPULSION CAD ASSEMBLY & SPECS'
     };
   }
   return null;
@@ -198,6 +207,32 @@ function renderInspector(){
     ${c?.breaker?`<div class="inspector-actions"><button class="button button-primary" data-breaker="${c.id}" type="button">${state.closed[c.id]?'Open':'Close'} breaker</button></div>`:''}
     ${e?relatedControls(e.id):''}
     ${assemblyInfo?`<div class="inspector-actions" style="margin-top:14px;"><button id="openCadAssembly" type="button" class="button button-primary open-cad-btn" style="width:100%;">⚡ Open 3D Engineering Assembly & Specs ↗</button></div>`:''}
+    ${selected === 'prop' || e?.kind === 'propeller' ? `
+      <div class="propeller-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Propeller & Stern Tube Assembly</h4>
+          </div>
+          <span id="propeller-explosion-val" class="propeller-val-badge">${Math.round(propellerAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the nickel-aluminum bronze hub, blades, thrust washer, retaining nut, mechanical seals, and stern tube cutaway.
+        </p>
+        <div class="propeller-slider-row">
+          <label for="propeller-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="propeller-explosion-slider" min="0" max="1" step="0.01" value="${propellerAssembly.targetExplosionFactor}">
+        </div>
+        <div class="propeller-presets">
+          <button type="button" class="preset-btn" data-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
     ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
@@ -207,6 +242,26 @@ function renderInspector(){
 
   if(assemblyInfo){
     pane.querySelector<HTMLButtonElement>('#openCadAssembly')?.addEventListener('click',()=>openAssemblyModal(assemblyInfo));
+  }
+
+  if (selected === 'prop' || e?.kind === 'propeller') {
+    const propSlider = document.getElementById('propeller-explosion-slider') as HTMLInputElement;
+    propSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      propellerAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('propeller-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.preset || '0');
+        propellerAssembly.setExplosionFactor(factor);
+        if (propSlider) propSlider.value = String(factor);
+        const label = document.getElementById('propeller-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
   }
 
   if(model){

@@ -24,7 +24,7 @@ The **Marine Power System Simulator** teaches marine electrical engineering fund
 * **Hydrodynamic Taylor/Nabla Bulbous Bow**: Organically lofted continuous bulbous bow emerging seamlessly from the lower forefoot and keel line, eliminating faceted step-cuts and featuring a smooth raked stem.
 * **Detailed Forecastle & Foredeck Architecture**: Raised forecastle deck with sheer rise, solid plated steel bulwarks with cap rail, heavy-duty V-shaped green water breakwater, twin anchor windlasses/mooring winches, chain pipes, recessed hawse pipes with cast stockless bower anchors, mooring bollards, and forward jackstaff.
 * **Athwartships Thruster Tunnels**: Structural transverse bow thruster tube with reinforced collar rims and protective vertical debris grates.
-* **Active Propeller & Thruster Animations**: Real-time rotating propeller blades when the propulsion motor circuit is closed/energized, and spinning bronze impellers for the bow and stern thrusters when their respective feeder breakers are closed.
+* **Active Propeller & Thruster Animations**: Real-time rotating propeller blades when the propulsion motor circuit is closed/energized, and spinning bronze impeller for the bow thruster when its feeder breaker is closed.
 * **Animated Translucent Sea**: Dynamic flowing sea surface at the waterline with wave swell displacement, wave crest drift, and a cutout hugging the vessel hull for an authentic floating visual illusion.
 * **Detailed Slewing Deck Crane**: High-fidelity cargo crane model including a flanged pedestal, slewing ring, machinery house, operator cab with glazing, 7-panel lattice boom with diagonal bracing, twin hydraulic luffing rams, sheaves, and hook block.
 * **Interactive Reefer Container & Power Flow**: Active 40-foot refrigerated container in the cargo bay connected via a socket feeder cable to the reefer distribution board. Features an animated spinning condenser fan and dual-state power indicator light (green = powered / red = isolated).
@@ -100,13 +100,19 @@ flowchart TD
 .
 ├── .github/workflows/
 │   └── deploy.yml          # GitHub Actions automated Pages build and deploy
+├── public/
+│   ├── assemblies/         # Standalone 3D explodable CAD inspection web views
+│   ├── blender-hull-V6.glb # Translucent multi-deck container ship hull 3D model
+│   └── marine_propeller_assembly.glb # Detailed 3D marine propeller and stern tube assembly
 ├── scripts/
-│   └── check-layout.mjs    # Automated 3D boundary, collision, and shaft clearance test
+│   ├── check-layout.mjs    # Automated 3D boundary, collision, and shaft clearance test
+│   └── shot.mjs            # Automated headless screenshot verification utility
 ├── src/
 │   ├── main.ts             # Application entry point, UI binding, event handlers
 │   ├── models.ts           # 3D procedural exploded equipment models and part metadata
 │   ├── equipment-models.ts # Reference-inspired genset, VCB and switchboard assemblies
 │   ├── network.ts          # Electrical connectivity solver, equipment registry, and scenarios
+│   ├── propeller-assembly.ts # 3D exploded propeller & stern tube loader and animation controller
 │   ├── scene.ts            # Three.js 3D vessel and exploded-view camera/renderer controllers
 │   ├── style.css           # Light-theme styles, responsive layout, and modal controls
 │   ├── vessel.ts           # Detailed 3D vessel geometry (hull, decks, container bays, bridge)
