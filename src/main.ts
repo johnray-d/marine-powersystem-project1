@@ -1,5 +1,5 @@
 import './style.css';
-import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, VOLTAGES, type SimState, type Equipment, type ModelType } from './network';
+import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, VOLTAGES, type SimState, type Equipment, type ModelType, type Connection } from './network';
 import { modelParts } from './models';
 import { VesselView, ExplodedView } from './scene';
 import { propellerAssembly } from './propeller-assembly';
@@ -36,6 +36,13 @@ app.innerHTML=`
       <div class="view-header"><div><div class="eyebrow">POWER FLOW EXPLORER</div><h2 id="viewTitle">Vessel overview</h2></div><div class="tabs" role="tablist" aria-label="System views"><button class="tab active" data-view="vessel" role="tab" aria-selected="true">◈ 3D vessel</button><button class="tab" data-view="schematic" role="tab" aria-selected="false">⌁ Single-line</button></div></div>
       <div class="visual-stage" id="visualStage"><div class="vessel-host" id="vesselHost" aria-label="Interactive 3D vessel view"></div><div class="schematic-host hidden" id="schematicHost" aria-label="Interactive single-line diagram"></div>
         <div class="view-tools" id="viewTools"><button id="resetCamera" type="button">⌖ Reset view</button><button id="focusEquipment" type="button">◎ Focus item</button><button id="toggleShell" type="button">▧ Shell on</button><button id="toggleLabels" type="button">T Labels on</button></div>
+        <div class="view-tools hidden" id="schematicTools">
+          <button id="schematicFit" type="button" title="Fit Single-Line Diagram to screen">⤢ Fit to screen</button>
+          <button id="schematicZoomIn" type="button" title="Zoom In">＋</button>
+          <button id="schematicZoomOut" type="button" title="Zoom Out">－</button>
+          <button id="schematicReset" type="button" title="Reset Zoom">100%</button>
+          <span class="schematic-nav-hint">Scroll to zoom · Drag to pan</span>
+        </div>
       </div>
       <div class="status-strip"><div class="legend"><span><i class="legend-line live"></i> Energized</span><span><i class="legend-line dead"></i> De-energized</span><span><i class="legend-line open"></i> Open / disconnected</span></div><div class="status-count" id="statusCount"></div></div>
       <div class="lesson-banner"><span class="lesson-icon">i</span><div><strong id="lessonTitle">Current lesson</strong><p id="lessonText"></p></div></div>
@@ -96,14 +103,314 @@ function renderControls(){document.querySelector('#generators')!.innerHTML=['dg1
 }
 function nodeClass(e:Equipment){return e.kind==='generator'||e.kind==='emergency-generator'?'source':e.kind==='bus'||e.kind==='emergency-bus'?'bus':e.kind==='future'?'future':'equipment';}
 function svgEsc(value:string){return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
-function renderSchematic(){const host=document.querySelector('#schematicHost')!;
-  const paths=connections.map(c=>{const a=byId[c.from],b=byId[c.to];const status=connectionState(c,state,live);const ax=a.sx,ay=a.sy,bx=b.sx,by=b.sy;
-    const mx=(ax+bx)/2,my=(ay+by)/2;const breaker=c.breaker?`<g class="breaker-symbol ${status}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}"><rect x="${mx-10}" y="${my-10}" width="20" height="20" rx="3"/><path d="M${mx-5} ${my+4} L${mx+5} ${my-4}"/><title>${svgEsc(c.name)} · ${state.closed[c.id]?'closed':'open'}</title></g>`:'';
-    return `<g class="diagram-path ${status} ${selected===c.id?'selected':''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}"><line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}"/><title>${svgEsc(c.name)} · ${status}</title></g>${breaker}`;
+interface RouteDef {
+  points: [number, number][];
+  breaker?: { pos: [number, number]; orientation: 'h' | 'v' };
+}
+
+const ORTHOGONAL_ROUTES: Record<string, RouteDef> = {
+  gb1: {
+    points: [[80, 80], [230, 80], [230, 104]],
+    breaker: { pos: [155, 80], orientation: 'h' }
+  },
+  gb2: {
+    points: [[80, 145], [145, 145], [145, 125], [199, 125]],
+    breaker: { pos: [112, 145], orientation: 'h' }
+  },
+  gb3: {
+    points: [[880, 80], [730, 80], [730, 104]],
+    breaker: { pos: [805, 80], orientation: 'h' }
+  },
+  gb4: {
+    points: [[880, 145], [815, 145], [815, 125], [761, 125]],
+    breaker: { pos: [848, 145], orientation: 'h' }
+  },
+  tie: {
+    points: [[321, 125], [639, 125]],
+    breaker: { pos: [480, 125], orientation: 'h' }
+  },
+  propFeed: {
+    points: [[215, 147], [215, 244]],
+    breaker: { pos: [215, 195], orientation: 'v' }
+  },
+  driveMotor: {
+    points: [[215, 287], [215, 334]]
+  },
+  shaft: {
+    points: [[215, 377], [215, 419]]
+  },
+  bowFeed: {
+    points: [[745, 147], [745, 195], [880, 195], [880, 244]],
+    breaker: { pos: [812, 195], orientation: 'h' }
+  },
+  txAFeed: {
+    points: [[285, 147], [285, 185], [330, 185], [330, 224]],
+    breaker: { pos: [285, 166], orientation: 'v' }
+  },
+  txBFeed: {
+    points: [[705, 147], [705, 185], [770, 185], [770, 224]],
+    breaker: { pos: [705, 166], orientation: 'v' }
+  },
+  txAOut: {
+    points: [[330, 267], [330, 282], [520, 282], [520, 299]]
+  },
+  txBOut: {
+    points: [[770, 267], [770, 282], [580, 282], [580, 299]]
+  },
+  reeferFeed: {
+    points: [[550, 342], [550, 380], [405, 380], [405, 429]],
+    breaker: { pos: [405, 404], orientation: 'v' }
+  },
+  reeferPlug: {
+    points: [[405, 472], [405, 499]],
+    breaker: { pos: [405, 485], orientation: 'v' }
+  },
+  craneFeed: {
+    points: [[550, 342], [550, 380], [520, 380], [520, 429]],
+    breaker: { pos: [520, 404], orientation: 'v' }
+  },
+  fireFeed: {
+    points: [[550, 342], [550, 380], [635, 380], [635, 429]],
+    breaker: { pos: [635, 404], orientation: 'v' }
+  },
+  ballastFeed: {
+    points: [[550, 342], [550, 380], [750, 380], [750, 429]],
+    breaker: { pos: [750, 404], orientation: 'v' }
+  },
+  bilgeFeed: {
+    points: [[550, 342], [550, 380], [860, 380], [860, 429]],
+    breaker: { pos: [860, 404], orientation: 'v' }
+  },
+  coolingFeed: {
+    points: [[550, 342], [550, 380], [975, 380], [975, 429]],
+    breaker: { pos: [975, 404], orientation: 'v' }
+  },
+  steerFeed: {
+    points: [[550, 342], [550, 380], [285, 380], [285, 514]],
+    breaker: { pos: [285, 447], orientation: 'v' }
+  },
+  tx220Feed: {
+    points: [[550, 342], [555, 342], [555, 514]],
+    breaker: { pos: [555, 435], orientation: 'v' }
+  },
+  tx220Out: {
+    points: [[555, 557], [555, 594]]
+  },
+  galleyFeed: {
+    points: [[555, 637], [555, 655], [350, 655], [350, 679]],
+    breaker: { pos: [350, 667], orientation: 'v' }
+  },
+  lightFeed: {
+    points: [[555, 637], [555, 655], [495, 655], [495, 679]],
+    breaker: { pos: [495, 667], orientation: 'v' }
+  },
+  outletFeed: {
+    points: [[555, 637], [555, 655], [640, 655], [640, 679]],
+    breaker: { pos: [640, 667], orientation: 'v' }
+  },
+  egBreaker: {
+    points: [[80, 607], [80, 625], [115, 625], [115, 644]],
+    breaker: { pos: [97.5, 625], orientation: 'h' }
+  },
+  eFireFeed: {
+    points: [[115, 687], [115, 710], [80, 710], [80, 734]],
+    breaker: { pos: [80, 722], orientation: 'v' }
+  },
+  eSteerFeed: {
+    points: [[115, 687], [115, 710], [220, 710], [220, 734]],
+    breaker: { pos: [220, 722], orientation: 'v' }
+  },
+  navFeed: {
+    points: [[115, 687], [115, 710], [360, 710], [360, 734]],
+    breaker: { pos: [360, 722], orientation: 'v' }
+  },
+  eLightFeed: {
+    points: [[115, 687], [115, 710], [500, 710], [500, 734]],
+    breaker: { pos: [500, 722], orientation: 'v' }
+  }
+};
+
+function getRoute(c: Connection, a: Equipment, b: Equipment): RouteDef {
+  if (ORTHOGONAL_ROUTES[c.id]) return ORTHOGONAL_ROUTES[c.id];
+  const midX = Math.round((a.sx + b.sx) / 2);
+  const points: [number, number][] = [[a.sx, a.sy], [midX, a.sy], [midX, b.sy], [b.sx, b.sy]];
+  return {
+    points,
+    breaker: c.breaker ? { pos: [midX, Math.round((a.sy + b.sy) / 2)], orientation: 'v' } : undefined
+  };
+}
+
+const schematicState = {
+  zoom: 1.0,
+  panX: 0,
+  panY: 0
+};
+
+function updateSchematicViewBox() {
+  const svg = document.querySelector<SVGSVGElement>('#schematicHost svg');
+  if (!svg) return;
+  const w = 1100 / schematicState.zoom;
+  const h = 830 / schematicState.zoom;
+  svg.setAttribute('viewBox', `${schematicState.panX} ${schematicState.panY} ${w} ${h}`);
+  const resetBtn = document.querySelector<HTMLButtonElement>('#schematicReset');
+  if (resetBtn) resetBtn.textContent = `${Math.round(schematicState.zoom * 100)}%`;
+}
+
+export function fitSchematicToScreen() {
+  schematicState.zoom = 1.0;
+  schematicState.panX = 0;
+  schematicState.panY = 0;
+  updateSchematicViewBox();
+}
+
+function zoomSchematic(factor: number) {
+  const host = document.querySelector<HTMLElement>('#schematicHost');
+  if (!host) return;
+  const mx = 0.5;
+  const my = 0.5;
+  const oldZoom = schematicState.zoom;
+  const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * factor));
+  if (Math.abs(newZoom - oldZoom) < 0.001) return;
+  
+  const oldW = 1100 / oldZoom;
+  const oldH = 830 / oldZoom;
+  const newW = 1100 / newZoom;
+  const newH = 830 / newZoom;
+  
+  const cursorSvgX = schematicState.panX + mx * oldW;
+  const cursorSvgY = schematicState.panY + my * oldH;
+  
+  schematicState.panX = cursorSvgX - mx * newW;
+  schematicState.panY = cursorSvgY - my * newH;
+  schematicState.zoom = newZoom;
+  updateSchematicViewBox();
+}
+
+function initSchematicInteractions() {
+  const host = document.querySelector<HTMLElement>('#schematicHost');
+  if (!host || host.dataset.interactive) return;
+  host.dataset.interactive = 'true';
+
+  let isDown = false;
+  let startX = 0, startY = 0;
+  let startPanX = 0, startPanY = 0;
+  let hasMoved = false;
+
+  host.addEventListener('pointerdown', (e: PointerEvent) => {
+    isDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startPanX = schematicState.panX;
+    startPanY = schematicState.panY;
+    hasMoved = false;
+  });
+
+  window.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!isDown) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.hypot(dx, dy) > 4) {
+      hasMoved = true;
+      host.classList.add('is-panning');
+    }
+    if (hasMoved) {
+      const scale = (1100 / schematicState.zoom) / host.clientWidth;
+      schematicState.panX = startPanX - dx * scale;
+      schematicState.panY = startPanY - dy * scale;
+      updateSchematicViewBox();
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (isDown) {
+      isDown = false;
+      host.classList.remove('is-panning');
+    }
+  });
+
+  host.addEventListener('wheel', (e: WheelEvent) => {
+    e.preventDefault();
+    const rect = host.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+
+    const oldZoom = schematicState.zoom;
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * zoomFactor));
+    if (Math.abs(newZoom - oldZoom) < 0.001) return;
+
+    const oldW = 1100 / oldZoom;
+    const oldH = 830 / oldZoom;
+    const newW = 1100 / newZoom;
+    const newH = 830 / newZoom;
+
+    const cursorSvgX = schematicState.panX + mx * oldW;
+    const cursorSvgY = schematicState.panY + my * oldH;
+
+    schematicState.panX = cursorSvgX - mx * newW;
+    schematicState.panY = cursorSvgY - my * newH;
+    schematicState.zoom = newZoom;
+    updateSchematicViewBox();
+  }, { passive: false });
+
+  document.querySelector('#schematicFit')?.addEventListener('click', fitSchematicToScreen);
+  document.querySelector('#schematicZoomIn')?.addEventListener('click', () => zoomSchematic(1.25));
+  document.querySelector('#schematicZoomOut')?.addEventListener('click', () => zoomSchematic(0.8));
+  document.querySelector('#schematicReset')?.addEventListener('click', fitSchematicToScreen);
+}
+
+function renderSchematic(){
+  const host=document.querySelector('#schematicHost')!;
+  const paths=connections.map(c=>{
+    const a=byId[c.from], b=byId[c.to];
+    const status=connectionState(c,state,live);
+    const route = getRoute(c, a, b);
+    const d = 'M ' + route.points.map(p => `${p[0]} ${p[1]}`).join(' L ');
+    
+    let breaker = '';
+    if (c.breaker && route.breaker) {
+      const { pos: [bx, by], orientation } = route.breaker;
+      const isClosed = !!state.closed[c.id];
+      let blade = '';
+      if (orientation === 'h') {
+        blade = isClosed ? `M${bx-6} ${by} H${bx+6}` : `M${bx-6} ${by} L${bx+5} ${by-7}`;
+      } else {
+        blade = isClosed ? `M${bx} ${by-6} V${by+6}` : `M${bx} ${by+6} L${bx+7} ${by-5}`;
+      }
+      breaker = `<g class="breaker-symbol ${status} orientation-${orientation}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+        <rect x="${bx-10}" y="${by-10}" width="20" height="20" rx="3"/>
+        <path class="contact-blade" d="${blade}"/>
+        <title>${svgEsc(c.name)} · ${isClosed ? 'closed' : 'open'}</title>
+      </g>`;
+    }
+
+    return `<g class="diagram-path ${status} ${selected===c.id?'selected':''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+      <path d="${d}"/>
+      <title>${svgEsc(c.name)} · ${status}</title>
+    </g>${breaker}`;
   }).join('');
-  const nodes=equipment.map(e=>{const s=e.kind==='bus'||e.kind==='emergency-bus'?122:96,h=43;const cls=nodeClass(e);return `<g class="diagram-node ${cls} ${live.has(e.id)?'live':'dead'} ${selected===e.id?'selected':''}" transform="translate(${e.sx-s/2} ${e.sy-h/2})" data-select="${e.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}"><rect width="${s}" height="${h}" rx="8"/><text x="${s/2}" y="17" text-anchor="middle" class="node-label">${svgEsc(e.short)}</text><text x="${s/2}" y="32" text-anchor="middle" class="node-voltage">${svgEsc(e.voltage)}</text><title>${svgEsc(e.name)} · ${live.has(e.id)?'powered':'not powered'}</title></g>`;}).join('');
-  host.innerHTML=`<div class="diagram-wrap"><svg viewBox="0 0 1100 830" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Single-line diagram of ship electrical connections"><text class="diagram-heading" x="32" y="34">NORMAL DISTRIBUTION</text><text class="diagram-heading" x="32" y="550">SEPARATE EMERGENCY DISTRIBUTION</text><path class="section-rule" d="M30 560 H1070"/>${paths}${nodes}</svg></div>`;
-  host.querySelectorAll<SVGGElement>('[data-select]').forEach(g=>{g.addEventListener('click',()=>select(g.dataset.select!));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(g.dataset.select!);}});});
+
+  const nodes=equipment.map(e=>{
+    const s=e.kind==='bus'||e.kind==='emergency-bus'?122:96, h=43;
+    const cls=nodeClass(e);
+    return `<g class="diagram-node ${cls} ${live.has(e.id)?'live':'dead'} ${selected===e.id?'selected':''}" transform="translate(${e.sx-s/2} ${e.sy-h/2})" data-select="${e.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
+      <rect width="${s}" height="${h}" rx="8"/>
+      <text x="${s/2}" y="17" text-anchor="middle" class="node-label">${svgEsc(e.short)}</text>
+      <text x="${s/2}" y="32" text-anchor="middle" class="node-voltage">${svgEsc(e.voltage)}</text>
+      <title>${svgEsc(e.name)} · ${live.has(e.id)?'powered':'not powered'}</title>
+    </g>`;
+  }).join('');
+
+  const vbW = 1100 / schematicState.zoom;
+  const vbH = 830 / schematicState.zoom;
+  host.innerHTML=`<div class="diagram-wrap"><svg viewBox="${schematicState.panX} ${schematicState.panY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Single-line diagram of ship electrical connections"><text class="diagram-heading" x="32" y="34">NORMAL DISTRIBUTION</text><text class="diagram-heading" x="32" y="550">SEPARATE EMERGENCY DISTRIBUTION</text><path class="section-rule" d="M30 560 H1070"/>${paths}${nodes}</svg></div>`;
+
+  host.querySelectorAll<SVGGElement>('[data-select]').forEach(g=>{
+    g.addEventListener('click',()=>select(g.dataset.select!));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(g.dataset.select!);}});
+  });
+
+  initSchematicInteractions();
 }
 function relatedControls(id:string){const related=connections.filter(c=>c.from===id||c.to===id).filter(c=>c.breaker);if(!related.length)return '';return `<div class="inspector-related"><h4>Connected breakers</h4>${related.map(c=>`<div class="related-row"><button data-select="${c.id}" type="button">${c.name}</button><button class="feeder-state ${state.closed[c.id]?'closed':''}" data-breaker="${c.id}" type="button">${state.closed[c.id]?'CLOSED':'OPEN'}</button></div>`).join('')}</div>`;}
 interface AssemblyPageInfo {
@@ -132,7 +439,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'IEC 60092-302 CAD ASSEMBLY & SPECS'
     };
   }
-  if (selectedId === 'prop') {
+  if (selectedId === 'prop' || model === 'propeller') {
     return {
       url: resolveAssemblyUrl('3d_marine_propeller_assembly.html'),
       title: 'Marine Propeller & Stern Tube — 3D Explodable Assembly',
@@ -379,6 +686,17 @@ document.querySelector('#resetCamera')!.addEventListener('click',()=>vessel.rese
 document.querySelector('#focusEquipment')!.addEventListener('click',()=>vessel.focusSelection());
 document.querySelector('#toggleShell')!.addEventListener('click',e=>{showShell=!showShell;vessel.setShell(showShell);(e.currentTarget as HTMLElement).textContent=`▧ Shell ${showShell?'on':'off'}`;});
 document.querySelector('#toggleLabels')!.addEventListener('click',e=>{showLabels=!showLabels;vessel.setLabels(showLabels);(e.currentTarget as HTMLElement).textContent=`T Labels ${showLabels?'on':'off'}`;});
-document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view as View;document.querySelector('#vesselHost')!.classList.toggle('hidden',view!=='vessel');document.querySelector('#schematicHost')!.classList.toggle('hidden',view!=='schematic');document.querySelector('#viewTools')!.classList.toggle('hidden',view!=='vessel');document.querySelector('#viewTitle')!.textContent=view==='vessel'?'Vessel overview':'Single-line diagram';document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(t=>{t.classList.toggle('active',t===b);t.setAttribute('aria-selected',String(t===b));});});
+document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>b.onclick=()=>{
+  view=b.dataset.view as View;
+  document.querySelector('#vesselHost')!.classList.toggle('hidden',view!=='vessel');
+  document.querySelector('#schematicHost')!.classList.toggle('hidden',view!=='schematic');
+  document.querySelector('#viewTools')!.classList.toggle('hidden',view!=='vessel');
+  document.querySelector('#schematicTools')?.classList.toggle('hidden',view!=='schematic');
+  document.querySelector('#viewTitle')!.textContent=view==='vessel'?'Vessel overview':'Single-line diagram';
+  document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(t=>{t.classList.toggle('active',t===b);t.setAttribute('aria-selected',String(t===b));});
+  if(view==='schematic') {
+    fitSchematicToScreen();
+  }
+});
 refresh();
 (window as any).app = { vessel, exploded, select, toggleBreaker, toggleSource, reset, refresh, getState: () => state, getLive: () => live };

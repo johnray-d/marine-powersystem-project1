@@ -143,6 +143,12 @@ export class VesselView {
       this.objects.set(e.id, group); this.scene.add(group);
       const label = document.createElement('div'); label.className = 'vessel-label'; label.textContent = e.short;
       label.dataset.defaultVisible = String(!!e.label3d);
+      label.style.pointerEvents = 'auto';
+      label.style.cursor = 'pointer';
+      label.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.onSelect(e.id);
+      });
       this.host.appendChild(label); this.labels.set(e.id, label);
     }
     for (const c of connections) {

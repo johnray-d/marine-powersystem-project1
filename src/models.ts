@@ -56,6 +56,14 @@ export const modelParts:Record<ModelType,PartSpec[]> = {
     p('impeller','Impeller','Rotating part that adds energy to the liquid.','blade',[0.75,0,0.5],[0.8,0.12,0.18],teal),
     p('ports','Suction / discharge ports','Flanged connections join the pump casing to its suction and discharge pipes.','cylinder',[1.48,0.18,0],[0.85,0.35,0.35],amber),
     p('seal','Shaft seal','Limits leakage where the rotating shaft enters the pump casing.','torus',[.27,0,0],[.32,.32,.045],pale)
+  ],
+  propeller:[
+    p('hub','Propeller hub / boss','Nickel-Aluminum-Bronze boss transmitting propulsion shaft torque.','cylinder',[0,0,0],[0.8,0.48,0.48],amber),
+    p('blades','Kaplan skewed blades','Five skewed Kaplan-profile bronze blades producing forward thrust.','blade',[0,0,0],[1.2,0.15,0.15],copper),
+    p('tailshaft','Main propulsion tailshaft','Forged alloy steel tailshaft keyed into the propeller hub bore.','cylinder',[1.2,0,0],[1.8,0.22,0.22],steel),
+    p('nut','Thrust retaining nut & cap','High-tensile locking nut and fairing nose cap securing the hub.','cylinder',[-0.55,0,0],[0.35,0.32,0.32],dark),
+    p('seals','Stern tube lip seals','Multi-stage elastomeric lip seals preventing seawater ingress.','torus',[0.75,0,0],[0.45,0.45,0.08],teal),
+    p('bearing','Stern tube bearing','White-metal journal bearing supporting the cantilevered propeller.','cylinder',[1.5,0,0],[0.85,0.38,0.38],pale)
   ]
 };
 

@@ -577,13 +577,29 @@ margin:3px 0 0}
 .schematic-host{
 overflow:auto;
 background:radial-gradient(circle at 50% 20%,#bfddef,#d5eaf8)}
+.schematic-host{
+position:absolute;
+inset:0;
+overflow:hidden;
+cursor:grab;
+user-select:none;
+touch-action:none;
+background:radial-gradient(circle at 47% 40%,#b7d9ed,#d4e9f7 70%)}
+.schematic-host.is-panning{
+cursor:grabbing}
 .diagram-wrap{
-min-width:900px;
-min-height:680px;
-padding:12px}
+width:100%;
+height:100%;
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:0;
+box-sizing:border-box}
 .diagram-wrap svg{
 width:100%;
-height:auto;
+height:100%;
 display:block}
 .diagram-heading{
 font:700 11px 'Space Grotesk',sans-serif;
@@ -591,42 +607,67 @@ letter-spacing:.18em;
 fill:#408d8a}
 .section-rule{
 stroke:#98c2d3;
-stroke-width:1;
-stroke-dasharray:5 6}
+stroke-width:1.5;
+stroke-dasharray:6 6}
 .diagram-path{
 cursor:pointer}
-.diagram-path line{
-stroke:#778fa0;
-stroke-width:3;
-opacity:.62}
-.diagram-path.live line{
-stroke:#1aa677;
-opacity:.9;
+.diagram-path path{
+stroke:#668294;
+stroke-width:3.5;
+stroke-linecap:round;
+stroke-linejoin:round;
+fill:none;
+opacity:.72;
+transition:stroke .18s,stroke-width .18s}
+.diagram-path.live path{
+stroke:#129d6f;
+stroke-width:4;
+opacity:1;
 filter:drop-shadow(0 0 3px #28b488)}
-.diagram-path.open line{
+.diagram-path.open path{
 stroke:#975a17;
 stroke-dasharray:6 6;
-opacity:.7}
-.diagram-path.selected line{
-stroke:#0f0f0f;
-stroke-width:5}
+stroke-width:3.5;
+opacity:.8}
+.diagram-path.selected path{
+stroke:#0284c7;
+stroke-width:5.5;
+filter:drop-shadow(0 0 6px #38bdf8)}
 .breaker-symbol{
 cursor:pointer}
 .breaker-symbol rect{
-fill:#c1dcec;
-stroke:#6b8999;
-stroke-width:2}
+fill:#cde4f2;
+stroke:#597788;
+stroke-width:2;
+transition:fill .18s,stroke .18s}
 .breaker-symbol.live rect{
-stroke:#22ab82}
+fill:#dcfce7;
+stroke:#16a34a}
 .breaker-symbol.open rect{
-stroke:#8d5412}
-.breaker-symbol path{
-stroke:#162322;
-stroke-width:2}
-.breaker-symbol.open path{
-transform:translate(3px,-3px) rotate(-25deg);
-transform-box:fill-box;
-transform-origin:center}
+fill:#fef3c7;
+stroke:#d97706}
+.breaker-symbol.selected rect{
+stroke:#0284c7;
+stroke-width:3;
+filter:drop-shadow(0 0 5px rgba(2, 132, 199, .45))}
+.breaker-symbol path.contact-blade{
+stroke:#111d21;
+stroke-width:2.5;
+stroke-linecap:round;
+transition:d .18s}
+.breaker-symbol.live path.contact-blade{
+stroke:#15803d}
+.breaker-symbol.open path.contact-blade{
+stroke:#b45309}
+.schematic-nav-hint{
+display:inline-flex;
+align-items:center;
+font-size:10px;
+color:#476577;
+font-weight:600;
+padding:0 6px;
+letter-spacing:.02em;
+user-select:none}
 .diagram-node{
 cursor:pointer}
 .diagram-node rect{

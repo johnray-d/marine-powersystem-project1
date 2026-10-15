@@ -84,12 +84,12 @@ def stern_x_profile(z):
     """
     Extended Stern Silhouette:
     - Keel & skeg exit remains around -16.8 to -17.0 for the propeller disc
-    - Upper transom counter extends aft to -18.75 at the main deck so the rudder
-      at X = -18.0 is completely housed under the ship's rear hull.
+    - Upper transom counter extends aft to -19.70 at the main deck so the rudder
+      at X = -18.85 has realistic clearance from the propeller and is completely housed under the ship's rear hull.
     """
     transom_overhang = smoothstep(-1.40, 0.45, z) ** 1.15
     skeg_foot = 1.0 - smoothstep(-2.65, -1.65, z)
-    return -16.55 - 2.20 * transom_overhang - 0.55 * skeg_foot
+    return -16.55 - 3.15 * transom_overhang - 0.55 * skeg_foot
 
 def midship_half_beam(z, z_keel, z_sheer):
     v = clamp01((z - z_keel) / max(0.01, z_sheer - z_keel))
@@ -169,7 +169,7 @@ def evaluate_hull_point(u, v):
 
 def get_hull_half_width_at(x_target, z_target):
     if x_target <= 11.2:
-        u_est = clamp01((x_target - (-18.2)) / (11.2 - (-18.2)) * 0.70)
+        u_est = clamp01((x_target - (-19.70)) / (11.2 - (-19.70)) * 0.70)
     else:
         ratio = clamp01((x_target - 11.2) / (18.5 - 11.2))
         u_est = 0.70 + 0.30 * (math.asin(ratio) / (math.pi * 0.5))
@@ -472,8 +472,8 @@ add_cyl("Stern_Tube_NutRing", 0.22, 0.12, (-16.95, 0.0, -2.22), mat_machinery, (
 add_cone_x("Stern_Tube_Boss_Fairing", 0.20, 0.27, 0.55, (-16.675, 0.0, -2.22), mat_hull_under)
 add_cone_x("Propeller_Tail_Shaft", 0.085, 0.125, 0.50, (-17.15, 0.0, -2.22), mat_machinery)
 
-# B. Semi-Balanced Rudder (Now positioned snugly UNDER the extended rear hull counter at X = -18.00)
-RUDDER_X       = -18.00
+# B. Semi-Balanced Rudder (Positioned comfortably aft at X = -18.85 with realistic clearance from propeller)
+RUDDER_X       = -18.85
 RUDDER_Z       = -1.55
 RUDDER_STOCK_X = RUDDER_X + 0.07
 
@@ -500,16 +500,16 @@ for side in [-1, 1]:
         add_cyl(f"BowThruster_Grate_{side}_{bar_dx:.2f}", 0.015, bar_h, (14.1 + bar_dx, y_end, -2.15), mat_rail)
 
 # ==============================================================================
-# 7D. EXTENDED STERN DECK OUTFIT (X = -18.60 to -13.5)
+# 7D. EXTENDED STERN DECK OUTFIT (X = -19.55 to -13.5)
 # ==============================================================================
 STERN_RAIL_Z = 1.18
 
 def stern_deck_half_width(x):
-    u = clamp01((x - (-18.75)) / (11.2 - (-18.75)) * 0.70)
+    u = clamp01((x - (-19.70)) / (11.2 - (-19.70)) * 0.70)
     return evaluate_hull_point(u, 1.0).y
 
-# Handrails extended all the way to the new transom at X = -18.60
-stern_post_xs = [-18.60, -17.90, -17.20, -16.50, -15.80, -15.10, -14.40, -13.70]
+# Handrails extended all the way to the new transom at X = -19.55
+stern_post_xs = [-19.55, -18.85, -18.15, -17.45, -16.75, -16.05, -15.35, -14.65, -13.95]
 for side in [-1, 1]:
     rail_pts = []
     for rx in stern_post_xs:
@@ -519,14 +519,14 @@ for side in [-1, 1]:
     for k in range(len(rail_pts) - 1):
         add_rail_segment(f"Stern_Rail_{side}_{k}", rail_pts[k], rail_pts[k + 1], 0.018, mat_rail)
 
-ys_t = stern_deck_half_width(-18.60) - 0.14
-add_rail_segment("Stern_Transom_Rail", (-18.60, -ys_t, STERN_RAIL_Z), (-18.60, ys_t, STERN_RAIL_Z), 0.018, mat_rail)
+ys_t = stern_deck_half_width(-19.55) - 0.14
+add_rail_segment("Stern_Transom_Rail", (-19.55, -ys_t, STERN_RAIL_Z), (-19.55, ys_t, STERN_RAIL_Z), 0.018, mat_rail)
 for k in range(1, 6):
-    add_cyl(f"Stern_Transom_Post_{k}", 0.014, 0.30, (-18.60, -ys_t + k * (2.0 * ys_t / 6.0), 1.04), mat_rail)
+    add_cyl(f"Stern_Transom_Post_{k}", 0.014, 0.30, (-19.55, -ys_t + k * (2.0 * ys_t / 6.0), 1.04), mat_rail)
 
 for side in [-1, 1]:
     add_beveled_box(f"Stern_Quarter_Chock_{side}", (0.34, 0.20, 0.12),
-                    (-16.80, side * stern_deck_half_width(-16.80), 1.00), mat_machinery, 0.02)
+                    (-17.20, side * stern_deck_half_width(-17.20), 1.00), mat_machinery, 0.02)
 
 if INCLUDE_DECK_MACHINERY:
     awx, awz = -15.4, 0.93
@@ -540,14 +540,14 @@ if INCLUDE_DECK_MACHINERY:
 
     rake = math.radians(-10.0)
     staff_len = 1.50
-    s_base = Vector((-18.40, 0.0, 0.93))
+    s_base = Vector((-19.35, 0.0, 0.93))
     s_axis = Vector((math.sin(rake), 0.0, math.cos(rake)))
     add_cyl("Ensign_Staff_Socket", 0.05, 0.10, tuple(s_base), mat_machinery)
     add_cyl("Ensign_Staff", 0.022, staff_len, tuple(s_base + s_axis * (staff_len * 0.5)), mat_rail, (0.0, rake, 0.0))
     add_cyl("Ensign_Staff_Truck", 0.038, 0.07, tuple(s_base + s_axis * staff_len), mat_machinery, (0.0, rake, 0.0))
 
     for side in [-1, 1]:
-        lbx = -17.40
+        lbx = -18.35
         lby = side * (stern_deck_half_width(lbx) - 0.20)
         bpy.ops.mesh.primitive_torus_add(
             major_radius=0.24, minor_radius=0.05,

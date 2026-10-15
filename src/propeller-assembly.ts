@@ -307,9 +307,12 @@ export class PropellerExplodedAssembly {
     this.rotatingGroup.name = 'PropellerRotor';
     this.stationaryGroup.name = 'SternTubeStator';
 
-    // Hook userData for compatibility with legacy spin checkers
+    // Hook userData for compatibility with raycaster selection and legacy spin checkers
     this.rotatingGroup.userData.spinProp = true;
+    this.rotatingGroup.userData.eqId = 'prop';
+    this.stationaryGroup.userData.eqId = 'prop';
     this.group.userData.spinProp = true;
+    this.group.userData.eqId = 'prop';
 
     this.group.add(this.rotatingGroup);
     this.group.add(this.stationaryGroup);
@@ -319,6 +322,7 @@ export class PropellerExplodedAssembly {
     proxyGeom.rotateZ(Math.PI / 2);
     const proxyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
     this.proxyMesh = new THREE.Mesh(proxyGeom, proxyMat);
+    this.proxyMesh.userData.eqId = 'prop';
     this.group.add(this.proxyMesh);
 
     // Assembly origin is at (0, 0, 0) relative to root so hub sits at root position (X=-17.38, Y=-2.22, Z=0)
@@ -408,6 +412,7 @@ export class PropellerExplodedAssembly {
       const targetGroup = isRotating ? this.rotatingGroup : this.stationaryGroup;
 
       // Use .add() instead of .attach() so mesh keeps its local rest position from GLB
+      mesh.userData.eqId = 'prop';
       targetGroup.add(mesh);
 
       // Hide external test-stand bracket & cutaway casing on the ship so only the propeller
@@ -445,10 +450,8 @@ export class PropellerExplodedAssembly {
     this.rotatingGroup.scale.setScalar(modelScale);
     this.stationaryGroup.scale.setScalar(modelScale);
 
-    // Remove the temporary proxy cylinder now that real meshes are attached
-    if (this.proxyMesh.parent) {
-      this.proxyMesh.removeFromParent();
-    }
+    // Keep proxyMesh as an invisible raycast hit target ensuring reliable propeller clicks
+    this.proxyMesh.userData.eqId = 'prop';
 
     this.isLoaded = true;
     this.setExplosionFactor(this.targetExplosionFactor);
