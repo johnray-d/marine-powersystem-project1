@@ -9,6 +9,7 @@ import { driveAssembly } from './drive-assembly';
 import { motorAssembly } from './motor-assembly';
 import { steeringAssembly } from './steering-assembly';
 import { reeferAssembly } from './reefer-assembly';
+import { pumpAssembly } from './pump-assembly';
 import { resolvePublicAsset } from './assets';
 export { propellerAssembly } from './propeller-assembly';
 export { transformerAssembly } from './transformer-assembly';
@@ -16,6 +17,7 @@ export { driveAssembly } from './drive-assembly';
 export { motorAssembly } from './motor-assembly';
 export { steeringAssembly } from './steering-assembly';
 export { reeferAssembly } from './reefer-assembly';
+export { pumpAssembly } from './pump-assembly';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.
@@ -371,9 +373,6 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.add(motorGroup);
     root.userData.height = placement.size[1];
     root.userData.motorAssembly = motorAssembly;
-    if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
-    }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
@@ -395,6 +394,18 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.add(reeferGroup);
     root.userData.height = placement.size[1];
     root.userData.reeferAssembly = reeferAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.kind==='pump'||e.model==='pump'||['cooling','fire','ballast','bilge','eFire'].includes(e.id)){
+    const pumpGroup = pumpAssembly.createEquipmentGroup(e.id, placement.size);
+    pumpGroup.rotation.y = placement.rotation || 0;
+    root.add(pumpGroup);
+    root.userData.height = placement.size[1];
+    root.userData.pumpAssembly = pumpAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
       const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
     }

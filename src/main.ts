@@ -8,6 +8,7 @@ import { driveAssembly } from './drive-assembly';
 import { motorAssembly } from './motor-assembly';
 import { steeringAssembly } from './steering-assembly';
 import { reeferAssembly } from './reefer-assembly';
+import { pumpAssembly } from './pump-assembly';
 import { resolveAssemblyUrl } from './assets';
 
 type View='vessel'|'schematic';
@@ -20,16 +21,51 @@ let selectedPart:string|undefined;
 let message='DG 1 is running. Follow its energized path through the closed bus tie.';
 let showShell=true,showLabels=true;
 let explodedExpanded=false;
+let leftPanelOpen=true;
+let rightPanelOpen=true;
 
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
   <header class="topbar">
-    <div class="brand"><span class="brand-symbol">◈</span><div><div class="eyebrow">INTERACTIVE LEARNING LAB · V1</div><h1>Marine Power System <span>Simulator</span></h1></div></div>
-    <div class="top-actions"><span class="mode-chip">GENERIC CONTAINER SHIP</span><button class="button button-quiet" id="resetAll" type="button">↺ Reset simulation</button></div>
+    <div class="brand-cluster">
+      <button class="drawer-toggle-btn active" id="toggleLeftPanel" type="button" aria-expanded="true" title="Toggle Left Switchboard & Scenario Drawer ([)">
+        <span class="drawer-toggle-icon" id="leftToggleIcon">⇤</span>
+        <span class="drawer-toggle-text" id="leftToggleText">Controls</span>
+      </button>
+      <div class="brand">
+        <span class="brand-symbol">◈</span>
+        <div>
+          <div class="eyebrow">MARITIME POWER MANAGEMENT SYSTEM · PMS V2</div>
+          <h1>Marine Power System <span>Simulator</span></h1>
+        </div>
+      </div>
+    </div>
+    <div class="top-telemetry" id="topTelemetry">
+      <div class="telemetry-pill"><span class="telemetry-label">GEN ONLINE</span><strong id="topGenCount">1 / 4</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">BUS TIE A↔B</span><strong id="topTieState" class="is-closed">CLOSED</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">ACTIVE LOADS</span><strong id="topLoadCount">0</strong></div>
+    </div>
+    <div class="top-actions">
+      <span class="mode-chip">6.6 kV DIESEL-ELECTRIC CONTAINER VESSEL</span>
+      <button class="button button-quiet" id="resetAll" type="button">↺ Reset simulation</button>
+      <button class="drawer-toggle-btn active" id="toggleRightPanel" type="button" aria-expanded="true" title="Toggle Right Equipment Inspector (])">
+        <span class="drawer-toggle-text" id="rightToggleText">Inspector</span>
+        <span class="drawer-toggle-icon" id="rightToggleIcon">⇥</span>
+      </button>
+    </div>
   </header>
-  <main class="workspace">
-    <aside class="left-panel panel">
-      <div class="panel-heading"><div><div class="eyebrow">LEARNING PATH</div><h2>Explore the system</h2></div><span class="small-index">01 / 04</span></div>
+  <main class="workspace" id="workspace">
+    <aside class="left-panel panel" id="leftPanel" aria-label="System Controls and Learning Path">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow">LEARNING PATH</div>
+          <h2>Explore the system</h2>
+        </div>
+        <div class="panel-heading-right">
+          <span class="small-index">01 / 04</span>
+          <button class="panel-collapse-btn" id="closeLeftPanel" type="button" title="Collapse left panel ([)" aria-label="Collapse left panel">⇤</button>
+        </div>
+      </div>
       <div class="scenario-list" id="scenarios"></div>
       <section class="control-section"><div class="section-heading"><h3>Generation</h3><span class="subtle">${VOLTAGES.hv} main</span></div><div id="generators"></div></section>
       <section class="control-section"><div class="section-heading"><h3>Bus section tie</h3><span class="subtle">A ↔ B</span></div><div id="tieControl"></div></section>
@@ -37,9 +73,29 @@ app.innerHTML=`
       <section class="control-section emergency-control"><div class="section-heading"><h3>Emergency supply</h3><span class="subtle">Independent</span></div><div id="emergencyControls"></div></section>
     </aside>
     <section class="center-panel">
-      <div class="view-header"><div><div class="eyebrow">POWER FLOW EXPLORER</div><h2 id="viewTitle">Vessel overview</h2></div><div class="tabs" role="tablist" aria-label="System views"><button class="tab active" data-view="vessel" role="tab" aria-selected="true">◈ 3D vessel</button><button class="tab" data-view="schematic" role="tab" aria-selected="false">⌁ Single-line</button></div></div>
-      <div class="visual-stage" id="visualStage"><div class="vessel-host" id="vesselHost" aria-label="Interactive 3D vessel view"></div><div class="schematic-host hidden" id="schematicHost" aria-label="Interactive single-line diagram"></div>
-        <div class="view-tools" id="viewTools"><button id="resetCamera" type="button">⌖ Reset view</button><button id="focusEquipment" type="button">◎ Focus item</button><button id="toggleShell" type="button">▧ Shell on</button><button id="toggleLabels" type="button">T Labels on</button></div>
+      <button class="left-edge-handle" id="leftEdgeHandle" type="button" title="Toggle Switchboard & Controls Drawer ([)" aria-label="Toggle Left Controls Drawer">
+        <span class="handle-arrow" id="leftHandleArrow">◂</span>
+        <span class="handle-label">CONTROLS</span>
+      </button>
+      <div class="view-header">
+        <div class="view-title-group">
+          <div class="eyebrow">POWER FLOW EXPLORER</div>
+          <h2 id="viewTitle">Vessel overview</h2>
+        </div>
+        <div class="tabs" role="tablist" aria-label="System views">
+          <button class="tab active" data-view="vessel" role="tab" aria-selected="true">◈ 3D vessel</button>
+          <button class="tab" data-view="schematic" role="tab" aria-selected="false">⌁ Single-line</button>
+        </div>
+      </div>
+      <div class="visual-stage" id="visualStage">
+        <div class="vessel-host" id="vesselHost" aria-label="Interactive 3D vessel view"></div>
+        <div class="schematic-host hidden" id="schematicHost" aria-label="Interactive single-line diagram"></div>
+        <div class="view-tools" id="viewTools">
+          <button id="resetCamera" type="button">⌖ Reset view</button>
+          <button id="focusEquipment" type="button">◎ Focus item</button>
+          <button id="toggleShell" type="button">▧ Shell on</button>
+          <button id="toggleLabels" type="button">T Labels on</button>
+        </div>
         <div class="view-tools hidden" id="schematicTools">
           <button id="schematicFit" type="button" title="Fit Single-Line Diagram to screen">⤢ Fit to screen</button>
           <button id="schematicZoomIn" type="button" title="Zoom In">＋</button>
@@ -48,13 +104,33 @@ app.innerHTML=`
           <span class="schematic-nav-hint">Scroll to zoom · Drag to pan</span>
         </div>
       </div>
-      <div class="status-strip"><div class="legend"><span><i class="legend-line live"></i> Energized</span><span><i class="legend-line dead"></i> De-energized</span><span><i class="legend-line open"></i> Open / disconnected</span></div><div class="status-count" id="statusCount"></div></div>
-      <div class="lesson-banner"><span class="lesson-icon">i</span><div><strong id="lessonTitle">Current lesson</strong><p id="lessonText"></p></div></div>
-      <div class="notice" id="notice" role="status" aria-live="polite"></div>
+      <div class="bottom-hud">
+        <div class="status-strip">
+          <div class="legend">
+            <span><i class="legend-line live"></i> Energized</span>
+            <span><i class="legend-line dead"></i> De-energized</span>
+            <span><i class="legend-line open"></i> Open / disconnected</span>
+          </div>
+          <div class="status-count" id="statusCount"></div>
+        </div>
+        <div class="hud-cards-row">
+          <div class="lesson-banner">
+            <span class="lesson-icon">i</span>
+            <div>
+              <strong id="lessonTitle">Current lesson</strong>
+              <p id="lessonText"></p>
+            </div>
+          </div>
+          <div class="notice-card">
+            <span class="notice-tag">EVENT LOG</span>
+            <div class="notice" id="notice" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
     </section>
     <aside class="right-panel panel" id="inspector"></aside>
   </main>
-  <footer class="footer"><span>MARINE POWER SYSTEM SIMULATOR · EDUCATIONAL CONNECTIVITY MODEL</span><span>Generic geometry · Provisional LV labels · No electrical calculations</span></footer>
+  <footer class="footer"><span>MARINE POWER SYSTEM SIMULATOR · EDUCATIONAL CONNECTIVITY MODEL</span><span>Interactive 3D Digital Twin · IEC 60092 Single-Line · Keyboard: [ Left Drawer · ] Inspector</span></footer>
   <div id="assemblyModal" class="assembly-modal hidden" role="dialog" aria-modal="true" aria-labelledby="assemblyModalTitle">
     <div class="assembly-modal-backdrop" id="assemblyBackdrop"></div>
     <div class="assembly-modal-dialog">
@@ -98,7 +174,7 @@ function sourceRow(id:string){const e=byId[id],breaker=id==='eg'?'egBreaker':`gb
 function renderControls(){document.querySelector('#generators')!.innerHTML=['dg1','dg2','dg3','dg4'].map(sourceRow).join('');
   document.querySelector('#tieControl')!.innerHTML=`<div class="tie-row"><button class="item-name" data-select="tie" type="button">Main bus A ↔ B</button><button class="switch ${state.closed.tie?'on':''}" id="tieSwitch" type="button" role="switch" aria-checked="${state.closed.tie}" aria-label="Bus tie breaker"><span></span></button><strong>${state.closed.tie?'CLOSED':'OPEN'}</strong></div>`;
   const groups=[[VOLTAGES.hv,'propFeed','bowFeed','txAFeed','txBFeed'],[VOLTAGES.lv,'reeferFeed','reeferPlug','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed'],[VOLTAGES.consumer,'galleyFeed','lightFeed','outletFeed']];
-  document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>`<div class="feeder-group"><div class="feeder-label">${title}</div>${ids.map(id=>{const c=edgeById[id];return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`).join('');
+  document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>{const closedCount=ids.filter(id=>state.closed[id]).length;return `<div class="feeder-group"><div class="feeder-label"><span>${title}</span><span class="feeder-count">${closedCount}/${ids.length} CLOSED</span></div>${ids.map(id=>{const c=edgeById[id];return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`;}).join('');
   document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">No automatic transfer is modeled. Start the emergency generator and close its breaker to energize the separate board.</p>`;
   document.querySelector('#tieSwitch')!.addEventListener('click',()=>toggleBreaker('tie'));
   document.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(b=>b.onclick=()=>toggleSource(b.dataset.source!));
@@ -491,6 +567,15 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'REEFER DISTRIBUTION CAD ASSEMBLY & SPECS'
     };
   }
+  if (['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
+    const pumpVariant = (selectedId === 'fire' || selectedId === 'eFire') ? 'fire' : selectedId === 'ballast' ? 'ballast' : selectedId === 'bilge' ? 'bilge' : 'cooling';
+    return {
+      url: resolveAssemblyUrl(`3d_marine_pump_assembly.html?pump=${pumpVariant}`),
+      title: 'Marine Centrifugal Pump Set — 3D Explodable CAD Assembly',
+      subtitle: 'Machinery Space 440 V Pump Set · Volute Casing · Impeller · Mechanical Shaft Seal · Rigid Foundation Skid',
+      tag: 'PUMP CAD ASSEMBLY & SPECS'
+    };
+  }
   return null;
 }
 
@@ -701,6 +786,32 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
+    ${['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump' ? `
+      <div class="pump-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#2dd4bf;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Centrifugal Pump Assembly</h4>
+          </div>
+          <span id="pump-explosion-val" class="pump-val-badge">${Math.round(pumpAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the heavy steel bedplate, foundation bolts, 440 V induction motor, cooling fins, flexible shaft coupling, volute casing, vaned impeller, suction/discharge flanges, and mechanical seal.
+        </p>
+        <div class="pump-slider-row">
+          <label for="pump-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="pump-explosion-slider" min="0" max="1" step="0.01" value="${pumpAssembly.targetExplosionFactor}">
+        </div>
+        <div class="pump-presets">
+          <button type="button" class="preset-btn" data-pump-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-pump-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-pump-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
     ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
@@ -832,6 +943,26 @@ function renderInspector(){
     });
   }
 
+  if (['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump') {
+    const pumpSlider = document.getElementById('pump-explosion-slider') as HTMLInputElement;
+    pumpSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      pumpAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('pump-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-pump-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.pumpPreset || '0');
+        pumpAssembly.setExplosionFactor(factor);
+        if (pumpSlider) pumpSlider.value = String(factor);
+        const label = document.getElementById('pump-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
   if(model){
     pane.querySelector<HTMLButtonElement>('#explodeExpand')!.onclick=()=>{
       if(assemblyInfo){
@@ -877,10 +1008,46 @@ viewerBackdrop.className='exploded-backdrop';
 viewerBackdrop.addEventListener('click',()=>setExpanded(false));
 document.body.appendChild(viewerBackdrop);
 
+function setLeftPanel(open:boolean){
+  leftPanelOpen=open;
+  const ws=document.querySelector('#workspace');
+  ws?.classList.toggle('left-collapsed',!open);
+  const topBtn=document.querySelector<HTMLButtonElement>('#toggleLeftPanel');
+  const icon=document.querySelector('#leftToggleIcon');
+  const handleArrow=document.querySelector('#leftHandleArrow');
+  if(topBtn){
+    topBtn.classList.toggle('active',open);
+    topBtn.setAttribute('aria-expanded',String(open));
+  }
+  if(icon)icon.textContent=open?'⇤':'⇥';
+  if(handleArrow)handleArrow.textContent=open?'◂':'▸';
+  window.dispatchEvent(new Event('resize'));
+  setTimeout(()=>window.dispatchEvent(new Event('resize')),260);
+}
+
+function setRightPanel(open:boolean){
+  rightPanelOpen=open;
+  const ws=document.querySelector('#workspace');
+  ws?.classList.toggle('right-collapsed',!open);
+  const topBtn=document.querySelector<HTMLButtonElement>('#toggleRightPanel');
+  const icon=document.querySelector('#rightToggleIcon');
+  if(topBtn){
+    topBtn.classList.toggle('active',open);
+    topBtn.setAttribute('aria-expanded',String(open));
+  }
+  if(icon)icon.textContent=open?'⇥':'⇤';
+  window.dispatchEvent(new Event('resize'));
+  setTimeout(()=>window.dispatchEvent(new Event('resize')),260);
+}
+
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     closeAssemblyModal();
     if(explodedExpanded)setExpanded(false);
+  } else if(e.key==='['&&!['INPUT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName)){
+    setLeftPanel(!leftPanelOpen);
+  } else if(e.key===']'&&!['INPUT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName)){
+    setRightPanel(!rightPanelOpen);
   }
 });
 
@@ -897,10 +1064,25 @@ function updatePartDescription(model:ModelType){
 }
 function refresh(){live=powered(state);renderScenarios();renderControls();renderSchematic();renderInspector();vessel.update(state,live,selected);
   const s=scenarios.find(s=>s.id===activeScenario);document.querySelector('#lessonTitle')!.textContent=s?.title||'Free exploration';document.querySelector('#lessonText')!.textContent=s?.instruction||'Change a source or breaker and trace which loads remain connected to an active source.';
-  document.querySelector('#statusCount')!.textContent=`${sourceIds.filter(id=>state.running[id]).length} sources running · ${equipment.filter(e=>['load','pump','thruster','motor','propeller'].includes(e.kind)&&live.has(e.id)).length} load groups supplied`;
+  const runningSources=sourceIds.filter(id=>state.running[id]).length;
+  const suppliedLoads=equipment.filter(e=>['load','pump','thruster','motor','propeller'].includes(e.kind)&&live.has(e.id)).length;
+  document.querySelector('#statusCount')!.textContent=`${runningSources} sources running · ${suppliedLoads} load groups supplied`;
+  const topGen=document.querySelector('#topGenCount');
+  if(topGen)topGen.textContent=`${['dg1','dg2','dg3','dg4'].filter(id=>state.running[id]&&state.closed[`gb${id.slice(2)}`]).length} / 4 ONLINE`;
+  const topTie=document.querySelector('#topTieState');
+  if(topTie){
+    topTie.textContent=state.closed.tie?'CLOSED':'OPEN';
+    topTie.className=state.closed.tie?'is-closed':'is-open';
+  }
+  const topLoad=document.querySelector('#topLoadCount');
+  if(topLoad)topLoad.textContent=`${suppliedLoads} SUPPLIED`;
   document.querySelector('.small-index')!.textContent=s?`${String(scenarios.indexOf(s)+1).padStart(2,'0')} / 04`:'FREE MODE';setMessage(message);
 }
 
+document.querySelector('#toggleLeftPanel')?.addEventListener('click',()=>setLeftPanel(!leftPanelOpen));
+document.querySelector('#closeLeftPanel')?.addEventListener('click',()=>setLeftPanel(false));
+document.querySelector('#leftEdgeHandle')?.addEventListener('click',()=>setLeftPanel(!leftPanelOpen));
+document.querySelector('#toggleRightPanel')?.addEventListener('click',()=>setRightPanel(!rightPanelOpen));
 document.querySelector('#resetAll')!.addEventListener('click',reset);
 document.querySelector('#resetCamera')!.addEventListener('click',()=>vessel.resetCamera());
 document.querySelector('#focusEquipment')!.addEventListener('click',()=>vessel.focusSelection());
@@ -919,4 +1101,4 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>b.onclick
   }
 });
 refresh();
-(window as any).app = { vessel, exploded, select, toggleBreaker, toggleSource, reset, refresh, getState: () => state, getLive: () => live };
+(window as any).app = { vessel, exploded, select, toggleBreaker, toggleSource, reset, refresh, setLeftPanel, setRightPanel, getState: () => state, getLive: () => live };

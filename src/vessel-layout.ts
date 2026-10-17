@@ -71,7 +71,7 @@ export const vesselLayout: Record<string, VesselPlacement> = {
   busA: { position: [-8.7, -0.3, -0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
   busB: { position: [-6.8, -0.3, -0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
   drive: { position: [-11.3, -1.7, 1.25], size: [1.4, 1.15, 0.65], rotation: Math.PI, space: 'hull' },
-  motor: { position: [-13.5, -2.02, 0], size: [2.0, 1.17, 1.08], rotation: Math.PI, space: 'hull' },
+  motor: { position: [-13.5, -2.599, 0], size: [1.55, 0.85, 0.80], rotation: Math.PI, space: 'hull' },
   prop: { position: [-17.38, -2.22, 0], size: [0.65, 1.0, 1.0], space: 'external' },
   bow: { position: [14.1, -2.55, 0], size: [0.95, 1.72, 2.55], rotation: Math.PI / 2, space: 'hull' },
   txA: { position: [-4.0, -1.72, -1.12], size: [1.08, 1.0, 0.85], space: 'hull' },

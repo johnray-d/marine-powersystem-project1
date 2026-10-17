@@ -49,7 +49,7 @@ try {
     bounds.push({ id: item.id, box });
   }
   // The propeller shaft runs from the motor to the propeller along the centreline; nothing else may sit in its path.
-  const shaftEnd = id => { const model = createVesselEquipment(equipment.find(e => e.id === id)); const point = model.position.clone(); point.y += model.userData.height * (id === 'motor' ? .45 : .5); return point; };
+  const shaftEnd = id => { const model = createVesselEquipment(equipment.find(e => e.id === id)); const point = model.position.clone(); point.y += id === 'prop' ? 0 : model.userData.height * (id === 'motor' ? .4464 : .5); return point; };
   const shaftBox = new THREE.Box3().setFromPoints([shaftEnd('motor'), shaftEnd('prop')]).expandByScalar(.06);
   for (const { id, box } of bounds) if (id !== 'motor') assert(!box.intersectsBox(shaftBox), `${id}: intersects the propeller shaft`);
   for (let i = 0; i < bounds.length; i++) for (let j = i + 1; j < bounds.length; j++) {
