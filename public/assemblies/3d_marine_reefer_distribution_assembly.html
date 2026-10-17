@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marine Reefer Distribution Panel — 3D CAD Engineering Assembly</title>
+  <style>
+    :root {
+      --bg: #090f17;
+      --card-bg: rgba(17, 26, 38, 0.94);
+      --border: #283749;
+      --border-bright: #3f5877;
+      --primary: #4fa7db;
+      --accent: #e5b358;
+      --text: #e6edf5;
+      --text-muted: #8fa5bc;
+      --success: #3dd68c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #viewport {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+    .panel {
+      position: absolute;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+      pointer-events: auto;
+    }
+    .panel-left {
+      top: 20px;
+      left: 20px;
+      width: 360px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    .panel-right {
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-radius: 4px;
+      background: rgba(79, 167, 219, 0.18);
+      color: var(--primary);
+      border: 1px solid rgba(79, 167, 219, 0.35);
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--accent);
+      margin: 14px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .slider-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .slider-val {
+      font-family: monospace;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    input[type=range] {
+      width: 100%;
+      height: 6px;
+      background: #1b2636;
+      border-radius: 3px;
+      outline: none;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: #1b283a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 11px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #273b54;
+      border-color: var(--border-bright);
+      color: #fff;
+    }
+    button.active {
+      background: var(--accent);
+      color: #0d1520;
+      border-color: var(--accent);
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .spec-item {
+      background: rgba(22, 33, 49, 0.7);
+      border: 1px solid rgba(48, 67, 92, 0.6);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .spec-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 2px;
+    }
+    .spec-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e9eff6;
+    }
+    .bom-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+    .bom-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: rgba(14, 21, 31, 0.8);
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .bom-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(40, 55, 73, 0.5);
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .bom-table tr:hover td {
+      background: rgba(79, 167, 219, 0.14);
+      color: #fff;
+    }
+    .bom-table tr.selected td {
+      background: rgba(229, 179, 88, 0.22);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .part-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .info-card {
+      background: rgba(14, 22, 33, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 14px;
+      min-height: 72px;
+    }
+    .info-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .info-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: #090f17;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.4s ease;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(79, 167, 219, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .bottom-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(17, 26, 38, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-size: 13px; color: #a5b9ce; font-family: monospace;">Loading Marine Reefer Distribution Panel…</div>
+  </div>
+
+  <div id="viewport"></div>
+
+  <!-- Left HUD: Overview & Explosion Controls -->
+  <aside class="panel panel-left">
+    <div class="badge">Marine Power System V1 · Cargo Load</div>
+    <h1>Reefer Distribution Panel</h1>
+    <div class="subtitle">440 V / 60 Hz 3-Phase container bay distribution switchboard with individual circuit breaker protection and CEE interlocked sockets.</div>
+
+    <div class="section-title">Exploded View Control</div>
+    <div class="slider-row">
+      <span>Explosion Extension</span>
+      <span class="slider-val" id="explode-readout">0%</span>
+    </div>
+    <input type="range" id="explode-slider" min="0" max="1" step="0.01" value="0">
+    <div class="btn-group">
+      <button data-factor="0" class="active">Assembled (0%)</button>
+      <button data-factor="0.45">Sub-Assy (45%)</button>
+      <button data-factor="1.0">Full (100%)</button>
+    </div>
+
+    <div class="section-title">Technical Specifications</div>
+    <div class="spec-grid">
+      <div class="spec-item">
+        <div class="spec-label">Rated Voltage</div>
+        <div class="spec-value">440 V AC · 60 Hz</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Socket Count</div>
+        <div class="spec-value">4 × 32 A Outlets</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Protection</div>
+        <div class="spec-value">4 × 32 A MCCB 25 kA</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Enclosure IP</div>
+        <div class="spec-value">IP66 / IP67 Marine</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Grounding</div>
+        <div class="spec-value">Solid Electrolytic Cu</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Location</div>
+        <div class="spec-value">Main Deck Container Bay</div>
+      </div>
+    </div>
+
+    <div class="section-title">View Options</div>
+    <div class="btn-group">
+      <button id="btn-reset-cam">Reset View</button>
+      <button id="btn-wireframe">Toggle Wireframe</button>
+      <button id="btn-xray">X-Ray Mode</button>
+    </div>
+
+    <div class="info-card" id="part-info">
+      <div class="info-title" id="info-name">Inspect Component</div>
+      <div class="info-desc" id="info-desc">Click any component in the 3D model or select a line item from the Bill of Materials to isolate and inspect its engineering function.</div>
+    </div>
+  </aside>
+
+  <!-- Right HUD: Bill of Materials Table -->
+  <aside class="panel panel-right">
+    <div class="section-title" style="margin-top:0">Bill of Materials (BOM)</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Select a sub-assembly to highlight and orbit:</div>
+    <table class="bom-table">
+      <thead>
+        <tr>
+          <th>Part / Subsystem</th>
+          <th>Subsystem</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody id="bom-tbody">
+        <tr data-part="Reefer_Distribution_Cabinet">
+          <td><span class="part-dot" style="background:#8f9ba8"></span>Main Enclosure</td>
+          <td>Enclosure</td>
+          <td>1</td>
+        </tr>
+        <tr data-part="Cabinet_Door">
+          <td><span class="part-dot" style="background:#6c7d8f"></span>Access Door & Latch</td>
+          <td>Enclosure</td>
+          <td>2</td>
+        </tr>
+        <tr data-part="Incoming_Feeder">
+          <td><span class="part-dot" style="background:#4066a6"></span>Incoming Feeder Module</td>
+          <td>Supply</td>
+          <td>1</td>
+        </tr>
+        <tr data-part="Outlet_Protection">
+          <td><span class="part-dot" style="background:#c08d33"></span>Outlet Protection Panel</td>
+          <td>Protection</td>
+          <td>1</td>
+        </tr>
+        <tr data-part="Protection_Switch">
+          <td><span class="part-dot" style="background:#1a1a1a"></span>MCCB Circuit Breakers</td>
+          <td>Switchgear</td>
+          <td>4</td>
+        </tr>
+        <tr data-part="Reefer_Sockets">
+          <td><span class="part-dot" style="background:#263340"></span>Reefer Socket Panel</td>
+          <td>Receptacles</td>
+          <td>1</td>
+        </tr>
+        <tr data-part="Socket_">
+          <td><span class="part-dot" style="background:#d4a03b"></span>32A Sockets & Locking Rings</td>
+          <td>Receptacles</td>
+          <td>8</td>
+        </tr>
+        <tr data-part="Deck_Cable_Route">
+          <td><span class="part-dot" style="background:#3d4e61"></span>Deck Cable Transit & Vents</td>
+          <td>Trunking</td>
+          <td>5</td>
+        </tr>
+        <tr data-part="Earth_Terminal_Bar">
+          <td><span class="part-dot" style="background:#b36626"></span>Copper Earth Busbar</td>
+          <td>Grounding</td>
+          <td>4</td>
+        </tr>
+      </tbody>
+    </table>
+  </aside>
+
+  <div class="bottom-hint">Orbit: Left Click + Drag · Pan: Right Click + Drag · Zoom: Scroll Wheel</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.45;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#0b111a');
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.05, 50);
+    camera.position.set(2.4, 1.8, 3.4);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 0, 0);
+
+    // Studio Lighting
+    scene.add(new THREE.HemisphereLight(0xedf4ff, 0x1b2533, 2.0));
+
+    const keyLight = new THREE.DirectionalLight(0xfff5e6, 3.0);
+    keyLight.position.set(4, 6, 5);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xbad4ff, 1.8);
+    fillLight.position.set(-4, 3, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    rimLight.position.set(0, -4, 3);
+    scene.add(rimLight);
+
+    // Floor grid
+    const grid = new THREE.GridHelper(6, 24, 0x32475e, 0x182433);
+    grid.position.y = -0.92;
+    scene.add(grid);
+
+    const components = [];
+    let explosionFactor = 0.0;
+    let targetFactor = 0.0;
+    let selectedComponent = null;
+    let isWireframe = false;
+    let isXray = false;
+
+    const descriptions = {
+      Reefer_Distribution_Cabinet: 'Heavy marine-grade steel enclosure (IP66/IP67) housing 440 V distribution, protection, and socket panels.',
+      Cabinet_Door_Trim: 'Gasketed watertight access door framing the reefer breaker and socket modules.',
+      Cabinet_Handle: 'Heavy-duty marine lever latch for secured enclosure access during maintenance.',
+      Incoming_Feeder: 'Main 440 V three-phase supply terminal block fed directly from the LV distribution board.',
+      Outlet_Protection: 'Group circuit breaker panel providing overcurrent and short-circuit protection for reefer feeds.',
+      Protection_Switch: 'Individual thermal-magnetic molded case circuit breaker (MCCB) isolating a container circuit.',
+      Protection_Reset: 'Emergency trip test and manual reset actuator for individual container socket circuit.',
+      Reefer_Sockets: 'Heavy cast industrial marine faceplate housing four 32 A / 440 V CEE-standard refrigerated container receptacles.',
+      Socket_Ring: 'Watertight brass locking screw ring with captive cover sealing disconnected sockets to IP67.',
+      Socket_Plug: 'Flame-retardant 4-pin 32 A 440 V 3P+E power socket insert with self-cleaning contacts.',
+      Socket_Label: 'High-visibility engraved 440 V 60 Hz warning nameplate identifying the container bay feed.',
+      Deck_Cable_Route: 'Ventilated deck transit and cable trunking guiding heavy armored power cables down to deck level.',
+      Vent_Slat: 'Marine louvered vent slat providing internal convective cooling for high-current terminal connections.',
+      Earth_Terminal_Bar: 'Solid electrolytic copper busbar providing low-impedance equipotential hull grounding.',
+      Earth_Insulator: 'High-dielectric ceramic standoff insulator isolating the earth bar from stray electrolytic currents.'
+    };
+
+    function getDesc(name) {
+      for (const [k, d] of Object.entries(descriptions)) {
+        if (name.startsWith(k)) return d;
+      }
+      return 'Precision marine-grade electrical sub-assembly.';
+    }
+
+    function getOffset(name) {
+      const v = new THREE.Vector3();
+      if (name === 'Reefer_Distribution_Cabinet') return v.set(0, 0, 0);
+      if (name.includes('Cabinet_Door') || name.includes('Cabinet_Handle')) return v.set(0, 0, 0.4);
+      if (name === 'Incoming_Feeder') return v.set(-0.9, 0.5, 1.4);
+      if (name === 'Outlet_Protection') return v.set(0.8, 0.5, 1.4);
+      if (name.startsWith('Protection_Switch')) return v.set(0.8, 0.5, 1.8);
+      if (name.startsWith('Protection_Reset')) return v.set(0.8, 0.5, 1.95);
+      if (name === 'Reefer_Sockets') return v.set(0, -0.3, 1.5);
+      if (name.startsWith('Socket_Ring')) return v.set(0, -0.3, 1.9);
+      if (name.startsWith('Socket_Plug')) return v.set(0, -0.3, 2.2);
+      if (name.startsWith('Socket_Label')) return v.set(0, -0.3, 1.8);
+      if (name === 'Deck_Cable_Route') return v.set(0.8, -0.9, 1.2);
+      if (name.startsWith('Vent_Slat')) return v.set(0.8, -0.9, 1.6);
+      if (name === 'Earth_Terminal_Bar') return v.set(-0.9, -0.9, 1.2);
+      if (name.startsWith('Earth_Insulator')) return v.set(-0.9, -0.9, 0.8);
+      return v.set(0, 0, 1.2);
+    }
+
+    const glbUrls = ['./reefer_distribution.glb', '../reefer_distribution.glb', '/reefer_distribution.glb', './marine_reefer.glb', '/marine_reefer.glb'];
+    let glbIndex = 0;
+
+    function loadModel() {
+      const url = glbUrls[glbIndex];
+      new GLTFLoader().load(url, gltf => {
+        gltf.scene.updateMatrixWorld(true);
+        const meshes = [];
+        gltf.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+
+        for (const mesh of meshes) {
+          scene.add(mesh);
+          mesh.material = mesh.material.clone();
+          mesh.material.side = THREE.DoubleSide;
+
+          components.push({
+            mesh,
+            name: mesh.name,
+            originalPos: mesh.position.clone(),
+            explodeOffset: getOffset(mesh.name)
+          });
+        }
+
+        document.getElementById('loading-overlay').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 400);
+      }, undefined, err => {
+        glbIndex++;
+        if (glbIndex < glbUrls.length) {
+          loadModel();
+        } else {
+          console.error('All GLB attempts failed:', err);
+          document.getElementById('loading-overlay').innerHTML = '<div style="color:#ff6b6b;font-size:13px">Failed to load 3D model asset.</div>';
+        }
+      });
+    }
+    loadModel();
+
+    // UI Event Listeners
+    const slider = document.getElementById('explode-slider');
+    const readout = document.getElementById('explode-readout');
+
+    slider.addEventListener('input', e => {
+      targetFactor = parseFloat(e.target.value);
+      readout.textContent = `${Math.round(targetFactor * 100)}%`;
+      document.querySelectorAll('.btn-group button[data-factor]').forEach(b => b.classList.remove('active'));
+    });
+
+    document.querySelectorAll('.btn-group button[data-factor]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        targetFactor = parseFloat(btn.dataset.factor);
+        slider.value = targetFactor;
+        readout.textContent = `${Math.round(targetFactor * 100)}%`;
+        document.querySelectorAll('.btn-group button[data-factor]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    document.getElementById('btn-reset-cam').addEventListener('click', () => {
+      camera.position.set(2.4, 1.8, 3.4);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    });
+
+    document.getElementById('btn-wireframe').addEventListener('click', () => {
+      isWireframe = !isWireframe;
+      components.forEach(c => {
+        c.mesh.material.wireframe = isWireframe;
+      });
+    });
+
+    document.getElementById('btn-xray').addEventListener('click', () => {
+      isXray = !isXray;
+      components.forEach(c => {
+        c.mesh.material.transparent = isXray;
+        c.mesh.material.opacity = isXray ? 0.35 : 1.0;
+      });
+    });
+
+    // Raycasting & Selection
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function selectPart(comp) {
+      if (selectedComponent?.mesh?.material?.emissive) {
+        selectedComponent.mesh.material.emissive.setHex(0);
+      }
+
+      selectedComponent = comp;
+      if (selectedComponent?.mesh?.material?.emissive) {
+        selectedComponent.mesh.material.emissive.setHex(0x553800);
+      }
+
+      if (comp) {
+        document.getElementById('info-name').textContent = comp.name.replaceAll('_', ' ');
+        document.getElementById('info-desc').textContent = getDesc(comp.name);
+
+        document.querySelectorAll('#bom-tbody tr').forEach(r => {
+          r.classList.toggle('selected', comp.name.startsWith(r.dataset.part));
+        });
+      } else {
+        document.getElementById('info-name').textContent = 'Inspect Component';
+        document.getElementById('info-desc').textContent = 'Click any component in the 3D model or select a line item from the Bill of Materials.';
+        document.querySelectorAll('#bom-tbody tr').forEach(r => r.classList.remove('selected'));
+      }
+    }
+
+    window.addEventListener('click', e => {
+      if (e.target.closest('.panel')) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(components.map(c => c.mesh), false);
+      if (hits.length > 0) {
+        const found = components.find(c => c.mesh === hits[0].object);
+        selectPart(found);
+      } else {
+        selectPart(null);
+      }
+    });
+
+    // BOM click listener
+    document.querySelectorAll('#bom-tbody tr').forEach(row => {
+      row.addEventListener('click', () => {
+        const prefix = row.dataset.part;
+        const comp = components.find(c => c.name.startsWith(prefix));
+        if (comp) {
+          selectPart(comp);
+          const worldPos = new THREE.Vector3();
+          comp.mesh.getWorldPosition(worldPos);
+          controls.target.lerp(worldPos, 0.5);
+        }
+      });
+    });
+
+    // Animation Loop
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      const diff = targetFactor - explosionFactor;
+      if (Math.abs(diff) > 0.0005) {
+        explosionFactor += diff * Math.min(1, dt * 7.5);
+        for (const c of components) {
+          const dest = c.originalPos.clone().addScaledVector(c.explodeOffset, explosionFactor);
+          c.mesh.position.copy(dest);
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

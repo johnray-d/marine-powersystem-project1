@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
-import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly, driveAssembly, motorAssembly, steeringAssembly } from './vessel';
+import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly, driveAssembly, motorAssembly, steeringAssembly, reeferAssembly } from './vessel';
 import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
 const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
@@ -301,6 +301,8 @@ export class VesselView {
     }
     // Update steering gear explosion lerp interpolation smoothly every frame
     steeringAssembly.updateExplosion(dt);
+    // Update reefer distribution panel explosion lerp smoothly every frame
+    reeferAssembly.updateExplosion(dt);
     // Bow thruster spins when energized
     if (this.live.has('bow')) {
       this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });

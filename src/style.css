@@ -1333,3 +1333,62 @@ body.has-assembly-modal{
   border-color: #38bdf8;
 }
 
+/* Reefer Distribution Exploded Assembly Inspection UI */
+.reefer-controls-card {
+  margin-top: 14px;
+  background: linear-gradient(180deg, #132230 0%, #0d1722 100%);
+  border: 1px solid #234057;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.reefer-controls-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reefer-val-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  box-shadow: 0 0 8px rgba(2,132,199,0.4);
+}
+.reefer-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reefer-slider-row input[type=range] {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+.reefer-presets {
+  display: flex;
+  gap: 6px;
+}
+.reefer-presets button {
+  flex: 1;
+  background: #182d3e;
+  border: 1px solid #2d4f6d;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.reefer-presets button:hover {
+  background: #23445e;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+

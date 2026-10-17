@@ -7,6 +7,7 @@ import { transformerAssembly } from './transformer-assembly';
 import { driveAssembly } from './drive-assembly';
 import { motorAssembly } from './motor-assembly';
 import { steeringAssembly } from './steering-assembly';
+import { reeferAssembly } from './reefer-assembly';
 import { resolveAssemblyUrl } from './assets';
 
 type View='vessel'|'schematic';
@@ -482,6 +483,14 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'STEERING GEAR CAD ASSEMBLY & SPECS'
     };
   }
+  if (selectedId === 'reefer' || selectedId === 'reeferFeed' || model === 'reefer') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_reefer_distribution_assembly.html'),
+      title: 'Reefer Distribution Panel — 3D Explodable CAD Assembly',
+      subtitle: 'Marine Container Bay Distribution · 440 V / 60 Hz 3-Phase · 4 × 32 A CEE Sockets · Individual MCCB Protection · Solid Copper Hull Grounding',
+      tag: 'REEFER DISTRIBUTION CAD ASSEMBLY & SPECS'
+    };
+  }
   return null;
 }
 
@@ -666,6 +675,32 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
+    ${selected === 'reefer' || selected === 'reeferFeed' || e?.id === 'reefer' || model === 'reefer' ? `
+      <div class="reefer-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Reefer Distribution Panel</h4>
+          </div>
+          <span id="reefer-explosion-val" class="reefer-val-badge">${Math.round(reeferAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the watertight marine steel cabinet, incoming 440 V supply module, MCCB circuit breaker panel, four 32 A container sockets, deck cable transit, and copper earth bar.
+        </p>
+        <div class="reefer-slider-row">
+          <label for="reefer-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="reefer-explosion-slider" min="0" max="1" step="0.01" value="${reeferAssembly.targetExplosionFactor}">
+        </div>
+        <div class="reefer-presets">
+          <button type="button" class="preset-btn" data-reefer-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-reefer-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-reefer-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
     ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
@@ -772,6 +807,26 @@ function renderInspector(){
         steeringAssembly.setExplosionFactor(factor);
         if (steerSlider) steerSlider.value = String(factor);
         const label = document.getElementById('steering-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
+  if (selected === 'reefer' || selected === 'reeferFeed' || e?.id === 'reefer' || model === 'reefer') {
+    const reeferSlider = document.getElementById('reefer-explosion-slider') as HTMLInputElement;
+    reeferSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      reeferAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('reefer-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-reefer-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.reeferPreset || '0');
+        reeferAssembly.setExplosionFactor(factor);
+        if (reeferSlider) reeferSlider.value = String(factor);
+        const label = document.getElementById('reefer-explosion-val');
         if (label) label.textContent = `${Math.round(factor * 100)}%`;
       });
     });
