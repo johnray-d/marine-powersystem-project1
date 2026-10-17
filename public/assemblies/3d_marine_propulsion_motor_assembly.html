@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marine Electric Propulsion Motor | 3D Explodable CAD Assembly</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #090e17;
+      color: #e2e8f0;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    #viewport {
+      position: fixed;
+      inset: 0;
+    }
+    aside {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      width: min(390px, calc(100vw - 36px));
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 7px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    h1 {
+      font-size: 17px;
+      margin: 2px 0 0;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+    .sub {
+      color: #94a3b8;
+      font-size: 11px;
+      margin: 0 0 4px;
+      line-height: 1.4;
+    }
+    .specs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    .spec-item span {
+      display: block;
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .spec-item strong {
+      font-size: 11px;
+      color: #e2e8f0;
+      font-family: monospace;
+    }
+    label {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-weight: 600;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #38bdf8;
+      cursor: pointer;
+      margin: 4px 0 0;
+    }
+    .buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      min-width: 80px;
+      padding: 7px 10px;
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #334155;
+      color: #f8fafc;
+      border-color: #475569;
+    }
+    button.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+    }
+    .bom-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 4px;
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .bom-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .bom-item:hover {
+      background: rgba(51, 65, 85, 0.6);
+      border-color: #475569;
+    }
+    .bom-item.active {
+      background: rgba(14, 165, 233, 0.2);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .bom-item-count {
+      font-size: 10px;
+      color: #64748b;
+      font-family: monospace;
+    }
+    .info-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e293b;
+      border-left: 3px solid #38bdf8;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: #cbd5e1;
+      min-height: 60px;
+    }
+    .info-card strong {
+      display: block;
+      color: #f8fafc;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+    .status-text {
+      font-size: 10px;
+      color: #38bdf8;
+      font-family: monospace;
+    }
+    #hud-hint {
+      position: absolute;
+      bottom: 16px;
+      right: 18px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <aside>
+    <div>
+      <span class="badge">6.6 kV PROPULSION MOTOR · CAD ASSEMBLY</span>
+      <h1>Electric Propulsion Motor</h1>
+      <p class="sub">Marine direct-drive induction motor · Multi-axis exploded view · Dynamic shaft & cooling fan kinematics</p>
+    </div>
+
+    <!-- Technical Specs -->
+    <div class="specs-grid">
+      <div class="spec-item">
+        <span>Rated Voltage</span>
+        <strong>6.6 kV AC 3-Phase</strong>
+      </div>
+      <div class="spec-item">
+        <span>Shaft Power</span>
+        <strong>12,000 kW (16 kHP)</strong>
+      </div>
+      <div class="spec-item">
+        <span>Operating Speed</span>
+        <strong id="spec-rpm">250 RPM</strong>
+      </div>
+      <div class="spec-item">
+        <span>Frame Enclosure</span>
+        <strong>IP56 / IC411 Ribs</strong>
+      </div>
+      <div class="spec-item">
+        <span>Insulation Class</span>
+        <strong>Class H (VPI Resin)</strong>
+      </div>
+      <div class="spec-item">
+        <span>Shaft Alignment</span>
+        <strong>Direct Stern Taper</strong>
+      </div>
+    </div>
+
+    <!-- Explosion View Controls -->
+    <div>
+      <label for="explodeSlider">
+        <span>Explosion Displacement</span>
+        <span id="explodeVal" style="color:#38bdf8;">0%</span>
+      </label>
+      <input type="range" id="explodeSlider" min="0" max="1" step="0.01" value="0">
+      <div class="buttons" style="margin-top:6px;">
+        <button id="btnAssembled" class="active">Assembled</button>
+        <button id="btnPartial">45% Sub-Assy</button>
+        <button id="btnExploded">100% Exploded</button>
+      </div>
+    </div>
+
+    <!-- Live Kinematics (RPM) -->
+    <div>
+      <label for="rpmSlider">
+        <span>Rotor & Fan Rotation</span>
+        <span id="rpmVal" style="color:#38bdf8;">250 RPM</span>
+      </label>
+      <input type="range" id="rpmSlider" min="0" max="500" step="10" value="250">
+      <div class="buttons" style="margin-top:6px;">
+        <button id="btnToggleSpin">Pause Rotation</button>
+        <button id="btnResetCam">Reset View</button>
+      </div>
+    </div>
+
+    <!-- Bill of Materials Subsystems -->
+    <div>
+      <label style="margin-bottom:4px;">
+        <span>Select Subsystem (BOM)</span>
+        <span style="color:#64748b;">8 Major Assemblies</span>
+      </label>
+      <div class="bom-list" id="bomList"></div>
+    </div>
+
+    <!-- Information Card -->
+    <div class="info-card" id="infoCard">
+      <strong>Propulsion Motor Assembled</strong>
+      <p id="infoText" style="margin:0;">Click any component mesh in the 3D viewport or select from the Bill of Materials above to inspect mechanical specifications.</p>
+    </div>
+
+    <div class="buttons">
+      <button id="btnFocusPart">Focus Subsystem</button>
+      <button id="btnClearSel">Clear Selection</button>
+    </div>
+
+    <span class="status-text" id="statusText">Loading marine_propulsion_motor.glb…</span>
+  </aside>
+
+  <div id="hud-hint">Left Drag: Orbit · Right Drag: Pan · Scroll: Zoom · Click: Inspect Component</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const container = document.getElementById('viewport');
+    const statusText = document.getElementById('statusText');
+    const infoCard = document.getElementById('infoCard');
+    const infoText = document.getElementById('infoText');
+    const bomList = document.getElementById('bomList');
+    const explodeSlider = document.getElementById('explodeSlider');
+    const explodeVal = document.getElementById('explodeVal');
+    const rpmSlider = document.getElementById('rpmSlider');
+    const rpmVal = document.getElementById('rpmVal');
+    const specRpm = document.getElementById('spec-rpm');
+    const btnToggleSpin = document.getElementById('btnToggleSpin');
+
+    // 1. Renderer Setup
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.45;
+    container.appendChild(renderer.domElement);
+
+    // 2. Scene & Camera
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#090e17');
+
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(-4.8, 3.2, 5.8);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 0, 0);
+    controls.minDistance = 1.5;
+    controls.maxDistance = 25;
+
+    // 3. Studio Lighting
+    scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 2.2));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    keyLight.position.set(-4, 7, 5);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x7dd3fc, 1.4);
+    fillLight.position.set(5, 2, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.0);
+    rimLight.position.set(0, -5, -3);
+    scene.add(rimLight);
+
+    const grid = new THREE.GridHelper(14, 28, 0x1e293b, 0x0f172a);
+    grid.position.y = -1.02;
+    scene.add(grid);
+
+    // 4. Model & Subsystem Registry
+    const SUBSYSTEMS = {
+      '01': {
+        name: 'Stator Frame & Cooling Jacket',
+        color: '#38bdf8',
+        offset: new THREE.Vector3(0, 0, 0),
+        description: 'Cast-iron cylindrical main enclosure with 15 circumferential cooling ribs maximizing heat rejection to engine room ventilation.'
+      },
+      '02': {
+        name: 'DE & NDE End Bells',
+        color: '#60a5fa',
+        offset: new THREE.Vector3(1.7, 0, 0),
+        description: 'Drive-End (DE) forward end bell housing the main shaft roller bearing, and Non-Drive-End (NDE) aft end bell with intake ports.'
+      },
+      '03': {
+        name: '6.6 kV Stator & Coils',
+        color: '#fb923c',
+        offset: new THREE.Vector3(0, 1.5, 0),
+        description: 'Low-loss laminated electrical steel stator core carrying 10 form-wound copper coils vacuum-pressure impregnated with Class H resin.'
+      },
+      '04': {
+        name: 'Rotor, Drive Shaft & Key',
+        color: '#4ade80',
+        offset: new THREE.Vector3(2.2, 0, 0),
+        description: 'Squirrel-cage laminated rotor core with alloy steel drive shaft, drive key, and tapered output coupling to the tailshaft.'
+      },
+      '05': {
+        name: 'Heavy-Duty Bearings',
+        color: '#facc15',
+        offset: new THREE.Vector3(2.0, 0, 0),
+        description: 'DE cylindrical roller bearing carrying heavy radial propulsion loads and NDE deep-groove ball bearing for axial positioning.'
+      },
+      '06': {
+        name: 'Terminal Enclosure & Glands',
+        color: '#2dd4bf',
+        offset: new THREE.Vector3(0, 1.6, 0),
+        description: 'IP56 high-voltage terminal box with gasketed access lid and 3 armoured cable glands for variable-frequency power supply.'
+      },
+      '07': {
+        name: 'Cooling Fan, Hub & Guard',
+        color: '#a78bfa',
+        offset: new THREE.Vector3(-2.6, 0, 0),
+        description: 'Aft shaft-mounted cooling fan hub with 6 aerodynamic blades and heavy welded wire safety cowling.'
+      },
+      '08': {
+        name: 'Mounting Skid & Foundation Bolts',
+        color: '#94a3b8',
+        offset: new THREE.Vector3(0, -1.1, 0),
+        description: 'Precision-machined mounting feet with holding-down foundation bolts and auxiliary forward support bracket.'
+      }
+    };
+
+    function getSubsystemId(name) {
+      if (name === 'Motor_Frame' || name.startsWith('Cooling_Rib')) return '01';
+      if (name.includes('End_Bell')) return '02';
+      if (name.includes('Stator')) return '03';
+      if (name.includes('Rotor') || name.includes('Shaft')) return '04';
+      if (name.includes('Bearing')) return '05';
+      if (name.includes('Terminal')) return '06';
+      if (name.includes('Fan')) return '07';
+      if (name.includes('Mounting') || name === 'Support_Bracket') return '08';
+      return '01';
+    }
+
+    function getExplodeVector(name) {
+      const v = new THREE.Vector3();
+      if (name === 'Motor_Frame' || name.startsWith('Cooling_Rib')) return v.set(0, 0, 0);
+      if (name === 'End_Bell_Front' || name === 'End_Bell_Front_Rim') return v.set(1.7, 0, 0);
+      if (name === 'End_Bell_Rear' || name === 'End_Bell_Rear_Rim') return v.set(-1.7, 0, 0);
+      if (name === 'Stator_Core') return v.set(0, 1.20, 0);
+      if (name.startsWith('Stator_Winding_Coil')) return v.set(0, 1.70, 0);
+      if (name === 'Rotor_Core') return v.set(0, -1.15, 0);
+      if (name === 'Rotor_Shaft') return v.set(2.20, 0, 0);
+      if (name === 'Rotor_Shaft_Aft') return v.set(-2.20, 0, 0);
+      if (name === 'Shaft_Output_Taper') return v.set(3.20, 0, 0);
+      if (name === 'Shaft_Key') return v.set(2.50, 0.45, 0);
+      if (name.startsWith('Bearing_Front')) return v.set(2.0, 0, 0);
+      if (name.startsWith('Bearing_Rear')) return v.set(-2.0, 0, 0);
+      if (name.startsWith('Terminal_Box_Lid')) return v.set(0, 1.8, 0);
+      if (name.startsWith('Terminal_Box')) return v.set(0, 1.4, 0);
+      if (name.startsWith('Terminal_Gland')) return v.set(-0.6, 1.4, 0);
+      if (name.startsWith('Lifting_Eye')) return v.set(0, 1.6, 0);
+      if (name.startsWith('Cooling_Fan_Hub') || name.startsWith('Fan_Blade')) return v.set(-2.5, 0, 0);
+      if (name === 'Fan_Guard') return v.set(-3.0, 0, 0);
+      if (name.startsWith('Mounting_Foot')) return v.set(0, -0.9, 0);
+      if (name.startsWith('Mounting_Bolt')) return v.set(0, -1.3, 0);
+      if (name === 'Support_Bracket') return v.set(2.2, -0.7, 0);
+      return v.set(0, 0, 0);
+    }
+
+    function isRotating(name) {
+      return (
+        name.startsWith('Rotor_Shaft') ||
+        name === 'Shaft_Output_Taper' ||
+        name === 'Shaft_Key' ||
+        name.startsWith('Cooling_Fan_Hub') ||
+        name.startsWith('Fan_Blade')
+      );
+    }
+
+    const modelRoot = new THREE.Group();
+    scene.add(modelRoot);
+
+    const rotatingGroup = new THREE.Group();
+    const stationaryGroup = new THREE.Group();
+    modelRoot.add(stationaryGroup);
+    modelRoot.add(rotatingGroup);
+
+    let parts = [];
+    let selectedSubsystem = null;
+    let explodeTarget = 0;
+    let explodeCurrent = 0;
+    let targetRpm = 250;
+    let isSpinning = true;
+
+    // Build Bill of Materials UI
+    Object.entries(SUBSYSTEMS).forEach(([id, sub]) => {
+      const item = document.createElement('div');
+      item.className = 'bom-item';
+      item.dataset.id = id;
+      item.innerHTML = `
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span style="width:8px;height:8px;border-radius:2px;background:${sub.color};display:inline-block;"></span>
+          <span>${id} · ${sub.name}</span>
+        </span>
+        <span class="bom-item-count" id="count-${id}">-</span>
+      `;
+      item.onclick = () => selectSubsystem(id);
+      bomList.appendChild(item);
+    });
+
+    // 5. Load GLB Model
+    const modelUrl = window.location.pathname.includes('/assemblies/') ? '../marine_propulsion_motor.glb' : '/marine_propulsion_motor.glb';
+    new GLTFLoader().load(
+      modelUrl,
+      (gltf) => {
+        const loadedScene = gltf.scene;
+        loadedScene.updateMatrixWorld(true);
+
+        const meshes = [];
+        loadedScene.traverse((obj) => {
+          if (obj.isMesh) meshes.push(obj);
+        });
+
+        const subsystemCounts = {};
+
+        meshes.forEach((mesh) => {
+          if (mesh.material) {
+            if (Array.isArray(mesh.material)) {
+              mesh.material = mesh.material[0].clone();
+            } else {
+              mesh.material = mesh.material.clone();
+            }
+          }
+
+          const subId = getSubsystemId(mesh.name);
+          subsystemCounts[subId] = (subsystemCounts[subId] || 0) + 1;
+
+          const isRot = isRotating(mesh.name) || mesh.userData.rotating === true;
+          const targetGroup = isRot ? rotatingGroup : stationaryGroup;
+
+          mesh.userData.subsystemId = subId;
+          mesh.userData.originalPos = mesh.position.clone();
+          mesh.userData.explodeVector = getExplodeVector(mesh.name);
+
+          targetGroup.add(mesh);
+
+          parts.push({
+            mesh,
+            name: mesh.name,
+            subsystemId: subId,
+            rest: mesh.position.clone(),
+            offset: mesh.userData.explodeVector
+          });
+        });
+
+        // Update counts in UI
+        Object.entries(subsystemCounts).forEach(([id, cnt]) => {
+          const countEl = document.getElementById(`count-${id}`);
+          if (countEl) countEl.textContent = `${cnt} parts`;
+        });
+
+        statusText.textContent = `Loaded ${parts.length} mechanical components successfully.`;
+        fitCamera();
+      },
+      undefined,
+      (err) => {
+        statusText.textContent = 'Could not load marine_propulsion_motor.glb. Verify public folder asset.';
+        console.error('Error loading motor model:', err);
+      }
+    );
+
+    // 6. Camera & Selection Helpers
+    function fitCamera() {
+      camera.position.set(-4.8, 3.2, 5.8);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
+
+    function selectSubsystem(id) {
+      selectedSubsystem = id;
+      document.querySelectorAll('.bom-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.id === id);
+      });
+
+      if (!id) {
+        infoCard.querySelector('strong').textContent = 'Propulsion Motor Assembled';
+        infoText.textContent = 'Click any component mesh in the 3D viewport or select from the Bill of Materials above to inspect mechanical specifications.';
+        parts.forEach(p => {
+          if (p.mesh.material && p.mesh.material.emissive) {
+            p.mesh.material.emissive.set('#000000');
+            p.mesh.material.emissiveIntensity = 0;
+          }
+        });
+        return;
+      }
+
+      const sub = SUBSYSTEMS[id];
+      infoCard.querySelector('strong').textContent = `${id} · ${sub.name}`;
+      infoText.textContent = sub.description;
+
+      parts.forEach(p => {
+        if (p.mesh.material && p.mesh.material.emissive) {
+          const match = p.subsystemId === id;
+          p.mesh.material.emissive.set(match ? sub.color : '#000000');
+          p.mesh.material.emissiveIntensity = match ? 0.35 : 0;
+        }
+      });
+    }
+
+    function setExplosion(val) {
+      explodeTarget = val;
+      explodeSlider.value = val;
+      explodeVal.textContent = `${Math.round(val * 100)}%`;
+      document.getElementById('btnAssembled').classList.toggle('active', val === 0);
+      document.getElementById('btnPartial').classList.toggle('active', Math.abs(val - 0.45) < 0.05);
+      document.getElementById('btnExploded').classList.toggle('active', val === 1);
+    }
+
+    // 7. Event Listeners
+    explodeSlider.oninput = (e) => setExplosion(parseFloat(e.target.value));
+    document.getElementById('btnAssembled').onclick = () => setExplosion(0);
+    document.getElementById('btnPartial').onclick = () => setExplosion(0.45);
+    document.getElementById('btnExploded').onclick = () => setExplosion(1.0);
+
+    rpmSlider.oninput = (e) => {
+      targetRpm = parseFloat(e.target.value);
+      rpmVal.textContent = `${Math.round(targetRpm)} RPM`;
+      specRpm.textContent = `${Math.round(targetRpm)} RPM`;
+    };
+
+    btnToggleSpin.onclick = () => {
+      isSpinning = !isSpinning;
+      btnToggleSpin.textContent = isSpinning ? 'Pause Rotation' : 'Resume Rotation';
+      btnToggleSpin.classList.toggle('active', !isSpinning);
+    };
+
+    document.getElementById('btnResetCam').onclick = fitCamera;
+    document.getElementById('btnClearSel').onclick = () => selectSubsystem(null);
+
+    document.getElementById('btnFocusPart').onclick = () => {
+      if (!selectedSubsystem) return;
+      const b = new THREE.Box3();
+      for (const p of parts) {
+        if (p.subsystemId === selectedSubsystem) {
+          b.expandByObject(p.mesh);
+        }
+      }
+      if (!b.isEmpty()) {
+        const c = b.getCenter(new THREE.Vector3());
+        controls.target.lerp(c, 0.9);
+        camera.position.copy(c.clone().add(new THREE.Vector3(2.5, 2.0, 3.2)));
+      }
+    };
+
+    // Raycast Click Selection
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      if (Math.abs(e.movementX) > 3 || Math.abs(e.movementY) > 3) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(parts.map(p => p.mesh), false);
+      if (hits.length > 0) {
+        const clickedMesh = hits[0].object;
+        selectSubsystem(clickedMesh.userData.subsystemId);
+      }
+    });
+
+    // Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // 8. Animation Loop
+    let lastTime = performance.now();
+    function animate(time) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (time - lastTime) / 1000);
+      lastTime = time;
+
+      // Smooth Explosion Lerp
+      const diff = explodeTarget - explodeCurrent;
+      if (Math.abs(diff) > 0.0005) {
+        explodeCurrent += diff * Math.min(1, dt * 7.0);
+        for (const p of parts) {
+          const dest = p.rest.clone().addScaledVector(p.offset, explodeCurrent);
+          p.mesh.position.copy(dest);
+        }
+      }
+
+      // Smooth Shaft & Fan Rotation
+      if (isSpinning && targetRpm > 0) {
+        const radPerSec = (targetRpm * 2 * Math.PI) / 60;
+        rotatingGroup.rotation.x += dt * radPerSec;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

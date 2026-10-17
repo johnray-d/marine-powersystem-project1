@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Steering Gear | 3D Inspection</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b111a;color:#e9eff6;font:14px system-ui,sans-serif}#viewport{position:fixed;inset:0}aside{position:absolute;top:20px;left:20px;width:min(340px,calc(100vw - 40px));background:#172231e8;border:1px solid #405066;border-radius:14px;padding:20px;box-shadow:0 12px 50px #0008;z-index:10}h1{font-size:20px;margin:0 0 6px}.sub{color:#a6b5c8;font-size:12px;margin:0 0 20px}label{display:block;margin:14px 0 6px}input[type=range]{width:100%;accent-color:#d7a34e}button{background:#263c52;border:1px solid #526579;color:white;border-radius:7px;padding:9px;cursor:pointer}button:hover{background:#37536e}.buttons{display:flex;gap:7px;flex-wrap:wrap}.muted{color:#b2c0ce}#info{border-top:1px solid #39495d;margin-top:18px;padding-top:12px;min-height:62px}#status{font-size:12px;color:#efc982;margin-top:12px}#hint{position:absolute;bottom:18px;right:20px;color:#b9c8d9;font-size:12px;pointer-events:none;z-index:10}
+</style></head><body><div id="viewport"></div><aside><h1>Steering Gear</h1><p class="sub">Electro-hydraulic · Aft steering compartment</p><label for="explode">Exploded assembly <span id="explodeValue">0%</span></label><input id="explode" type="range" min="0" max="1" step="0.01" value="0"><div class="buttons"><button data-explode="0">Assembled</button><button data-explode="0.45">Partial</button><button data-explode="1">Exploded</button></div><label for="rpm">Rudder oscillation <span id="rpmValue">Active</span></label><input id="rpm" type="range" min="0" max="100" step="1" value="50"><div class="buttons"><button id="pause">Pause operation</button><button id="reset">Reset camera</button></div><div id="info"><strong>Click a component</strong><p class="muted">Select the bedplate, rudder stock, hydraulic rams, or pump to inspect them.</p></div><p id="status">Loading marine_steering_gear.glb…</p></aside><div id="hint">Drag to orbit · Scroll to zoom · Click to inspect</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const mount = document.querySelector('#viewport');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.55;
+mount.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#101925');
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .01, 100);
+camera.position.set(4.5, -4.5, 3.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0.5);
+
+scene.add(new THREE.HemisphereLight(0xe9f2ff, 0x303b48, 2.0));
+function light(pos, intensity){const l=new THREE.DirectionalLight(0xffffff,intensity);l.position.set(...pos);scene.add(l)}
+light([-3,6,6], 3); light([4,2,-5], 2);
+
+const root = new THREE.Group(); scene.add(root);
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const clock = new THREE.Clock();
+const components = [];
+let factor = 0, currentFactor = 0, speed = 50, paused = false, time = 0, selected = null;
+
+// --- Descriptions ---
+const descriptionFallbacks = {
+  Steering_Base: 'Heavy cast-iron bedplate securely mounted to the ship hull.',
+  Base_Mount: 'Foundation blocks for securing the steering gear.',
+  Rudder_Stock: 'Vertical shaft transmitting torque to the rudder blade.',
+  Tiller_Head: 'Heavy top collar connecting the tiller crosshead to the stock.',
+  Tiller_Crosshead: 'Horizontal arm connecting the hydraulic piston rods to the stock.',
+  Hydraulic_Ram: 'Hydraulic cylinder housing the piston.',
+  Ram_Bracket: 'Mounting bracket anchoring the hydraulic ram to the bedplate.',
+  Hydraulic_Piston: 'Piston rod actuating the tiller arm.',
+  Hydraulic_Hose: 'High-pressure hydraulic hose feeding the ram.',
+  Steering_Motor: 'Electric motor driving the hydraulic pump.',
+  Motor_Terminal: 'Electrical connection box for the steering motor.',
+  Hydraulic_Pump: 'Variable displacement pump supplying pressurized hydraulic fluid.'
+};
+function describe(name){
+  for(const k of Object.keys(descriptionFallbacks)){
+    if(name.startsWith(k)) return descriptionFallbacks[k];
+  }
+  return 'Component of the electro-hydraulic steering gear.';
+}
+
+// --- Explosion Registry ---
+function offset(name){
+  const v = new THREE.Vector3();
+  if(name.includes('Base') || name.includes('Bracket')) return v.set(0, 0, 0);
+  if(name === 'Rudder_Stock') return v.set(0, 2.0, 0);
+  if(name.includes('Tiller')) return v.set(0, 1.5, 0);
+  if(name === 'Hydraulic_Ram_Port') return v.set(-1.2, 0, 0.5);
+  if(name === 'Hydraulic_Ram_Starboard') return v.set(1.2, 0, 0.5);
+  if(name === 'Hydraulic_Piston_Port') return v.set(-1.5, 1.0, 0.5);
+  if(name === 'Hydraulic_Piston_Starboard') return v.set(1.5, 1.0, 0.5);
+  if(name.includes('Hose')) return v.set(0, 1.0, 0.5);
+  if(name.includes('Motor') || name.includes('Pump')) return v.set(0, 0, 1.2);
+  return v.set(0, 0, 0.8);
+}
+
+const rotor = new THREE.Group(); root.add(rotor); 
+const fixed = new THREE.Group(); root.add(fixed);
+
+const modelUrl = window.location.pathname.includes('/assemblies/') ? '../marine_steering_gear.glb' : '/marine_steering_gear.glb';
+new GLTFLoader().load(modelUrl, gltf => {
+  const meshes = [];
+  gltf.scene.updateMatrixWorld(true);
+  gltf.scene.traverse(o => { if(o.isMesh) meshes.push(o); });
+  
+  for(const mesh of meshes){
+    if (mesh.material) {
+      if (Array.isArray(mesh.material)) {
+        mesh.material = mesh.material[0].clone();
+      } else {
+        mesh.material = mesh.material.clone();
+      }
+    }
+
+    const isRotating = Boolean(mesh.userData.rotating) || mesh.name.includes('Tiller') || mesh.name.includes('Rudder_Stock');
+    const isPiston = mesh.name.includes('Piston');
+    
+    (isRotating ? rotor : fixed).add(mesh);
+    
+    components.push({
+      mesh: mesh,
+      name: mesh.name,
+      original: mesh.position.clone(),
+      offset: offset(mesh.name),
+      isRotating: isRotating,
+      isPiston: isPiston
+    });
+    mesh.material.side = THREE.DoubleSide;
+  }
+  document.querySelector('#status').textContent = `Loaded ${components.length} components · Click to inspect`;
+}, undefined, e => {
+  document.querySelector('#status').textContent = 'Could not load GLB. Run Blender script and serve this folder over HTTP.';
+  console.error(e);
+});
+
+function setExplosionFactor(v){
+  factor = THREE.MathUtils.clamp(v, 0, 1);
+  document.querySelector('#explode').value = factor;
+  document.querySelector('#explodeValue').textContent = `${Math.round(factor*100)}%`;
+}
+
+document.querySelector('#explode').addEventListener('input', e => setExplosionFactor(+e.target.value));
+document.querySelectorAll('[data-explode]').forEach(b => b.addEventListener('click', () => setExplosionFactor(+b.dataset.explode)));
+
+document.querySelector('#rpm').addEventListener('input', e => {
+  speed = +e.target.value;
+  document.querySelector('#rpmValue').textContent = speed > 0 ? `Active` : `Stopped`;
+});
+
+document.querySelector('#pause').addEventListener('click', e => {
+  paused = !paused;
+  e.target.textContent = paused ? 'Resume operation' : 'Pause operation';
+});
+
+document.querySelector('#reset').addEventListener('click', () => {
+  camera.position.set(4.5, -4.5, 3.5);
+  controls.target.set(0, 0, 0.5);
+  controls.update();
+});
+
+renderer.domElement.addEventListener('click', event => {
+  if(event.target !== renderer.domElement) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.set(((event.clientX - r.left) / r.width) * 2 - 1, -((event.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(components.map(p => p.mesh), false);
+  
+  if(selected?.mesh.material?.emissive) selected.mesh.material.emissive.setHex(0);
+  selected = hits.length ? components.find(p => p.mesh === hits[0].object) : null;
+  
+  if(selected){
+    selected.mesh.material.emissive?.setHex(0x44310a);
+    document.querySelector('#info').innerHTML = `<strong>${selected.name.replaceAll('_',' ')}</strong><p class="muted">${describe(selected.name)}</p>`;
+  }
+});
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), .05);
+  if(!paused && speed > 0) time += dt * (speed / 50);
+
+  // 1. Rudder Oscillation (Max 30 degrees)
+  const targetAngle = Math.sin(time * 2) * (Math.PI / 6);
+  rotor.rotation.y = THREE.MathUtils.lerp(rotor.rotation.y, targetAngle, 0.1);
+
+  // 2. Smooth Explosion Lerp
+  const diff = factor - currentFactor;
+  if(Math.abs(diff) > 0.0005) {
+    currentFactor += diff * Math.min(1, dt * 7.0);
+  } else {
+    currentFactor = factor;
+  }
+
+  // 3. Piston Translation (approximate kinematics)
+  for(const p of components) {
+    if(p.isPiston) {
+      const phase = p.name.includes('Port') ? 1 : -1;
+      const pistonX = p.original.x + (phase * Math.sin(time * 2) * 0.15);
+      const targetPos = new THREE.Vector3(pistonX, p.original.y, p.original.z).addScaledVector(p.offset, currentFactor);
+      p.mesh.position.copy(targetPos);
+    } else {
+      const targetPos = p.original.clone().addScaledVector(p.offset, currentFactor);
+      p.mesh.position.copy(targetPos);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script></body></html>

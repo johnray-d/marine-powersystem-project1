@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marine Propulsion Drive / Converter | 3D Explodable CAD Assembly</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #090e17;
+      color: #e2e8f0;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    #viewport {
+      position: fixed;
+      inset: 0;
+    }
+    aside {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      width: min(380px, calc(100vw - 36px));
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 7px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    h1 {
+      font-size: 17px;
+      margin: 2px 0 0;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+    .sub {
+      color: #94a3b8;
+      font-size: 11px;
+      margin: 0 0 4px;
+      line-height: 1.4;
+    }
+    .specs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    .spec-item span {
+      display: block;
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .spec-item strong {
+      font-size: 11px;
+      color: #e2e8f0;
+      font-family: monospace;
+    }
+    label {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-weight: 600;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #38bdf8;
+      cursor: pointer;
+      margin: 4px 0 0;
+    }
+    .buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      min-width: 80px;
+      padding: 7px 10px;
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #334155;
+      color: #f8fafc;
+      border-color: #475569;
+    }
+    button.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+    }
+    .parts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+    .part-btn {
+      text-align: left;
+      font-size: 11px;
+      padding: 6px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .part-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .info-card {
+      background: rgba(30, 41, 59, 0.7);
+      border-left: 3px solid #38bdf8;
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .info-card strong {
+      display: block;
+      color: #f8fafc;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+    .info-card p {
+      margin: 0;
+      color: #94a3b8;
+    }
+    .checkbox-row {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: #94a3b8;
+      align-items: center;
+    }
+    .checkbox-row label {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-weight: normal;
+    }
+    .checkbox-row input {
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+    #loadingOverlay {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #38bdf8;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+    @media(max-width: 768px) {
+      aside {
+        top: auto;
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-height: 48vh;
+      }
+      #loadingOverlay {
+        top: 12px;
+        right: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport"></div>
+  <div id="loadingOverlay">Initializing Marine Drive CAD Model…</div>
+
+  <aside>
+    <div>
+      <span class="badge">PROPULSION FREQUENCY CONVERTER</span>
+      <h1>Medium-Voltage Propulsion Drive</h1>
+      <p class="sub">Water-Cooled IGBT Inverter & Multi-Pulse Rectifier Assembly</p>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-item">
+        <span>Rated Voltage</span>
+        <strong>6.6 kV AC 3-Phase</strong>
+      </div>
+      <div class="spec-item">
+        <span>Topology</span>
+        <strong>VSI Multi-Level PWM</strong>
+      </div>
+      <div class="spec-item">
+        <span>DC Link Potential</span>
+        <strong>10.5 kV DC Laminated</strong>
+      </div>
+      <div class="spec-item">
+        <span>Cooling Circuit</span>
+        <strong>Deionized H₂O Loop</strong>
+      </div>
+    </div>
+
+    <div>
+      <label>
+        <span>Exploded Assembly View</span>
+        <span id="explodeVal">0%</span>
+      </label>
+      <input type="range" id="explodeSlider" min="0" max="1" step="0.01" value="0">
+    </div>
+
+    <div class="buttons">
+      <button id="btnAssembled" class="active">0% Assembled</button>
+      <button id="btnPartial">45% Sub-Assy</button>
+      <button id="btnExploded">100% Exploded</button>
+      <button id="btnFit">Fit All</button>
+    </div>
+
+    <div class="checkbox-row">
+      <label><input type="checkbox" id="chkGhost" checked> Side Panels</label>
+      <label><input type="checkbox" id="chkAutoRotate"> Auto Orbit</label>
+    </div>
+
+    <div>
+      <label style="margin-bottom:6px;">Subassembly & Component BOM</label>
+      <div class="parts-grid" id="partsGrid"></div>
+    </div>
+
+    <div class="info-card" id="infoCard">
+      <strong>Interactive Component Inspection</strong>
+      <p>Click any model part or select a subsystem above to inspect engineering function and power flow.</p>
+    </div>
+
+    <div class="buttons">
+      <button id="btnFocus" disabled>Focus Selected</button>
+      <button id="btnClear">Clear Selection</button>
+    </div>
+  </aside>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const viewport = document.getElementById('viewport');
+    const loading = document.getElementById('loadingOverlay');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x090e17);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 100);
+    camera.position.set(5.2, 3.8, 6.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    viewport.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.target.set(0, 1.4, 0);
+    controls.minDistance = 1.5;
+    controls.maxDistance = 25;
+    controls.maxPolarAngle = Math.PI * 0.49;
+
+    // Lighting
+    const hemiLight = new THREE.HemisphereLight(0xcce8ff, 0x1a2634, 2.4);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    keyLight.position.set(5, 8, 6);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x70bcf4, 1.6);
+    fillLight.position.set(-5, 3, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    rimLight.position.set(0, 7, -6);
+    scene.add(rimLight);
+
+    // Floor Grid
+    const floor = new THREE.GridHelper(16, 32, 0x38bdf8, 0x1e293b);
+    floor.position.y = -0.12;
+    scene.add(floor);
+
+    const metadata = {
+      '01': {
+        name: 'Drive Cabinet & Frame',
+        color: '#b2c7d3',
+        offset: [0, 0, 0],
+        description: 'Structural steel base skid, corner uprights, top drip roof, and grounding pads. The front is open for continuous internal inspection.'
+      },
+      '02': {
+        name: 'MV Input Stage',
+        color: '#38bdf8',
+        offset: [-1.4, 0, 0.65],
+        description: 'Incoming 6.6 kV cable glands, vacuum contactor, HRC fuses, and three-phase copper line reactors for harmonic attenuation.'
+      },
+      '03': {
+        name: 'DC Link Capacitor Bank',
+        color: '#fbbf24',
+        offset: [-0.5, 0.3, 1.25],
+        description: 'Intermediate energy storage bank with low-ESR capacitors, precharge resistors, and laminated low-inductance copper busbars.'
+      },
+      '04': {
+        name: 'IGBT Inverter Power Stacks',
+        color: '#34d399',
+        offset: [0.4, -0.4, 1.15],
+        description: 'Liquid-cooled IGBT switching cells with opto-isolated gate drivers and finned heat sinks converting DC into variable-frequency motor supply.'
+      },
+      '05': {
+        name: 'Liquid Cooling Circuit',
+        color: '#60a5fa',
+        offset: [1.2, 0.5, -0.75],
+        description: 'Circulating deionized coolant pump, stainless steel plate heat exchanger, manifold headers, isolation valves, and pressure indicators.'
+      },
+      '06': {
+        name: 'Control & Protection Casing',
+        color: '#a78bfa',
+        offset: [1.5, 0.4, 0.95],
+        description: 'Digital signal processor rack, optocoupler I/O cards, touchscreen HMI display, wiring harnesses, and emergency shutdown trip circuit.'
+      },
+      '07': {
+        name: 'Motor Output Terminals',
+        color: '#f87171',
+        offset: [0.7, -0.5, 1.2],
+        description: 'Three-phase heavy duty marine busbar terminals and bottom cable exit glands feeding the propulsion synchronous motor.'
+      }
+    };
+
+    const modelRoot = new THREE.Group();
+    scene.add(modelRoot);
+
+    let parts = [];
+    let selectedId = null;
+    let targetExplode = 0;
+    let currentExplode = 0;
+
+    const partsGrid = document.getElementById('partsGrid');
+    Object.entries(metadata).forEach(([id, m]) => {
+      const btn = document.createElement('button');
+      btn.className = 'part-btn';
+      btn.dataset.id = id;
+      btn.innerHTML = `<span class="part-dot" style="background:${m.color}"></span><span>${id} ${m.name.split('&')[0].trim()}</span>`;
+      btn.onclick = () => selectPart(id);
+      partsGrid.appendChild(btn);
+    });
+
+    function selectPart(id) {
+      selectedId = id;
+      document.querySelectorAll('.part-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+      const m = metadata[id];
+      const card = document.getElementById('infoCard');
+      const focusBtn = document.getElementById('btnFocus');
+
+      if (m) {
+        card.innerHTML = `<strong>${id} · ${m.name}</strong><p>${m.description}</p>`;
+        focusBtn.disabled = false;
+      } else {
+        card.innerHTML = `<strong>Interactive Component Inspection</strong><p>Click any model part or select a subsystem above to inspect engineering function and power flow.</p>`;
+        focusBtn.disabled = true;
+      }
+
+      parts.forEach(p => {
+        const mats = Array.isArray(p.mesh.material) ? p.mesh.material : [p.mesh.material];
+        for (const mat of mats) {
+          if (mat.emissive) {
+            if (p.id === id) {
+              mat.emissive.set(m.color);
+              mat.emissiveIntensity = 0.22;
+            } else {
+              mat.emissive.set('#000000');
+              mat.emissiveIntensity = 0;
+            }
+          }
+        }
+      });
+    }
+
+    const loader = new GLTFLoader();
+    const modelUrl = window.location.pathname.includes('/assemblies/') ? '../marine_drive.glb' : '/marine_drive.glb';
+
+    loader.load(
+      modelUrl,
+      (gltf) => {
+        modelRoot.add(gltf.scene);
+        gltf.scene.traverse((o) => {
+          if (!o.isMesh) return;
+          const match = (o.name || '').match(/^(0[1-7])_/);
+          if (!match) return;
+          const id = match[1];
+
+          if (Array.isArray(o.material)) o.material = o.material[0];
+          if (o.material) {
+            o.material = o.material.clone();
+            o.material.side = THREE.DoubleSide;
+          }
+
+          parts.push({
+            mesh: o,
+            id,
+            rest: o.position.clone(),
+            offset: new THREE.Vector3(...metadata[id].offset)
+          });
+          o.userData.componentId = id;
+        });
+
+        loading.textContent = `CAD Model Loaded (${parts.length} mechanical parts)`;
+        setTimeout(() => loading.style.display = 'none', 1400);
+        fitAll();
+      },
+      undefined,
+      (err) => {
+        console.error('Failed to load marine_drive.glb:', err);
+        loading.textContent = 'Could not load marine_drive.glb';
+      }
+    );
+
+    function fitAll() {
+      camera.position.set(5.2, 3.8, 6.8);
+      controls.target.set(0, 1.4, 0);
+      controls.update();
+    }
+
+    function setExplosion(val) {
+      targetExplode = val;
+      document.getElementById('explodeSlider').value = val;
+      document.getElementById('explodeVal').textContent = Math.round(val * 100) + '%';
+      document.getElementById('btnAssembled').classList.toggle('active', val === 0);
+      document.getElementById('btnPartial').classList.toggle('active', Math.abs(val - 0.45) < 0.05);
+      document.getElementById('btnExploded').classList.toggle('active', val === 1);
+    }
+
+    document.getElementById('btnAssembled').onclick = () => setExplosion(0);
+    document.getElementById('btnPartial').onclick = () => setExplosion(0.45);
+    document.getElementById('btnExploded').onclick = () => setExplosion(1.0);
+    document.getElementById('btnFit').onclick = fitAll;
+    document.getElementById('btnClear').onclick = () => selectPart(null);
+
+    document.getElementById('explodeSlider').oninput = (e) => {
+      setExplosion(parseFloat(e.target.value));
+    };
+
+    document.getElementById('btnFocus').onclick = () => {
+      if (!selectedId) return;
+      const box = new THREE.Box3();
+      for (const p of parts) {
+        if (p.id === selectedId) box.expandByObject(p.mesh);
+      }
+      if (!box.isEmpty()) {
+        const center = box.getCenter(new THREE.Vector3());
+        controls.target.copy(center);
+        camera.position.copy(center.clone().add(new THREE.Vector3(2.2, 1.4, 2.8)));
+        controls.update();
+      }
+    };
+
+    document.getElementById('chkGhost').onchange = (e) => {
+      parts.filter(p => p.mesh.name.includes('GhostSide')).forEach(p => {
+        p.mesh.visible = e.target.checked;
+      });
+    };
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      if (Math.abs(e.movementX) > 3 || Math.abs(e.movementY) > 3) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(parts.map(p => p.mesh), false).find(h => h.object.visible);
+      if (hit && hit.object.userData.componentId) {
+        selectPart(hit.object.userData.componentId);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    let lastTime = performance.now();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      // Smooth explosion interpolation
+      currentExplode = THREE.MathUtils.lerp(currentExplode, targetExplode, Math.min(1, dt * 8));
+      for (const p of parts) {
+        const dest = p.rest.clone().addScaledVector(p.offset, currentExplode);
+        p.mesh.position.copy(dest);
+      }
+
+      controls.autoRotate = document.getElementById('chkAutoRotate').checked;
+      controls.autoRotateSpeed = 0.8;
+      controls.update();
+
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

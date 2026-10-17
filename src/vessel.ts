@@ -5,9 +5,15 @@ import { createModel } from './models';
 import type { Equipment } from './network';
 import { propellerAssembly } from './propeller-assembly';
 import { transformerAssembly } from './transformer-assembly';
+import { driveAssembly } from './drive-assembly';
+import { motorAssembly } from './motor-assembly';
+import { steeringAssembly } from './steering-assembly';
 import { resolvePublicAsset } from './assets';
 export { propellerAssembly } from './propeller-assembly';
 export { transformerAssembly } from './transformer-assembly';
+export { driveAssembly } from './drive-assembly';
+export { motorAssembly } from './motor-assembly';
+export { steeringAssembly } from './steering-assembly';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.
@@ -339,6 +345,42 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.add(txGroup);
     root.userData.height = placement.size[1];
     root.userData.transformerAssembly = transformerAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='drive'||e.kind==='drive'){
+    const driveGroup = driveAssembly.createEquipmentGroup(e.id, placement.size);
+    driveGroup.rotation.y = placement.rotation || 0;
+    root.add(driveGroup);
+    root.userData.height = placement.size[1];
+    root.userData.driveAssembly = driveAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='motor'||e.kind==='motor'){
+    const motorGroup = motorAssembly.createEquipmentGroup(e.id, placement.size);
+    motorGroup.rotation.y = placement.rotation || 0;
+    root.add(motorGroup);
+    root.userData.height = placement.size[1];
+    root.userData.motorAssembly = motorAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='steering'){
+    const steeringGroup = steeringAssembly.createEquipmentGroup(e.id, placement.size);
+    steeringGroup.rotation.y = placement.rotation || 0;
+    root.add(steeringGroup);
+    root.userData.height = placement.size[1];
+    root.userData.steeringAssembly = steeringAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
       const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
     }

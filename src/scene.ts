@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
-import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly } from './vessel';
+import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly, driveAssembly, motorAssembly, steeringAssembly } from './vessel';
 import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
 const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
@@ -277,6 +277,30 @@ export class VesselView {
     }
     // Update transformer explosion lerp interpolation smoothly every frame
     transformerAssembly.updateExplosion(dt);
+    // Update drive cooling pump when energized, or during inspection
+    const isDriveActive = this.live.has('drive');
+    const isInspectingDrive = this.selection === 'drive';
+    if (isDriveActive || isInspectingDrive) {
+      driveAssembly.updateRotation(dt, isDriveActive ? 1800 : 900);
+    }
+    // Update drive explosion lerp interpolation smoothly every frame
+    driveAssembly.updateExplosion(dt);
+    // Update electric propulsion motor rotor and cooling fan when energized, or during inspection
+    const isMotorActive = this.live.has('motor') || this.live.has('prop');
+    const isInspectingMotor = this.selection === 'motor';
+    if (isMotorActive || isInspectingMotor) {
+      motorAssembly.updateRotation(dt, isMotorActive ? 250 : 80);
+    }
+    // Update motor explosion lerp interpolation smoothly every frame
+    motorAssembly.updateExplosion(dt);
+    // Update steering gear kinematics (rudder oscillation and hydraulic ram pistons)
+    const isSteeringActive = this.live.has('steering') || this.live.has('eSteer');
+    const isInspectingSteering = this.selection === 'steering' || this.selection === 'eSteer';
+    if (isSteeringActive || isInspectingSteering) {
+      steeringAssembly.updateKinematics(dt, isSteeringActive ? 1.0 : 0.4);
+    }
+    // Update steering gear explosion lerp interpolation smoothly every frame
+    steeringAssembly.updateExplosion(dt);
     // Bow thruster spins when energized
     if (this.live.has('bow')) {
       this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });

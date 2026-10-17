@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Electric Propulsion Motor | 3D Inspection</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b111a;color:#e9eff6;font:14px system-ui,sans-serif}#viewport{position:fixed;inset:0}aside{position:absolute;top:20px;left:20px;width:min(340px,calc(100vw - 40px));background:#172231e8;border:1px solid #405066;border-radius:14px;padding:20px;box-shadow:0 12px 50px #0008;z-index:10}h1{font-size:20px;margin:0 0 6px}.sub{color:#a6b5c8;font-size:12px;margin:0 0 20px}label{display:block;margin:14px 0 6px}input[type=range]{width:100%;accent-color:#d7a34e}button{background:#263c52;border:1px solid #526579;color:white;border-radius:7px;padding:9px;cursor:pointer}button:hover{background:#37536e}.buttons{display:flex;gap:7px;flex-wrap:wrap}.muted{color:#b2c0ce}#info{border-top:1px solid #39495d;margin-top:18px;padding-top:12px;min-height:62px}#status{font-size:12px;color:#efc982;margin-top:12px}#hint{position:absolute;bottom:18px;right:20px;color:#b9c8d9;font-size:12px;pointer-events:none;z-index:10}
+</style></head><body><div id="viewport"></div><aside><h1>Electric Propulsion Motor</h1><p class="sub">Marine drive · 6.6 kV · Interactive engineering model</p><label for="explode">Exploded assembly <span id="explodeValue">0%</span></label><input id="explode" type="range" min="0" max="1" step="0.01" value="0"><div class="buttons"><button data-explode="0">Assembled</button><button data-explode="0.45">Partial</button><button data-explode="1">Exploded</button></div><label for="rpm">Rotor rotation <span id="rpmValue">250 RPM</span></label><input id="rpm" type="range" min="0" max="600" step="10" value="250"><div class="buttons"><button id="pause">Pause rotation</button><button id="reset">Reset camera</button></div><div id="info"><strong>Click a component</strong><p class="muted">Select a housing, stator coil, rotor, bearing, terminal, or fan part to inspect it.</p></div><p id="status">Loading marine_propulsion_motor.glb…</p></aside><div id="hint">Drag to orbit · Scroll to zoom · Click to inspect</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const mount = document.querySelector('#viewport');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.55;
+mount.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#101925');
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .01, 100);
+camera.position.set(-4.7, 3.5, 6.6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.HemisphereLight(0xe9f2ff, 0x303b48, 2.0));
+function light(pos, intensity){const l=new THREE.DirectionalLight(0xffffff,intensity);l.position.set(...pos);scene.add(l)}
+light([-3,6,6], 3); light([4,2,-5], 2);
+
+const root = new THREE.Group(); scene.add(root);
+const rotatingGroup = new THREE.Group();
+const stationaryGroup = new THREE.Group();
+root.add(stationaryGroup);
+root.add(rotatingGroup);
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const clock = new THREE.Clock();
+const components = [];
+let factor = 0, currentFactor = 0, rpm = 250, paused = false, selected = null;
+
+// --- Descriptions (prefix-matched fallbacks) ---
+const descriptionFallbacks = {
+  Motor_Frame: 'Cast-iron cylindrical housing enclosing the stator and rotor with integral cooling jacket.',
+  Cooling_Rib: 'Circumferential cooling rib increasing surface area for convective heat dissipation.',
+  End_Bell_Front: 'Front end bell housing the front roller bearing and drive-end shaft seal.',
+  End_Bell_Rear: 'Rear end bell housing the rear bearing and supporting the cooling air intake.',
+  End_Bell_Front_Rim: 'Front end bell precision mounting and sealing rim.',
+  End_Bell_Rear_Rim: 'Rear end bell precision mounting and sealing rim.',
+  Stator_Core: 'Laminated silicon steel stator core carrying the three-phase 6.6 kV windings.',
+  Stator_Winding_Coil: 'Copper form-wound stator winding coil generating the rotating magnetic field.',
+  Rotor_Core: 'Rotating laminated electrical steel core producing electromagnetic torque.',
+  Rotor_Shaft: 'Output drive shaft transmitting motor torque to the propulsion shaftline.',
+  Rotor_Shaft_Aft: 'Aft extension of the rotor shaft carrying the cooling impeller.',
+  Shaft_Output_Taper: 'Tapered output section for rigid coupling to the intermediate shaft.',
+  Shaft_Key: 'Parallel mechanical drive key transmitting driving torque.',
+  Bearing_Front: 'Heavy-duty cylindrical roller bearing carrying high radial loads.',
+  Bearing_Rear: 'Locating deep-groove ball bearing maintaining axial rotor position.',
+  Terminal_Box: 'Teal IP56 terminal box housing the three-phase high-voltage power connections.',
+  Terminal_Box_Lid: 'Protective gasketed lid for the high-voltage terminal box.',
+  Terminal_Gland: 'Marine-grade armoured cable gland for power cable entry.',
+  Lifting_Eye: 'Forged lifting eye for shipyard crane installation and overhaul.',
+  Cooling_Fan_Hub: 'Machined cast-iron hub for the forced-air cooling fan.',
+  Fan_Blade: 'Aerodynamic fan blade drawing cool ambient engine room air across the housing.',
+  Fan_Guard: 'Protective welded wire mesh safety guard for the cooling fan.',
+  Mounting_Foot: 'Heavy-duty mounting foot securing the motor to vessel engine bearers.',
+  Mounting_Bolt: 'High-tensile foundation bolt anchoring the motor foot to the ship structure.',
+  Support_Bracket: 'Auxiliary forward support pedestal stabilizing the motor against pitch and roll.'
+};
+
+function describe(name){
+  for(const k of Object.keys(descriptionFallbacks)){
+    if(name.startsWith(k)) return descriptionFallbacks[k];
+  }
+  return 'Component of the marine electric propulsion motor.';
+}
+
+// --- Explosion registry ---
+function isRotatingPart(name){
+  return (
+    name.startsWith('Rotor_Shaft') ||
+    name === 'Shaft_Output_Taper' ||
+    name === 'Shaft_Key' ||
+    name.startsWith('Cooling_Fan_Hub') ||
+    name.startsWith('Fan_Blade')
+  );
+}
+
+function offset(name){
+  const v = new THREE.Vector3();
+  if(name === 'Motor_Frame' || name.startsWith('Cooling_Rib')) return v.set(0, 0, 0);
+  if(name === 'End_Bell_Front' || name === 'End_Bell_Front_Rim') return v.set(1.7, 0, 0);
+  if(name === 'End_Bell_Rear'  || name === 'End_Bell_Rear_Rim')  return v.set(-1.7, 0, 0);
+  if(name === 'Stator_Core')                        return v.set(0, 1.20, 0);
+  if(name.startsWith('Stator_Winding_Coil'))        return v.set(0, 1.70, 0);
+  if(name === 'Rotor_Core')                         return v.set(0, -1.15, 0);
+  if(name === 'Rotor_Shaft')                        return v.set(2.20, 0, 0);
+  if(name === 'Rotor_Shaft_Aft')                    return v.set(-2.20, 0, 0);
+  if(name === 'Shaft_Output_Taper')                 return v.set(3.20, 0, 0);
+  if(name === 'Shaft_Key')                          return v.set(2.50, 0.45, 0);
+  if(name.startsWith('Bearing_Front'))              return v.set(2.0, 0, 0);
+  if(name.startsWith('Bearing_Rear'))               return v.set(-2.0, 0, 0);
+  if(name.startsWith('Terminal_Box_Lid'))           return v.set(0, 1.80, 0);
+  if(name.startsWith('Terminal_Box'))               return v.set(0, 1.40, 0);
+  if(name.startsWith('Terminal_Gland'))             return v.set(-0.6, 1.40, 0);
+  if(name.startsWith('Lifting_Eye'))                return v.set(0, 1.60, 0);
+  if(name.startsWith('Cooling_Fan_Hub') || name.startsWith('Fan_Blade')) return v.set(-2.50, 0, 0);
+  if(name === 'Fan_Guard')                          return v.set(-3.0, 0, 0);
+  if(name.startsWith('Mounting_Foot'))              return v.set(0, -0.9, 0);
+  if(name.startsWith('Mounting_Bolt'))              return v.set(0, -1.3, 0);
+  if(name === 'Support_Bracket')                    return v.set(2.2, -0.7, 0);
+  return v.set(0, 0, 0);
+}
+
+// --- Load GLB ---
+const modelUrl = window.location.pathname.includes('/assemblies/') ? '../marine_propulsion_motor.glb' : '/marine_propulsion_motor.glb';
+new GLTFLoader().load(modelUrl, (gltf) => {
+  const loadedScene = gltf.scene;
+  loadedScene.updateMatrixWorld(true);
+
+  const meshes = [];
+  loadedScene.traverse((obj) => {
+    if (obj.isMesh) meshes.push(obj);
+  });
+
+  meshes.forEach((mesh) => {
+    if (mesh.material) {
+      if (Array.isArray(mesh.material)) {
+        mesh.material = mesh.material[0].clone();
+      } else {
+        mesh.material = mesh.material.clone();
+      }
+    }
+
+    const isRot = isRotatingPart(mesh.name) || mesh.userData.rotating === true;
+    const targetGroup = isRot ? rotatingGroup : stationaryGroup;
+
+    mesh.userData.originalPos = mesh.position.clone();
+    mesh.userData.explodeVector = offset(mesh.name);
+
+    targetGroup.add(mesh);
+
+    components.push({
+      mesh,
+      name: mesh.name,
+      rest: mesh.position.clone(),
+      offset: mesh.userData.explodeVector
+    });
+  });
+
+  document.querySelector('#status').textContent = `Loaded ${components.length} components`;
+}, undefined, (e) => {
+  document.querySelector('#status').textContent = 'Could not load marine_propulsion_motor.glb';
+  console.error(e);
+});
+
+// --- Controls UI ---
+const explodeInput = document.querySelector('#explode');
+const explodeValue = document.querySelector('#explodeValue');
+function setExplode(v){
+  factor = v;
+  explodeInput.value = v;
+  explodeValue.textContent = `${Math.round(v * 100)}%`;
+}
+explodeInput.oninput = (e) => setExplode(parseFloat(e.target.value));
+document.querySelectorAll('button[data-explode]').forEach((btn) => {
+  btn.onclick = () => setExplode(parseFloat(btn.dataset.explode));
+});
+
+const rpmInput = document.querySelector('#rpm');
+const rpmValue = document.querySelector('#rpmValue');
+rpmInput.oninput = (e) => {
+  rpm = parseFloat(e.target.value);
+  rpmValue.textContent = `${rpm} RPM`;
+};
+
+const pauseBtn = document.querySelector('#pause');
+pauseBtn.onclick = () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? 'Resume rotation' : 'Pause rotation';
+};
+
+document.querySelector('#reset').onclick = () => {
+  camera.position.set(-4.7, 3.5, 6.6);
+  controls.target.set(0, 0, 0);
+  controls.update();
+};
+
+function selectMesh(mesh){
+  selected = mesh;
+  components.forEach(c => {
+    if(c.mesh.material && c.mesh.material.emissive){
+      c.mesh.material.emissive.set(c.mesh === mesh ? '#38bdf8' : '#000000');
+      c.mesh.material.emissiveIntensity = c.mesh === mesh ? 0.4 : 0;
+    }
+  });
+
+  const info = document.querySelector('#info');
+  if(!mesh){
+    info.innerHTML = '<strong>Click a component</strong><p class="muted">Select a housing, stator coil, rotor, bearing, terminal, or fan part to inspect it.</p>';
+    return;
+  }
+  info.innerHTML = `<strong>${mesh.name.replace(/_/g, ' ')}</strong><p>${describe(mesh.name)}</p>`;
+}
+
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (Math.abs(e.movementX) > 3 || Math.abs(e.movementY) > 3) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(components.map(c => c.mesh), false);
+  if(hits.length > 0){
+    selectMesh(hits[0].object);
+  } else {
+    selectMesh(null);
+  }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// --- Render Loop ---
+let lastTime = performance.now();
+function render(time){
+  requestAnimationFrame(render);
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  // Explosion lerp
+  const diff = factor - currentFactor;
+  if(Math.abs(diff) > 0.0005){
+    currentFactor += diff * Math.min(1, dt * 7.0);
+    for(const c of components){
+      const dest = c.rest.clone().addScaledVector(c.offset, currentFactor);
+      c.mesh.position.copy(dest);
+    }
+  }
+
+  // Live rotation
+  if(!paused && rpm > 0){
+    const radPerSec = (rpm * 2 * Math.PI) / 60;
+    rotatingGroup.rotation.x += dt * radPerSec;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(render);
+</script></body></html>

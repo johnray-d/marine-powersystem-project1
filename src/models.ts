@@ -23,21 +23,22 @@ export const modelParts:Record<ModelType,PartSpec[]> = {
   ],
   'lv-board':detailedParts['lv-board'],
   drive:[
-    p('cabinet','Drive cabinet','Encloses the power electronics and control sections.','box',[0,0,0],[3.2,2.35,1.4],navy),
-    p('input','Input stage','Receives electrical power from the main switchboard.','box',[-0.95,0,0.78],[0.62,1.5,0.25],blue),
-    p('dc','DC link','Intermediate energy path between input and inverter stages.','box',[0,0,0.78],[0.65,1.5,0.25],copper),
-    p('inverter','Inverter modules','Switch power electronically to control motor speed and torque.','box',[0.95,0,0.78],[0.62,1.5,0.25],teal),
-    p('cooling','Cooling assembly','Carries heat away from the power electronics.','box',[0,-0.95,0.2],[2.6,0.25,0.9],steel),
-    p('controller','Control unit','Commands switching and monitors the drive. Detailed control is outside V1.','box',[0,1.28,0],[1.15,0.33,0.55],amber)
+    p('cabinet','01 Drive cabinet & frame','Structural support, mounting feet, roof, enclosure and access panels. The front is open for internal inspection.','box',[0,0,0],[3.2,2.35,1.4],navy),
+    p('input','02 MV input stage','Incoming 6.6 kV cable glands, vacuum switchgear, fuse carriers, and line reactors.','box',[-0.95,0,0.78],[0.62,1.5,0.25],blue),
+    p('dc','03 DC link capacitor bank','Intermediate DC energy storage, capacitors, copper busbars and precharge resistors.','box',[-0.35,0,0.78],[0.65,1.5,0.25],copper),
+    p('inverter','04 Inverter power modules','IGBT switching cells, gate drivers, cooling plates and heat-sink fins.','box',[0.35,0,0.78],[0.62,1.5,0.25],teal),
+    p('cooling','05 Liquid cooling circuit','Circulating pump, plate heat exchanger, manifold headers, and pressure gauges.','box',[0.95,-0.5,0.4],[0.7,0.45,0.5],steel),
+    p('controller','06 Control & protection rack','HMI display, PLC processor rack, optocoupler I/O cards, and emergency stop.','box',[0.95,0.6,0.78],[0.55,0.85,0.25],amber),
+    p('output','07 Motor output terminals','Three-phase power cable gland array feeding the propulsion motor.','cylinder',[0.45,-0.9,0.78],[0.6,0.25,0.25],dark)
   ],
   motor:[
-    p('frame','Motor frame','Supports and protects the motor’s internal parts.','cylinder',[0,0,0],[2.5,1.5,1.5],navy),
-    p('stator','Stator winding','Stationary winding creates a rotating magnetic field.','cylinder',[0,0,0],[2.2,1.14,1.14],blue),
-    p('rotor','Rotor','Turns inside the stator as electromagnetic forces act on it.','cylinder',[0,0,0],[2.8,0.58,0.58],copper),
-    p('shaft','Output shaft','Transfers motor torque to the propeller shaft line.','cylinder',[1.62,0,0],[1.5,0.18,0.18],steel),
-    p('bearings','Bearings','Support the rotating shaft and keep it aligned.','torus',[-1.05,0,0],[0.8,0.8,0.2],amber),
-    p('terminal','Terminal box','Receives the controlled electrical supply from the propulsion drive.','box',[-0.35,0.95,0],[0.9,0.4,0.68],teal),
-    p('fan','Cooling fan and guard','Moves cooling air over the motor frame; the guard keeps objects away from the fan.','cylinder',[-1.42,0,0],[.28,1.36,1.36],steel)
+    p('frame','01 Stator frame & ribs','Cast-iron cylindrical housing with integral cooling jacket and circumferential cooling fins.','cylinder',[0,0,0],[2.5,1.5,1.5],navy),
+    p('stator','02 Stator core & windings','Low-loss silicon steel core carrying 6.6 kV vacuum-pressure impregnated copper coils.','cylinder',[0,0,0],[2.2,1.14,1.14],blue),
+    p('rotor','03 Squirrel-cage rotor','Heavy laminated electrical steel rotor producing continuous propulsion torque.','cylinder',[0,0,0],[2.8,0.58,0.58],copper),
+    p('shaft','04 Drive output shaft & key','High-tensile alloy shaft with drive key and precision propeller coupling taper.','cylinder',[1.62,0,0],[1.5,0.18,0.18],steel),
+    p('bearings','05 Heavy-duty bearings','DE cylindrical roller bearing and NDE deep-groove locating ball bearing.','torus',[-1.05,0,0],[0.8,0.8,0.2],amber),
+    p('terminal','06 6.6 kV Terminal box','IP56 marine enclosure with standoff insulators and armoured cable gland array.','box',[-0.35,0.95,0],[0.9,0.4,0.68],teal),
+    p('fan','07 Bi-directional cooling fan','Aft shaft-mounted cooling impeller and protective wire guard forcing air over frame ribs.','cylinder',[-1.42,0,0],[.28,1.36,1.36],steel)
   ],
   thruster:detailedParts.thruster,
   reefer:[

@@ -4,6 +4,9 @@ import { modelParts } from './models';
 import { VesselView, ExplodedView } from './scene';
 import { propellerAssembly } from './propeller-assembly';
 import { transformerAssembly } from './transformer-assembly';
+import { driveAssembly } from './drive-assembly';
+import { motorAssembly } from './motor-assembly';
+import { steeringAssembly } from './steering-assembly';
 import { resolveAssemblyUrl } from './assets';
 
 type View='vessel'|'schematic';
@@ -455,6 +458,30 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'TRANSFORMER CAD ASSEMBLY & SPECS'
     };
   }
+  if (selectedId === 'drive' || model === 'drive') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_propulsion_drive_assembly.html'),
+      title: 'Marine Propulsion Drive / Converter — 3D Explodable CAD Assembly',
+      subtitle: 'Medium-Voltage Frequency Converter · Multi-Pulse Input Stage · Water-Cooled IGBT Inverter Stacks · DC Link Capacitor Bank · Control & Protection Casing',
+      tag: 'PROPULSION DRIVE CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'motor' || model === 'motor') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_propulsion_motor_assembly.html'),
+      title: 'Marine Electric Propulsion Motor — 3D Explodable CAD Assembly',
+      subtitle: '6.6 kV Squirrel-Cage Induction Motor · Low-Loss Laminated Stator & Rotor · Form-Wound Copper Coils · Heavy-Duty Bearings · Bi-Directional Cooling Fan',
+      tag: 'PROPULSION MOTOR CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'steering' || selectedId === 'eSteer') {
+    return {
+      url: resolveAssemblyUrl('3d_marine_steering_gear_assembly.html'),
+      title: 'Marine Steering Gear — 3D Explodable CAD Assembly',
+      subtitle: 'Twin-Ram Electro-Hydraulic Steering Gear · Forged Rudder Stock · Double-Acting Crosshead Tiller · Axial Piston Pump · SOLAS Steering Standard',
+      tag: 'STEERING GEAR CAD ASSEMBLY & SPECS'
+    };
+  }
   return null;
 }
 
@@ -561,6 +588,84 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
+    ${selected === 'drive' || e?.kind === 'drive' || model === 'drive' ? `
+      <div class="drive-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Propulsion Frequency Converter</h4>
+          </div>
+          <span id="drive-explosion-val" class="drive-val-badge">${Math.round(driveAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the MV input switchgear, DC link capacitor bank, water-cooled IGBT inverter stacks, closed-loop cooling system, and digital control rack.
+        </p>
+        <div class="drive-slider-row">
+          <label for="drive-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="drive-explosion-slider" min="0" max="1" step="0.01" value="${driveAssembly.targetExplosionFactor}">
+        </div>
+        <div class="drive-presets">
+          <button type="button" class="preset-btn" data-drive-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-drive-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-drive-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
+    ${selected === 'motor' || e?.kind === 'motor' || model === 'motor' ? `
+      <div class="motor-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Electric Propulsion Motor</h4>
+          </div>
+          <span id="motor-explosion-val" class="motor-val-badge">${Math.round(motorAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the cast ribbed stator frame, 6.6 kV form-wound coils, squirrel-cage rotor, alloy drive shaft, heavy roller bearings, and aft cooling fan.
+        </p>
+        <div class="motor-slider-row">
+          <label for="motor-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="motor-explosion-slider" min="0" max="1" step="0.01" value="${motorAssembly.targetExplosionFactor}">
+        </div>
+        <div class="motor-presets">
+          <button type="button" class="preset-btn" data-motor-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-motor-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-motor-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
+    ${selected === 'steering' || selected === 'eSteer' || e?.id === 'steering' || e?.id === 'eSteer' ? `
+      <div class="steering-controls-card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Electro-Hydraulic Steering Gear</h4>
+          </div>
+          <span id="steering-explosion-val" class="steering-val-badge">${Math.round(steeringAssembly.targetExplosionFactor * 100)}%</span>
+        </div>
+        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
+          Explode the heavy cast bedplate, vertical rudder stock, crosshead tiller arm, port and starboard hydraulic rams, reciprocating pistons, and hydraulic power pack.
+        </p>
+        <div class="steering-slider-row">
+          <label for="steering-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
+            <span>Explosion Displacement</span>
+            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
+          </label>
+          <input type="range" id="steering-explosion-slider" min="0" max="1" step="0.01" value="${steeringAssembly.targetExplosionFactor}">
+        </div>
+        <div class="steering-presets">
+          <button type="button" class="preset-btn" data-steering-preset="0">0% Assembled</button>
+          <button type="button" class="preset-btn" data-steering-preset="0.45">45% Sub-Assy</button>
+          <button type="button" class="preset-btn" data-steering-preset="1.0">100% Full Exploded View</button>
+        </div>
+      </div>
+    ` : ''}
     ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
@@ -607,6 +712,66 @@ function renderInspector(){
         transformerAssembly.setExplosionFactor(factor);
         if (txSlider) txSlider.value = String(factor);
         const label = document.getElementById('transformer-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
+  if (selected === 'drive' || e?.kind === 'drive' || model === 'drive') {
+    const driveSlider = document.getElementById('drive-explosion-slider') as HTMLInputElement;
+    driveSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      driveAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('drive-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-drive-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.drivePreset || '0');
+        driveAssembly.setExplosionFactor(factor);
+        if (driveSlider) driveSlider.value = String(factor);
+        const label = document.getElementById('drive-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
+  if (selected === 'motor' || e?.kind === 'motor' || model === 'motor') {
+    const motorSlider = document.getElementById('motor-explosion-slider') as HTMLInputElement;
+    motorSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      motorAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('motor-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-motor-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.motorPreset || '0');
+        motorAssembly.setExplosionFactor(factor);
+        if (motorSlider) motorSlider.value = String(factor);
+        const label = document.getElementById('motor-explosion-val');
+        if (label) label.textContent = `${Math.round(factor * 100)}%`;
+      });
+    });
+  }
+
+  if (selected === 'steering' || selected === 'eSteer' || e?.id === 'steering' || e?.id === 'eSteer') {
+    const steerSlider = document.getElementById('steering-explosion-slider') as HTMLInputElement;
+    steerSlider?.addEventListener('input', (ev) => {
+      const factor = parseFloat((ev.target as HTMLInputElement).value);
+      steeringAssembly.setExplosionFactor(factor);
+      const label = document.getElementById('steering-explosion-val');
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+
+    pane.querySelectorAll<HTMLButtonElement>('[data-steering-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const factor = parseFloat(btn.dataset.steeringPreset || '0');
+        steeringAssembly.setExplosionFactor(factor);
+        if (steerSlider) steerSlider.value = String(factor);
+        const label = document.getElementById('steering-explosion-val');
         if (label) label.textContent = `${Math.round(factor * 100)}%`;
       });
     });

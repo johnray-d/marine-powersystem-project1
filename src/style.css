@@ -1156,3 +1156,180 @@ body.has-assembly-modal{
   border-color: #38bdf8;
 }
 
+/* Propulsion Drive Exploded Assembly Inspection UI */
+.drive-controls-card {
+  margin-top: 14px;
+  background: linear-gradient(180deg, #132230 0%, #0d1722 100%);
+  border: 1px solid #234057;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.drive-controls-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.drive-val-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  box-shadow: 0 0 8px rgba(2,132,199,0.4);
+}
+.drive-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.drive-slider-row input[type=range] {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+.drive-presets {
+  display: flex;
+  gap: 6px;
+}
+.drive-presets button {
+  flex: 1;
+  background: #182d3e;
+  border: 1px solid #2d4f6d;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.drive-presets button:hover {
+  background: #23445e;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+/* Electric Propulsion Motor Exploded Assembly Inspection UI */
+.motor-controls-card {
+  margin-top: 14px;
+  background: linear-gradient(180deg, #132230 0%, #0d1722 100%);
+  border: 1px solid #234057;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.motor-controls-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.motor-val-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  box-shadow: 0 0 8px rgba(2,132,199,0.4);
+}
+.motor-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.motor-slider-row input[type=range] {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+.motor-presets {
+  display: flex;
+  gap: 6px;
+}
+.motor-presets button {
+  flex: 1;
+  background: #182d3e;
+  border: 1px solid #2d4f6d;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.motor-presets button:hover {
+  background: #23445e;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+/* Steering Gear Exploded Assembly Inspection UI */
+.steering-controls-card {
+  margin-top: 14px;
+  background: linear-gradient(180deg, #132230 0%, #0d1722 100%);
+  border: 1px solid #234057;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.steering-controls-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.steering-val-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  box-shadow: 0 0 8px rgba(2,132,199,0.4);
+}
+.steering-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.steering-slider-row input[type=range] {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+.steering-presets {
+  display: flex;
+  gap: 6px;
+}
+.steering-presets button {
+  flex: 1;
+  background: #182d3e;
+  border: 1px solid #2d4f6d;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.steering-presets button:hover {
+  background: #23445e;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
