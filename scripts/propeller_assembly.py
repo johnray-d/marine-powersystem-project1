@@ -3,20 +3,31 @@ Run in Blender > Scripting. GLB exports beside this script (or home folder for u
 Axis: X; aft/propeller at negative X; forward at positive X.
 Units are illustrative meters, not design-certified dimensions.
 """
-import bpy, math, os
-from mathutils import Vector
+import bpy  # type: ignore
+import math
+import os
+import shutil
+from mathutils import Vector  # type: ignore
 from math import sin, cos, pi
 
 EXPORT_GLB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "marine_propeller_assembly.glb")
+EXPORT_GLB_ALIAS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "marine_propeller.glb")
+
 BLADE_COUNT = 4
+# Blade tuning: larger radius and narrower chord produce a slender silhouette.
+BLADE_RADIUS = 1.62
+BLADE_CHORD_SCALE = 0.73
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 for m in list(bpy.data.materials): bpy.data.materials.remove(m)
 
 PARTS=[]
 def material(name, rgba, metallic=0, roughness=.4):
     m=bpy.data.materials.new(name); m.diffuse_color=(*rgba,1); m.use_nodes=True
-    bs=m.node_tree.nodes.get('Principled BSDF'); bs.inputs['Base Color'].default_value=(*rgba,1)
-    bs.inputs['Metallic'].default_value=metallic; bs.inputs['Roughness'].default_value=roughness
+    bs=m.node_tree.nodes.get('Principled BSDF')
+    if bs:
+        bs.inputs['Base Color'].default_value=(*rgba,1)
+        bs.inputs['Metallic'].default_value=metallic
+        bs.inputs['Roughness'].default_value=roughness
     return m
 bronze=material('PBR_Bronze_Propeller',(.68,.38,.095),.86,.23)
 bronze_edge=material('PBR_Bronze_Hub',(.53,.28,.075),.82,.31)
@@ -40,18 +51,24 @@ def cyl(name,x,r,depth,mat,rot=False,vertices=64):
     return finish(o,name,mat,rot)
 
 def ring(name,x0,x1,inner,outer,mat,rot=False,segments=96,start=0,end=2*pi):
+    """Closed annular extrusion, optionally with an open angular inspection sector."""
     verts=[]; faces=[]; n=segments
     for x,r in ((x0,inner),(x0,outer),(x1,inner),(x1,outer)):
         for i in range(n+1):
-            a=start+(end-start)*i/n; verts.append((x,r*cos(a),r*sin(a)))
+            a=start+(end-start)*i/n
+            verts.append((x,r*cos(a),r*sin(a)))
+    stride=n+1
     for i in range(n):
-        faces.extend(((i,i+1,n+1+i,n+i),
-                      (2*n+2+i,3*n+3+i,3*n+2+i,2*n+3+i),
-                      (n+i,n+i+1,3*n+3+i,3*n+2+i),
-                      (2*n+2+i,2*n+3+i,i+1,i)))
-    if end-start<2*pi-.01:
-        for j in (0,n): faces.append((j,n+1+j,3*n+3+j,2*n+2+j))
-    mesh=bpy.data.meshes.new(name); mesh.from_pydata(verts,[],faces);mesh.update()
+        a=i; b=i+1
+        # inner cylindrical wall, outer cylindrical wall, and two end annuli
+        faces.extend(((a,b,stride+b,stride+a),
+                      (stride+a,stride+b,3*stride+b,3*stride+a),
+                      (2*stride+a,3*stride+a,3*stride+b,2*stride+b),
+                      (a,2*stride+a,2*stride+b,b)))
+    if end-start < 2*pi-.001:
+        for j in (0,n):
+            faces.append((j,stride+j,3*stride+j,2*stride+j))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o)
     return finish(o,name,mat,rot)
 
@@ -80,18 +97,19 @@ def make_blade(k):
     N=28; M=14; vertices=[]; faces=[]
     for side in (-1,1):
         for i in range(N+1):
-            t=i/N; radius=.20+1.10*t
+            t=i/N; radius=.23+BLADE_RADIUS*t
             # tip rounds away; broad blade with progressive chord taper
-            chord=.27+.45*sin(pi*t)**.78
-            chord*=max(.035,(1-t**7)**.4)
-            sweep=-.11-.28*t+.075*sin(pi*t)
-            twist=.52*(1-t)-.16*t
+            # Narrower, longer, rounded blade planform; avoid oversized paddle tips.
+            chord=(.19 + .38 * sin(pi * (.08 + .84*t))**.85) * BLADE_CHORD_SCALE
+            chord *= max(.045, (1 - t**10)**.48)
+            sweep=-.09-.25*t+.035*sin(pi*t)
+            twist=.60*(1-t)-.12*t
             for j in range(M+1):
                 u=2*j/M-1
-                camber=.105*(1-u*u)*sin(pi*t)**.7
-                thick=(.036*(1-t)+.006)*math.sqrt(max(0,1-u*u))
+                camber=.045*(1-u*u)*sin(pi*t)**.7
+                thick=(.026*(1-t)+.003)*math.sqrt(max(0,1-u*u))
                 axial=sweep + chord*u*cos(twist)+camber+side*thick
-                tang=chord*u*sin(twist)+.15*t*t
+                tang=chord*u*sin(twist)+.13*t*t
                 p=Vector((-1.52+axial,0,0))+radial*radius+tangent*tang
                 vertices.append(tuple(p))
     layer=(N+1)*(M+1)
@@ -102,11 +120,14 @@ def make_blade(k):
                 a=base+i*(M+1)+j;b=a+1;c=b+M+1;d=a+M+1
                 faces.append((a,b,c,d) if side else (d,c,b,a))
     for i in range(N):
-        a=i*(M+1);b=(i+1)*(M+1)
-        faces.extend(((a,b,b+layer,a+layer),(a+M+1,b+M+1,b+M+1+layer,a+M+1+layer)))
+        a0 = i*(M+1); b0 = (i+1)*(M+1)
+        faces.append((a0, b0, b0+layer, a0+layer))
+        a1 = a0 + M; b1 = b0 + M
+        faces.append((a1, a1+layer, b1+layer, b1))
     for j in range(M):
-        faces.extend(((j,j+1,j+1+layer,j+layer),
-                      (N*(M+1)+j+1,N*(M+1)+j,N*(M+1)+j+layer,N*(M+1)+j+1+layer)))
+        faces.append((j, j+1, j+1+layer, j+layer))
+        tip_a = N*(M+1)+j; tip_b = tip_a + 1
+        faces.append((tip_a, tip_a+layer, tip_b+layer, tip_b))
     mesh=bpy.data.meshes.new('BladeMesh');mesh.from_pydata(vertices,[],faces);mesh.update()
     o=bpy.data.objects.new(f'Propeller_Blade_{k+1}',mesh);bpy.context.collection.objects.link(o)
     finish(o,o.name,bronze,True)
@@ -115,11 +136,28 @@ for k in range(BLADE_COUNT):make_blade(k)
 
 # Cutaway stationary stern tube. 90-degree front-right quadrant removed.
 # Angular cut reveals the internal rings, shaft and seals.
-start=.30*pi;end=1.82*pi
+# A smaller inspection opening retains more of the surrounding tube wall.
+# The housing is intentionally cut away only at the viewer-facing upper quadrant.
+start=.38*pi;end=1.93*pi
 ring('Stern_Tube_Housing_Cutaway',-.20,1.90,.285,.53,housing,False,96,start,end)
 ring('Stern_Tube_Liner_Cutaway',-.18,1.82,.265,.289,red,False,96,start,end)
 ring('Stern_Tube_Cut_Edge_Aft',-.23,-.18,.282,.54,white,False,96,start,end)
 ring('Stern_Tube_Cut_Edge_Fwd',1.82,1.88,.282,.54,white,False,96,start,end)
+# Additional cast stern-tube closure and reinforcement pieces. These restore
+# the previously visually incomplete aft/side housing while keeping an inspection slot.
+ring('Aft_Gland_Outer_Casing',-.49,-.23,.28,.48,housing,False,96,start,end)
+ring('Aft_Gland_Cut_Face',-.50,-.46,.28,.48,white,False,96,start,end)
+ring('Aft_Gland_Gasket',-.44,-.40,.265,.295,seal,False,96,start,end)
+ring('Forward_Tube_End_Collar',1.88,2.00,.29,.56,housing,False,96,start,end)
+ring('Forward_Tube_End_Trim',1.97,2.00,.30,.57,white,False,96,start,end)
+# Narrow longitudinal lips cap the two exposed radial edges of the shell.
+for side,a in enumerate((start,end),1):
+    y,z=math.cos(a),math.sin(a)
+    bpy.ops.mesh.primitive_cube_add(size=1,location=(.80,.408*y,.408*z))
+    lip=bpy.context.object
+    lip.scale=(1.04,.020,.020)
+    lip.rotation_euler[0]=a
+    finish(lip,f'Housing_Cut_Edge_Rail_{side}',white)
 # Bearings are full rings with exposed cross section in the cutaway
 ring('Stern_Tube_Bearing_Aft',.10,.57,.148,.263,bearing)
 ring('Stern_Tube_Bearing_Forward',1.17,1.64,.148,.263,bearing)
@@ -152,6 +190,15 @@ for i in range(3):
 # Key / keyway indicator, on top of aft shaft
 bpy.ops.mesh.primitive_cube_add(size=1,location=(-1.04,0,.147))
 o=bpy.context.object;o.scale=(.37,.06,.035);finish(o,'Propeller_Key',steel_dark,True);bevel(o,.008)
+
+# Cap screws on aft gland to complete the visible sealing hardware.
+for i in range(8):
+    a=2*pi*i/8
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12,radius=.027,depth=.055,
+        location=(-.515,.395*cos(a),.395*sin(a)))
+    fastener=bpy.context.object
+    fastener.rotation_euler[1]=pi/2
+    finish(fastener,f'Aft_Gland_Bolt_{i+1}',steel_dark)
 
 # Camera / lighting for immediate preview
 world=bpy.context.scene.world
@@ -186,3 +233,7 @@ for o in PARTS:o.select_set(True)
 bpy.context.view_layer.objects.active=PARTS[0]
 bpy.ops.export_scene.gltf(filepath=EXPORT_GLB_PATH,export_format='GLB',use_selection=True,export_apply=True,export_yup=True)
 print(f'EXPORTED: {EXPORT_GLB_PATH} ({len(PARTS)} mechanical parts)')
+
+# Also write alias for marine_propeller.glb
+shutil.copyfile(EXPORT_GLB_PATH, EXPORT_GLB_ALIAS)
+print(f'COPIED ALIAS: {EXPORT_GLB_ALIAS}')

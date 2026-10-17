@@ -519,7 +519,7 @@ function renderInspector(){
           <span id="propeller-explosion-val" class="propeller-val-badge">${Math.round(propellerAssembly.targetExplosionFactor * 100)}%</span>
         </div>
         <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the nickel-aluminum bronze hub, blades, thrust washer, retaining nut, mechanical seals, and stern tube cutaway.
+          Explode the nickel-aluminum bronze hub, 4 slender Kaplan blades, thrust washer, retaining nut, multi-stage seals, aft gland, and stern tube cutaway.
         </p>
         <div class="propeller-slider-row">
           <label for="propeller-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">

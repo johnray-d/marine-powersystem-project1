@@ -166,7 +166,7 @@
     <aside class="fixed top-20 left-3 bottom-24 w-72 sm:w-80 z-20 glass-panel rounded-2xl p-3 flex flex-col pointer-events-auto shadow-2xl">
         <div class="flex items-center justify-between pb-2 border-b border-slate-700/60 mb-2">
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mono">Assembly BOM (12 Units)</h2>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mono">Assembly BOM (14 Units)</h2>
                 <p class="text-[11px] text-slate-500">Click any component to inspect</p>
             </div>
             <button onclick="resetSelection()" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold px-2 py-1 rounded bg-sky-500/10 border border-sky-500/30 transition">
@@ -342,12 +342,12 @@
             {
                 id: 'blades',
                 code: 'PRT-03',
-                name: '5-Blade Skewed Kaplan Propeller Blades',
-                shortLabel: '5-BLADE PROPELLER',
-                desc: 'Five high-skew Kaplan hydrodynamic blades designed for minimum vibration, acoustic quietness, and cavitation resistance.',
+                name: '4-Blade Skewed Kaplan Propeller Blades',
+                shortLabel: '4-BLADE PROPELLER',
+                desc: 'Four high-skew Kaplan hydrodynamic bronze blades with radial camber and progressive twist designed for minimum vibration, acoustic quietness, and cavitation resistance.',
                 material: 'Ni-Al Bronze Cu3',
-                axis: 'Radial & Axial (-X: -1.8, Radial R: 1.25)',
-                explodeOffset: new THREE.Vector3(-1.8, 0, 0), // Base offset; individual blades diverge radially
+                axis: 'Radial & Axial (-X: -0.5, Radial R: 1.05)',
+                explodeOffset: new THREE.Vector3(-0.5, 0, 0), // Base offset; individual blades diverge radially
                 labelAnchorOffset: new THREE.Vector3(-1.5, 1.25, 0),
                 labelScreenDir: { x: -80, y: -70 },
                 isRotating: true,
@@ -468,16 +468,44 @@
             {
                 id: 'stern_tube_casing',
                 code: 'PRT-12',
-                name: 'Stern Tube Structural Casting (90° Cutaway)',
+                name: 'Stern Tube Structural Casting (Cutaway)',
                 shortLabel: 'STERN TUBE CASING',
-                desc: 'Heavy cast-steel structural stern tube housing welded into the afterpeak bulkhead and stern bossing, featuring a 90° engineering cutaway.',
+                desc: 'Heavy cast-steel structural stern tube housing welded into the afterpeak bulkhead and stern bossing, featuring an upper quadrant engineering cutaway.',
                 material: 'Ductile Cast Steel GS-45',
                 axis: 'Stationary Reference Datum (0,0,0)',
-                explodeOffset: new THREE.Vector3(0.1, 0, 0.65),
-                labelAnchorOffset: new THREE.Vector3(0.2, 0.65, 0.65),
+                explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+                labelAnchorOffset: new THREE.Vector3(0.2, 0.65, 0.35),
                 labelScreenDir: { x: 0, y: -75 },
                 isRotating: false,
                 meshMatch: name => /^(Stern_Tube|Shaft_Bracket|Housing_Reinforcement)/.test(name)
+            },
+            {
+                id: 'aft_gland',
+                code: 'PRT-13',
+                name: 'Aft Gland Seal Closure & Studs',
+                shortLabel: 'AFT GLAND HOUSING',
+                desc: 'Cast stern tube housing closure retaining intermediate seals and bearing liners, clamped with 8 high-tensile cap screws.',
+                material: 'Cast Iron & High-Tensile Steel',
+                axis: 'Axial Offset (+X: 0.1, Z: 0.35)',
+                explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+                labelAnchorOffset: new THREE.Vector3(-0.5, 0.45, 0.35),
+                labelScreenDir: { x: -80, y: 40 },
+                isRotating: false,
+                meshMatch: name => /^(Aft_Gland)/.test(name)
+            },
+            {
+                id: 'tube_collars',
+                code: 'PRT-14',
+                name: 'Stern Tube End Collars & Cut Rails',
+                shortLabel: 'COLLARS & RAILS',
+                desc: 'Forward casing flange securing the tube to the engine room bulkhead and longitudinal rails capping the cutaway inspection quadrant.',
+                material: 'Cast Iron & Milled Trim',
+                axis: 'Axial Offset (+X: 0.1, Z: 0.35)',
+                explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+                labelAnchorOffset: new THREE.Vector3(1.85, 0.60, 0.35),
+                labelScreenDir: { x: 75, y: -30 },
+                isRotating: false,
+                meshMatch: name => /^(Forward_Tube_End|Housing_Cut_Edge_Rail)/.test(name)
             }
         ];
 
@@ -600,8 +628,12 @@
                     let offset = matchedPart.explodeOffset.clone();
                     if (mesh.name.startsWith('Propeller_Blade_')) {
                         const idx = parseInt(mesh.name.split('_').pop() || '1', 10) - 1;
-                        const angle = (2 * Math.PI * idx) / 5 + Math.PI / 8;
-                        offset = new THREE.Vector3(-1.8, Math.sin(angle) * 1.35, -Math.cos(angle) * 1.35);
+                        const angle = (2 * Math.PI * idx) / 4 + Math.PI / 8;
+                        offset = new THREE.Vector3(-0.5, Math.sin(angle) * 1.05, -Math.cos(angle) * 1.05);
+                    } else if (mesh.name.startsWith('Coupling_Bolt_')) {
+                        offset = new THREE.Vector3(1.15, 0, 0);
+                    } else if (mesh.name.startsWith('Aft_Gland_Bolt_')) {
+                        offset = new THREE.Vector3(-0.35, 0, 0);
                     }
 
                     animatedParts.push({
@@ -906,7 +938,11 @@
             isCutawayVisible = !isCutawayVisible;
             const btnText = document.getElementById('cutaway-text');
             btnText.textContent = isCutawayVisible ? 'Stern Tube: Cutaway' : 'Stern Tube: Hidden';
-            const casingMeshes = partMeshMap['stern_tube_casing'] || [];
+            const casingMeshes = [
+                ...(partMeshMap['stern_tube_casing'] || []),
+                ...(partMeshMap['aft_gland'] || []),
+                ...(partMeshMap['tube_collars'] || [])
+            ];
             casingMeshes.forEach(m => { m.visible = isCutawayVisible; });
         }
 

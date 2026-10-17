@@ -1,7 +1,8 @@
-import bpy
-import bmesh
+import bpy  # type: ignore
+import bmesh  # type: ignore
 import math
-from mathutils import Vector
+from mathutils import Vector  # type: ignore
+
 
 # ==============================================================================
 # CONFIGURATION & ALIGNMENT WITH vessel-layout.ts

@@ -1,10 +1,15 @@
 # Marine Power System Simulator · V1
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f?style=flat&logo=github)](https://johnray-d.github.io/marine-powersystem-project1/)
 [![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-0.186-black?style=flat&logo=three.js&logoColor=white)](https://threejs.org/)
 
 An interactive, browser-based 3D educational simulator modeling electrical power generation, medium-voltage distribution, and propulsion systems aboard a **generic electric-propulsion container vessel**.
+
+> [!TIP]
+> 🌐 **Live Demo**: Access the running simulator directly at **[https://johnray-d.github.io/marine-powersystem-project1/](https://johnray-d.github.io/marine-powersystem-project1/)**.
+
 
 ---
 
@@ -160,13 +165,12 @@ flowchart TD
 
 ---
 
-## 🚀 Deployment to GitHub Pages
+## 🚀 Deployment & Live Site
 
-The project includes an automated deployment workflow via [GitHub Actions](.github/workflows/deploy.yml).
+* **Production URL**: **[https://johnray-d.github.io/marine-powersystem-project1/](https://johnray-d.github.io/marine-powersystem-project1/)**
 
-1. In your GitHub repository, navigate to **Settings → Pages**.
-2. Under **Build and deployment → Source**, select **GitHub Actions**.
-3. Any push to the `main` branch will automatically compile and deploy the simulator to GitHub Pages.
+The project includes an automated deployment workflow via [GitHub Actions](.github/workflows/deploy.yml). Any push to the `main` branch automatically compiles and deploys the latest simulator build to GitHub Pages.
+
 
 ---
 

@@ -64,36 +64,30 @@ export const PROPELLER_EXPLOSION_MAP: Record<string, PropellerComponentMeta> = {
     description: 'Precision 1:12 ground taper fitting directly into the propeller hub bore.'
   },
 
-  // --- Individual Blades (Explode radially outward perpendicular to the shaft) ---
+  // --- Individual Blades (Explode radially outward perpendicular to the shaft, 4-blade Kaplan) ---
   Propeller_Blade_1: {
-    name: 'Blade 1',
+    name: 'Blade 1 (Upper Stbd)',
     category: 'Propeller',
-    explodeOffset: new THREE.Vector3(-1.8, 1.2, 0.0),
-    description: 'Skewed Kaplan-profile nickel-aluminum bronze blade.'
+    explodeOffset: new THREE.Vector3(-0.5, 0.40, -0.97),
+    description: 'Slender skewed Kaplan-profile nickel-aluminum bronze blade with radial camber and twist.'
   },
   Propeller_Blade_2: {
-    name: 'Blade 2',
+    name: 'Blade 2 (Upper Port)',
     category: 'Propeller',
-    explodeOffset: new THREE.Vector3(-1.8, 0.37, 1.14),
-    description: 'Skewed Kaplan-profile nickel-aluminum bronze blade.'
+    explodeOffset: new THREE.Vector3(-0.5, 0.97, 0.40),
+    description: 'Slender skewed Kaplan-profile nickel-aluminum bronze blade with radial camber and twist.'
   },
   Propeller_Blade_3: {
-    name: 'Blade 3',
+    name: 'Blade 3 (Lower Port)',
     category: 'Propeller',
-    explodeOffset: new THREE.Vector3(-1.8, -0.97, 0.70),
-    description: 'Skewed Kaplan-profile nickel-aluminum bronze blade.'
+    explodeOffset: new THREE.Vector3(-0.5, -0.40, 0.97),
+    description: 'Slender skewed Kaplan-profile nickel-aluminum bronze blade with radial camber and twist.'
   },
   Propeller_Blade_4: {
-    name: 'Blade 4',
+    name: 'Blade 4 (Lower Stbd)',
     category: 'Propeller',
-    explodeOffset: new THREE.Vector3(-1.8, -0.97, -0.70),
-    description: 'Skewed Kaplan-profile nickel-aluminum bronze blade.'
-  },
-  Propeller_Blade_5: {
-    name: 'Blade 5',
-    category: 'Propeller',
-    explodeOffset: new THREE.Vector3(-1.8, 0.37, -1.14),
-    description: 'Skewed Kaplan-profile nickel-aluminum bronze blade.'
+    explodeOffset: new THREE.Vector3(-0.5, -0.97, -0.40),
+    description: 'Slender skewed Kaplan-profile nickel-aluminum bronze blade with radial camber and twist.'
   },
 
   // --- Shaft Seals & Mechanical Face Seals (Explode along X into hull inspection space) ---
@@ -276,6 +270,48 @@ export const PROPELLER_EXPLOSION_MAP: Record<string, PropellerComponentMeta> = {
     category: 'Structure',
     explodeOffset: new THREE.Vector3(0, 0, 0),
     description: 'Cast-steel after-peak structural bossing with a 90° cutaway inspection window.'
+  },
+  Aft_Gland_Outer_Casing: {
+    name: 'Aft Gland Outer Casing',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Cast stern tube housing closure retaining intermediate seals and bearing liners.'
+  },
+  Aft_Gland_Cut_Face: {
+    name: 'Aft Gland Machined Face',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Milled face highlight on the aft gland inspection opening.'
+  },
+  Aft_Gland_Gasket: {
+    name: 'Aft Gland Compression Gasket',
+    category: 'Seals',
+    explodeOffset: new THREE.Vector3(-0.75, 0, -0.3),
+    description: 'Elastomeric sealing gasket preventing oil egress from the afterpeak tube.'
+  },
+  Forward_Tube_End_Collar: {
+    name: 'Forward Tube End Collar',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Forward casing flange securing the tube to the engine room bulkhead.'
+  },
+  Forward_Tube_End_Trim: {
+    name: 'Forward Tube End Trim',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Machined forward collar alignment trim.'
+  },
+  Housing_Cut_Edge_Rail_1: {
+    name: 'Housing Cut Edge Rail 1 (Upper)',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Longitudinal protective edge rail capping the upper cutaway housing lip.'
+  },
+  Housing_Cut_Edge_Rail_2: {
+    name: 'Housing Cut Edge Rail 2 (Lower)',
+    category: 'Structure',
+    explodeOffset: new THREE.Vector3(0.1, 0, 0.35),
+    description: 'Longitudinal protective edge rail capping the lower cutaway housing lip.'
   }
 };
 
@@ -344,7 +380,10 @@ export class PropellerExplodedAssembly {
     return (
       /^(Propeller_|Hub_|Shaft_Coupling|Coupling_|Shaft_End|Thrust_Washer|Blade_Bolt|Shaft_Retaining|Slott_Coupling|Propeller_Key|Propeller_Shaft|Shaft_Aft|Liner_Keeling)/.test(
         name
-      ) && !/^(Stern_Tube|Shaft_Bracket|Housing_Reinforcement|Sealing_Housing|Stepping_|Seal_Retainer|Oil_Seal|Sterntube_Bearing)/.test(name)
+      ) &&
+      !/^(Stern_Tube|Shaft_Bracket|Housing_Reinforcement|Sealing_Housing|Stepping_|Seal_Retainer|Oil_Seal|Sterntube_Bearing|Aft_Gland|Forward_Tube|Housing_Cut)/.test(
+        name
+      )
     );
   }
 
@@ -356,26 +395,29 @@ export class PropellerExplodedAssembly {
       return PROPELLER_EXPLOSION_MAP[name].explodeOffset.clone();
     }
 
-    // Dynamic radial offset for blade arrays of any size
+    // Dynamic radial offset for blade arrays (4-blade Kaplan layout)
     if (name.startsWith('Propeller_Blade_')) {
       const idx = parseInt(name.split('_').pop() || '1', 10) - 1;
-      const angle = (2 * Math.PI * idx) / 5 + Math.PI / 8;
-      return new THREE.Vector3(-1.8, Math.sin(angle) * 1.15, -Math.cos(angle) * 1.15);
+      const angle = (2 * Math.PI * idx) / 4 + Math.PI / 8;
+      return new THREE.Vector3(-0.5, Math.sin(angle) * 1.05, -Math.cos(angle) * 1.05);
     }
     if (name.startsWith('Coupling_Bolt_')) {
-      return new THREE.Vector3(1.45, 0, 0);
+      return new THREE.Vector3(1.15, 0, 0);
+    }
+    if (name.startsWith('Aft_Gland_Bolt_')) {
+      return new THREE.Vector3(-0.35, 0, 0);
     }
     if (name.startsWith('Blade_Bolt_')) {
-      return new THREE.Vector3(-2.2, 0, 0);
+      return new THREE.Vector3(-0.8, 0, 0);
     }
-    if (name.startsWith('Housing_Reinforcement_')) {
-      return new THREE.Vector3(0.1, 0, 0.65);
+    if (name.startsWith('Housing_Reinforcement_') || name.startsWith('Housing_Cut_Edge_Rail_')) {
+      return new THREE.Vector3(0.1, 0, 0.35);
     }
 
-    if (name.includes('Bearing')) return new THREE.Vector3(0.8, 0, -0.4);
-    if (name.includes('Seal')) return new THREE.Vector3(-0.6, 0, -0.3);
-    if (name.includes('Coupling')) return new THREE.Vector3(1.2, 0, 0);
-    if (name.includes('Hub') || name.includes('Nose')) return new THREE.Vector3(-1.8, 0, 0);
+    if (name.includes('Bearing')) return new THREE.Vector3(name.includes('Forward') ? 0.65 : -0.6, 0, -0.45);
+    if (name.includes('Seal')) return new THREE.Vector3(-0.75, 0, -0.3);
+    if (name.includes('Coupling')) return new THREE.Vector3(1.15, 0, 0);
+    if (name.includes('Hub') || name.includes('Nose')) return new THREE.Vector3(-0.8, 0, 0);
 
     return new THREE.Vector3(0, 0, 0);
   }
@@ -395,7 +437,7 @@ export class PropellerExplodedAssembly {
     const rawBox = new THREE.Box3().setFromObject(scene);
     const rawSize = rawBox.getSize(new THREE.Vector3());
     const targetDiameter = 1.0;
-    const modelScale = rawSize.y > 0 ? targetDiameter / rawSize.y : 0.436;
+    const modelScale = rawSize.y > 0 ? targetDiameter / rawSize.y : 0.27;
 
     // In the GLB, Propeller_Hub center is at x = -1.50. Offset groups by +1.50 * modelScale
     // so the propeller hub sits exactly at (0, 0, 0) inside this.group, locking it to the vessel's grey tailshaft.
@@ -417,7 +459,11 @@ export class PropellerExplodedAssembly {
 
       // Hide external test-stand bracket & cutaway casing on the ship so only the propeller
       // and internal mechanical seals/bearings fit into the vessel hull
-      if (/^(Stern_Tube_Housing|Shaft_Bracket|Housing_Reinforcement|Stern_Tube_Cut_Edge|Stern_Tube_Liner)/.test(mesh.name)) {
+      if (
+        /^(Stern_Tube_Housing|Shaft_Bracket|Housing_Reinforcement|Stern_Tube_Cut_Edge|Stern_Tube_Liner|Aft_Gland|Forward_Tube|Housing_Cut_Edge_Rail)/.test(
+          mesh.name
+        )
+      ) {
         mesh.visible = false;
       }
 

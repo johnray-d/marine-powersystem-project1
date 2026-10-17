@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marine Propeller | 3D Inspection</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b111a;color:#e9eff6;font:14px system-ui,sans-serif}#viewport{position:fixed;inset:0}aside{position:absolute;top:20px;left:20px;width:min(340px,calc(100vw - 40px));background:#172231e8;border:1px solid #405066;border-radius:14px;padding:20px;box-shadow:0 12px 50px #0008}h1{font-size:20px;margin:0 0 6px}.sub{color:#a6b5c8;font-size:12px;margin:0 0 20px}label{display:block;margin:14px 0 6px}input[type=range]{width:100%;accent-color:#d7a34e}button{background:#263c52;border:1px solid #526579;color:white;border-radius:7px;padding:9px;cursor:pointer}button:hover{background:#37536e}.buttons{display:flex;gap:7px;flex-wrap:wrap}.muted{color:#b2c0ce}#info{border-top:1px solid #39495d;margin-top:18px;padding-top:12px;min-height:62px}#status{font-size:12px;color:#efc982;margin-top:12px}#hint{position:absolute;bottom:18px;right:20px;color:#b9c8d9;font-size:12px}
+</style></head><body><div id="viewport"></div><aside><h1>Marine Propeller</h1><p class="sub">Stern tube · Cross-section · Interactive engineering model</p><label for="explode">Exploded assembly <span id="explodeValue">0%</span></label><input id="explode" type="range" min="0" max="1" step="0.01" value="0"><div class="buttons"><button data-explode="0">Assembled</button><button data-explode="0.45">Partial</button><button data-explode="1">Exploded</button></div><label for="rpm">Propeller rotation <span id="rpmValue">12 RPM</span></label><input id="rpm" type="range" min="0" max="60" step="1" value="12"><div class="buttons"><button id="pause">Pause rotation</button><button id="reset">Reset camera</button></div><div id="info"><strong>Click a component</strong><p class="muted">Select a blade, shaft, seal, bearing, or housing to inspect it.</p></div><p id="status">Loading marine_propeller.glb…</p></aside><div id="hint">Drag to orbit · Scroll to zoom · Click to inspect</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const mount=document.querySelector('#viewport');
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;mount.append(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#101925');
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,100);camera.position.set(-4.7,3.5,6.6);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(0,0,0);
+scene.add(new THREE.HemisphereLight(0xe9f2ff,0x303b48,2.0));
+function light(pos,intensity){const l=new THREE.DirectionalLight(0xffffff,intensity);l.position.set(...pos);scene.add(l)}
+light([-3,6,6],3);light([4,2,-5],2);
+const root=new THREE.Group();scene.add(root);
+const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();const clock=new THREE.Clock();
+const components=[];let factor=0,rpm=12,paused=false,spin=0,selected=null;
+const descriptions={Propeller_Hub:'Bronze hub that transmits torque to the blades.',Propeller_Shaft:'Steel shaft transmitting engine torque.',Stern_Tube_Housing_Cutaway:'Cutaway housing exposing bearings and shaft seals.',Stern_Tube_Bearing_Aft:'Aft shaft support bearing.',Stern_Tube_Bearing_Forward:'Forward shaft support bearing.',Oil_Seal:'Oil-retaining seal near the forward end.',Propeller_Key:'Mechanical key representing the hub-to-shaft torque connection.',Shaft_Coupling_Flange:'Flange joining the shaft to a forward drive connection.',Aft_Gland_Outer_Casing:'Aft gland casing closure retaining internal shaft seals and liners.'};
+function category(name){if(name.startsWith('Propeller_Blade'))return 'blade';if(name.includes('Bearing'))return 'bearing';if(name.includes('Seal')||name.includes('Stepping'))return 'seal';if(name.includes('Housing')||name.includes('Stern_Tube')||name.includes('Bracket')||name.includes('Aft_Gland')||name.includes('Forward_Tube'))return 'housing';if(name.includes('Coupling')||name.includes('Bolt'))return 'coupling';return 'shaft'}
+function offset(name){
+ const v=new THREE.Vector3();
+ if(name.startsWith('Propeller_Blade_')){const k=Number(name.split('_').at(-1))-1;const a=2*Math.PI*k/4+Math.PI/8;return v.set(-.5,Math.sin(a)*1.05,-Math.cos(a)*1.05)}
+ const c=category(name);if(c==='housing')return v.set(.1,0,.35);
+ if(c==='bearing')return v.set(name.includes('Forward')?.65:-.6,0,-.45);
+ if(c==='seal')return v.set(-.75,0,-.3);
+ if(c==='coupling')return v.set(1.15,0,0);
+ if(name==='Propeller_Hub'||name.includes('Nose')||name.includes('Hub_'))return v.set(-.8,0,0);
+ return v.set(-.15,0,0);
+}
+// GLB geometry has all shaft-axis positions in X. For correct rotation,
+// animate a centered parent group, not each mesh about its individual origin.
+const rotor=new THREE.Group();root.add(rotor);const fixed=new THREE.Group();root.add(fixed);
+const gltfPath = window.location.pathname.includes('/assemblies/') ? '../marine_propeller.glb' : './marine_propeller.glb';
+new GLTFLoader().load(gltfPath,gltf=>{
+ const meshes=[];gltf.scene.updateMatrixWorld(true);
+ gltf.scene.traverse(o=>{if(o.isMesh)meshes.push(o)});
+ for(const mesh of meshes){
+   // Preserve imported world transforms when reparenting.
+   const isRotating=Boolean(mesh.userData.rotating) || /^(Propeller_|Hub_|Shaft_Coupling|Coupling_|Shaft_End|Thrust_Washer)/.test(mesh.name);
+   (isRotating?rotor:fixed).attach(mesh);
+   components.push({mesh,name:mesh.name,category:category(mesh.name),original:mesh.position.clone(),offset:offset(mesh.name),rotating:isRotating});
+   mesh.material.side=THREE.DoubleSide;
+ }
+ document.querySelector('#status').textContent=`Loaded ${components.length} components · Click to inspect`;
+},undefined,e=>{document.querySelector('#status').textContent='Could not load GLB. Run Blender script and serve this folder over HTTP.';console.error(e)});
+function setExplosionFactor(v){factor=THREE.MathUtils.clamp(v,0,1);document.querySelector('#explode').value=factor;document.querySelector('#explodeValue').textContent=`${Math.round(factor*100)}%`}
+document.querySelector('#explode').addEventListener('input',e=>setExplosionFactor(+e.target.value));
+document.querySelectorAll('[data-explode]').forEach(b=>b.addEventListener('click',()=>setExplosionFactor(+b.dataset.explode)));
+document.querySelector('#rpm').addEventListener('input',e=>{rpm=+e.target.value;document.querySelector('#rpmValue').textContent=`${rpm} RPM`});
+document.querySelector('#pause').addEventListener('click',e=>{paused=!paused;e.target.textContent=paused?'Resume rotation':'Pause rotation'});
+document.querySelector('#reset').addEventListener('click',()=>{camera.position.set(-4.7,3.5,6.6);controls.target.set(0,0,0);controls.update()});
+renderer.domElement.addEventListener('click',event=>{
+ if(event.target!==renderer.domElement)return;
+ const r=renderer.domElement.getBoundingClientRect();pointer.set(((event.clientX-r.left)/r.width)*2-1,-((event.clientY-r.top)/r.height)*2+1);
+ raycaster.setFromCamera(pointer,camera);const hits=raycaster.intersectObjects(components.map(p=>p.mesh),false);
+ if(selected?.mesh.material?.emissive)selected.mesh.material.emissive.setHex(0);
+ selected=hits.length?components.find(p=>p.mesh===hits[0].object):null;
+ if(selected){
+  // Clone shared material before applying selection highlight.
+  selected.mesh.material=selected.mesh.material.clone();selected.mesh.material.emissive?.setHex(0x44310a);
+  const desc=descriptions[selected.name]||(selected.category==='blade'?'Curved bronze propeller blade with radial twist and camber.':'Component of the marine shaft and stern-tube assembly.');
+  document.querySelector('#info').innerHTML=`<strong>${selected.name.replaceAll('_',' ')}</strong><p class="muted">${desc}</p>`;
+ }
+});
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);if(!paused)spin+=dt*rpm*2*Math.PI/60;
+ rotor.rotation.x=spin;
+ for(const p of components){const target=p.original.clone().addScaledVector(p.offset,factor);p.mesh.position.lerp(target,Math.min(1,dt*9))}
+ controls.update();renderer.render(scene,camera)}animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>

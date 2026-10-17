@@ -59,7 +59,7 @@ export const modelParts:Record<ModelType,PartSpec[]> = {
   ],
   propeller:[
     p('hub','Propeller hub / boss','Nickel-Aluminum-Bronze boss transmitting propulsion shaft torque.','cylinder',[0,0,0],[0.8,0.48,0.48],amber),
-    p('blades','Kaplan skewed blades','Five skewed Kaplan-profile bronze blades producing forward thrust.','blade',[0,0,0],[1.2,0.15,0.15],copper),
+    p('blades','Kaplan skewed blades','Four skewed Kaplan-profile bronze blades producing forward thrust.','blade',[0,0,0],[1.2,0.15,0.15],copper),
     p('tailshaft','Main propulsion tailshaft','Forged alloy steel tailshaft keyed into the propeller hub bore.','cylinder',[1.2,0,0],[1.8,0.22,0.22],steel),
     p('nut','Thrust retaining nut & cap','High-tensile locking nut and fairing nose cap securing the hub.','cylinder',[-0.55,0,0],[0.35,0.32,0.32],dark),
     p('seals','Stern tube lip seals','Multi-stage elastomeric lip seals preventing seawater ingress.','torus',[0.75,0,0],[0.45,0.45,0.08],teal),
@@ -140,7 +140,14 @@ function buildPart(type:ModelType,spec:PartSpec):THREE.Group {
     const scale=spec.size[0]/1.3;
     const rotor=new THREE.Group();
     if(type==='thruster')rotor.userData.spinImpeller=true;
-    for(let i=0;i<5;i++){const mesh=new THREE.Mesh(blade,finish(spec.color));mesh.scale.setScalar(scale);if(type==='thruster')mesh.rotation.x=i*Math.PI*2/5;else mesh.rotation.z=i*Math.PI*2/5;rotor.add(mesh);}
+    const bladeCount = type === 'propeller' ? 4 : 5;
+    for(let i=0;i<bladeCount;i++){
+      const mesh=new THREE.Mesh(blade,finish(spec.color));
+      mesh.scale.setScalar(scale);
+      if(type==='thruster') mesh.rotation.x=i*Math.PI*2/5;
+      else mesh.rotation.z=i*Math.PI*2/bladeCount + (type==='propeller'?Math.PI/8:0);
+      rotor.add(mesh);
+    }
     part.add(rotor);
   }else if(type==='transformer'&&id==='terminals'){
     for(const x of [-.7,0,.7])for(const z of [-.35,.35]){

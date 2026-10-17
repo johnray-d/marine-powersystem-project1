@@ -12,12 +12,12 @@ Coordinate Alignment:
   - Three.js Export (export_yup=True): +Z in Blender becomes +Y in Three.js.
 """
 
-import bpy
-import bmesh
+import bpy  # type: ignore
+import bmesh  # type: ignore
 import math
 import os
 from math import pi, sin, cos
-from mathutils import Vector
+from mathutils import Vector  # type: ignore
 
 # ==============================================================================
 # 1. PATH SETUP & SCENE RESET
