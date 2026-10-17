@@ -71,13 +71,14 @@ export const equipment: Equipment[] = [
   n('eSteer','Essential steering service','EM STEER','load',VOLTAGES.lv,'Aft steering compartment','Representative emergency steering support circuit.','Emergency board → essential steering feeder','Feeder closed','Actual steering requirements depend on vessel design and rules.',220,755),
   n('nav','Bridge / navigation','BRIDGE','load',VOLTAGES.lv,'Bridge','Representative essential bridge and navigation supply.','Emergency board → bridge feeder','Feeder closed','Real navigation supplies can include batteries and UPS units not shown here.',360,755),
   n('eLights','Emergency lighting','EM LIGHT','load',VOLTAGES.lv,'Escape routes','Representative essential lighting circuit.','Emergency board → lighting feeder','Feeder closed','Emergency lighting is kept separate from the ordinary lighting group.',500,755),
-  n('shore','Shore connection · future','SHORE','future',VOLTAGES.hv,'Port side deck','Placeholder for a future shore-power lesson.','Not connected in V1','Unavailable','This is deliberately disconnected. Shore connection design needs interlocks, voltage matching, and operating rules before it can be simulated.',80,360,undefined,true)
+  n('shore','Shore connection (Cold Ironing)','SHORE','future',VOLTAGES.hv,'Port side deck','6.6 kV port cold-ironing shore connection box with phase-sequence and generator interlock.','Shore box → shore breaker → main bus A','Disconnected at sea; interlocked with main DGs','In port, shore power can supply the main 6.6 kV bus once all ship main generator breakers are open (black transfer) or synchronized.',80,220,undefined,true)
 ];
 
 const edge = (id: string, from: string, to: string, name: string, breaker = false, normalClosed = true, model?: ModelType, purpose?: string, lesson?: string): Connection => ({id,from,to,name,breaker,normalClosed,model,purpose,lesson});
 export const connections: Connection[] = [
   edge('gb1','dg1','busA','DG 1 breaker',true,true,'breaker'), edge('gb2','dg2','busA','DG 2 breaker',true,false,'breaker'),
   edge('gb3','dg3','busB','DG 3 breaker',true,false,'breaker'), edge('gb4','dg4','busB','DG 4 breaker',true,false,'breaker'),
+  edge('shoreBreaker','shore','busA','Shore-connection breaker',true,false,'breaker','Connects 6.6 kV port cold-ironing supply to Main Bus A when main generators are isolated.','Interlocked with main generator breakers so ship generators and shore supply are not inadvertently cross-connected out of phase.'),
   edge('tie','busA','busB','Bus-tie vacuum breaker',true,true,'breaker','Joins or separates the two main bus sections.','A closed tie can energize both sections from one running generator. Open it to isolate the sections.'),
   edge('propFeed','busA','drive','Propulsion feeder breaker',true,false,'breaker'), edge('driveMotor','drive','motor','Drive output'), edge('shaft','motor','prop','Propeller shaft'),
   edge('bowFeed','busB','bow','Bow-thruster feeder breaker',true,false,'breaker'),
@@ -97,17 +98,18 @@ export const connections: Connection[] = [
 export const byId = Object.fromEntries(equipment.map(item => [item.id, item])) as Record<string, Equipment>;
 export const edgeById = Object.fromEntries(connections.map(item => [item.id, item])) as Record<string, Connection>;
 export const sourceIds = ['dg1','dg2','dg3','dg4','eg'];
+export const allSupplyIds = ['dg1','dg2','dg3','dg4','eg','shore'];
 
 export function initialState(): SimState {
   return {
-    running: Object.fromEntries(sourceIds.map(id => [id, id === 'dg1'])),
+    running: Object.fromEntries(allSupplyIds.map(id => [id, id === 'dg1'])),
     closed: Object.fromEntries(connections.filter(c => c.breaker).map(c => [c.id, !!c.normalClosed]))
   };
 }
 
 export function powered(state: SimState): Set<string> {
   const live = new Set<string>();
-  const queue = sourceIds.filter(id => state.running[id]);
+  const queue = allSupplyIds.filter(id => state.running[id]);
   queue.forEach(id => live.add(id));
   for (let i = 0; i < queue.length; i++) {
     const here = queue[i];
@@ -116,7 +118,7 @@ export function powered(state: SimState): Set<string> {
       // Flow is directional through converters, transformers, and loads.
       // Only the bus tie is bidirectional in this introductory model.
       const next = c.from === here ? c.to : c.id === 'tie' && c.to === here ? c.from : null;
-      if (!next || live.has(next) || (sourceIds.includes(next) && !state.running[next])) continue;
+      if (!next || live.has(next) || (allSupplyIds.includes(next) && !state.running[next])) continue;
       live.add(next);
       queue.push(next);
     }
@@ -131,7 +133,10 @@ export function connectionState(c: Connection, state: SimState, live: Set<string
 
 export const scenarios = [
   {id:'main', title:'01 · Energize the main bus', instruction:`DG 1 is running with its breaker and the bus tie closed. Both ${VOLTAGES.hv} sections are live.`, apply:():SimState => initialState(), focus:'busA'},
-  {id:'propulsion', title:'02 · Supply propulsion', instruction:'Trace DG 1 → bus A → propulsion feeder → drive → electric motor → propeller.', apply:():SimState => {const s=initialState();s.closed.propFeed=true;return s;}, focus:'drive'},
+  {id:'propulsion', title:'02 · Supply propulsion', instruction:'Trace DG 1 → bus A → propulsion feeder → drive → electric motor → propeller.', apply:():SimState => {const s=initialState();s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;return s;}, focus:'drive'},
   {id:'tie', title:'03 · Open the bus tie', instruction:'With only DG 1 running, bus B loses power when the tie opens. Start DG 3 and close its breaker to restore bus B independently.', apply:():SimState => {const s=initialState();s.closed.tie=false;return s;}, focus:'tie'},
-  {id:'emergency', title:'04 · Restore essentials', instruction:'All main generators are stopped. The separate emergency generator and board supply only their selected essential feeders.', apply:():SimState => {const s=initialState();for(const id of ['dg1','dg2','dg3','dg4'])s.running[id]=false;s.running.eg=true;s.closed.egBreaker=true;return s;}, focus:'eBus'}
+  {id:'emergency', title:'04 · Restore essentials', instruction:'All main generators are stopped. The separate emergency generator and board supply only their selected essential feeders.', apply:():SimState => {const s=initialState();for(const id of ['dg1','dg2','dg3','dg4'])s.running[id]=false;s.running.eg=true;s.closed.egBreaker=true;return s;}, focus:'eBus'},
+  {id:'parallel', title:'05 · Parallel & sync DG 2', instruction:'DG 2 is running on standby while DG 1 feeds the bus. Use the Synchroscope (Auto-Sync or manual 12 o’clock close) to parallel DG 2 and share kW load.', apply:():SimState => {const s=initialState();s.running.dg2=true;s.closed.gb2=false;s.closed.propFeed=true;s.closed.coolingFeed=true;return s;}, focus:'dg2'},
+  {id:'heavyload', title:'06 · Heavy sea load & PMS', instruction:'DG 1 and DG 3 are paralleled across the bus tie supplying propulsion, pumps, reefers, and hotel loads. Adjust propulsion throttle or trip a generator to test PMS load shedding.', apply:():SimState => {const s=initialState();s.running.dg1=true;s.closed.gb1=true;s.running.dg3=true;s.closed.gb3=true;s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;s.closed.fireFeed=true;s.closed.bilgeFeed=true;s.closed.reeferFeed=true;s.closed.lightFeed=true;s.closed.galleyFeed=true;return s;}, focus:'busA'}
 ] as const;
+

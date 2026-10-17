@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal Marine CAD & Electrical Manifest Viewer</title>
+  <style>
+    :root {
+      --bg: #07111e;
+      --panel: rgba(11, 24, 41, 0.88);
+      --border: rgba(56, 189, 248, 0.25);
+      --accent: #2dd4bf;
+      --blue: #38bdf8;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 50% 35%, #112842 0%, #060d18 75%);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #canvas-host { position: absolute; inset: 0; }
+    .hud-left {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      bottom: 16px;
+      width: 340px;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+    .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    h1 { font-size: 17px; margin: 4px 0 2px; }
+    .sub { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin: 0; }
+    select, input[type="range"], button {
+      width: 100%;
+      background: #0f2238;
+      color: var(--text);
+      border: 1px solid #234366;
+      border-radius: 7px;
+      padding: 7px 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+    .elec-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: rgba(6, 15, 28, 0.65);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 9px;
+    }
+    .elec-cell span {
+      display: block;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .elec-cell strong {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--blue);
+      margin-top: 2px;
+      display: block;
+    }
+    .parts-scroll {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-right: 4px;
+    }
+    .part-item {
+      text-align: left;
+      background: rgba(18, 37, 60, 0.7);
+      border: 1px solid rgba(100, 140, 180, 0.22);
+      border-radius: 7px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .part-item:hover, .part-item.active {
+      border-color: var(--accent);
+      background: rgba(20, 184, 166, 0.16);
+    }
+    .part-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      background: rgba(13, 148, 136, 0.14);
+      border-left: 3px solid var(--accent);
+      padding: 8px 10px;
+      border-radius: 0 6px 6px 0;
+      line-height: 1.45;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-host"></div>
+  <aside class="hud-left">
+    <div>
+      <div class="eyebrow">UNIVERSAL MANIFEST VIEWER · ETO LAB</div>
+      <h1 id="eqTitle">Loading Equipment...</h1>
+      <p class="sub" id="eqSub"></p>
+    </div>
+    <label style="font-size:11px;color:var(--muted);">
+      Equipment Manifest
+      <select id="eqSelect"></select>
+    </label>
+    <div class="elec-grid" id="elecGrid"></div>
+    <label style="font-size:11px;color:var(--muted);">
+      Explosion Factor (<span id="expVal">0%</span>)
+      <input type="range" id="expSlider" min="0" max="1" step="0.01" value="0" />
+    </label>
+    <div class="parts-scroll" id="partsList"></div>
+    <div class="part-desc" id="partDesc">Click any subassembly or 3D mesh to inspect its function and electrical linkage.</div>
+  </aside>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const host = document.getElementById('canvas-host');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    host.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3.2, 2.2, 4.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.2));
+    const dir = new THREE.DirectionalLight(0xffffff, 2.5);
+    dir.position.set(5, 10, 7);
+    scene.add(dir);
+
+    const catalogRes = await fetch('../manifests/equipment_catalog.json');
+    const catalog = await catalogRes.json();
+    const eqMap = catalog.equipment;
+
+    const selectEl = document.getElementById('eqSelect');
+    Object.values(eqMap).forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = `${item.title} (${item.electrical.voltage})`;
+      selectEl.appendChild(opt);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const initialId = params.get('eq') || 'cooling';
+    if (eqMap[initialId]) selectEl.value = initialId;
+
+    let root = new THREE.Group();
+    scene.add(root);
+    let animated = [];
+    let rotGroup = new THREE.Group();
+    let explodeTarget = 0;
+
+    async function loadEquipment(id) {
+      const item = eqMap[id];
+      if (!item) return;
+      const baseItem = item.inherits ? eqMap[item.inherits] : item;
+      const partsMeta = item.parts || baseItem?.parts || {};
+
+      document.getElementById('eqTitle').textContent = item.title;
+      document.getElementById('eqSub').textContent = item.subtitle;
+      const el = item.electrical;
+      document.getElementById('elecGrid').innerHTML = `
+        <div class="elec-cell"><span>VOLTAGE</span><strong>${el.voltage}</strong></div>
+        <div class="elec-cell"><span>RATED POWER</span><strong>${el.ratedKw} kW</strong></div>
+        <div class="elec-cell"><span>POWER FACTOR</span><strong>${el.powerFactor}</strong></div>
+        <div class="elec-cell"><span>BUS ID</span><strong>${el.busId}</strong></div>
+        <div class="elec-cell"><span>BREAKER</span><strong>${el.breakerId}</strong></div>
+        <div class="elec-cell"><span>PRIORITY</span><strong>${el.priority.toUpperCase()}</strong></div>
+      `;
+
+      scene.remove(root);
+      root = new THREE.Group();
+      rotGroup = new THREE.Group();
+      const pivotY = item.kinematics?.pivotY ?? 0;
+      rotGroup.position.set(0, pivotY, 0);
+      root.add(rotGroup);
+      scene.add(root);
+      animated = [];
+
+      const loader = new GLTFLoader();
+      const gltf = await loader.loadAsync('..' + item.glb);
+      const meshes = [];
+      gltf.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+
+      const listEl = document.getElementById('partsList');
+      listEl.innerHTML = '';
+
+      meshes.forEach(m => {
+        const prefix = Object.keys(partsMeta).find(k => m.name.startsWith(k));
+        const meta = prefix ? partsMeta[prefix] : { label: m.name, explode: [0, 0, 0], description: 'Precision CAD component.' };
+        const isRot = (item.kinematics?.rotatingPrefixes || []).some(p => m.name.startsWith(p));
+        if (isRot) {
+          m.position.y -= pivotY;
+          rotGroup.add(m);
+        } else {
+          root.add(m);
+        }
+        animated.push({
+          mesh: m,
+          basePos: m.position.clone(),
+          offset: new THREE.Vector3(...(meta.explode || [0, 0, 0])),
+          meta
+        });
+      });
+
+      const seen = new Set();
+      animated.forEach(({ mesh, meta }) => {
+        if (seen.has(meta.label)) return;
+        seen.add(meta.label);
+        const btn = document.createElement('button');
+        btn.className = 'part-item';
+        btn.textContent = meta.label;
+        btn.onclick = () => {
+          document.querySelectorAll('.part-item').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('partDesc').innerHTML = `<strong>${meta.label}</strong><br/>${meta.description}`;
+        };
+        listEl.appendChild(btn);
+      });
+    }
+
+    selectEl.onchange = () => loadEquipment(selectEl.value);
+    document.getElementById('expSlider').oninput = (e) => {
+      explodeTarget = parseFloat(e.target.value);
+      document.getElementById('expVal').textContent = `${Math.round(explodeTarget * 100)}%`;
+      animated.forEach(p => {
+        p.mesh.position.copy(p.basePos).addScaledVector(p.offset, explodeTarget);
+      });
+    };
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    await loadEquipment(selectEl.value);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      rotGroup.rotation.x += 0.04;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

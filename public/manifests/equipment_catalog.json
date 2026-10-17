@@ -1,0 +1,240 @@
+{
+  "version": "2.0.0",
+  "standard": "IEC 60092 / SOLAS ETO Digital Twin Manifest",
+  "equipment": {
+    "cooling": {
+      "id": "cooling",
+      "title": "Main Seawater Cooling Pump Set",
+      "subtitle": "440 V Centrifugal Volute Pump · 5-Blade Impeller · Mechanical Seal · Rigid Skid",
+      "glb": "/marine_cooling_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 135,
+        "powerFactor": 0.86,
+        "breakerId": "coolingFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 5.0
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.9,
+        "rpm": 1750,
+        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+      },
+      "parts": {
+        "Pump_Skid": { "category": "01PumpSkid", "label": "01 · Fabricated Steel Skid Baseplate", "explode": [0, 0, 0], "description": "Fabricated steel baseplate keeping motor and pump aligned." },
+        "Skid_Bolt": { "category": "01PumpSkid", "label": "01 · Chockfast Foundation Bolts", "explode": [0, -0.5, 0], "description": "Foundation bolt securing the skid to the tanktop." },
+        "Motor_Body": { "category": "02ElectricMotor", "label": "02 · 440 V TEFC Induction Motor", "explode": [-1.6, 0.4, 0], "description": "440 V 3-phase squirrel-cage induction motor driving the pump." },
+        "Motor_Cooling_Fin": { "category": "02ElectricMotor", "label": "02 · Motor Stator Cooling Fins", "explode": [-1.6, 0.5, 0], "description": "Circumferential cooling fins shedding stator heat to engine room air." },
+        "Motor_Terminal_Box": { "category": "02ElectricMotor", "label": "02 · IP56 440 V Terminal Box", "explode": [-1.6, 1.3, 0], "description": "Watertight terminal box where the 440 V feeder cable lands." },
+        "Motor_End_Cap": { "category": "02ElectricMotor", "label": "02 · Non-Drive-End Fan Cover", "explode": [-2.4, 0.4, 0], "description": "Non-drive-end cover protecting the cooling fan." },
+        "Shaft_Coupling": { "category": "03ShaftCoupling", "label": "03 · Flexible Spacer Coupling", "explode": [-0.9, 0.5, 0], "description": "Coupling transmitting torque and absorbing thermal misalignment." },
+        "Pump_Shaft": { "category": "03ShaftCoupling", "label": "03 · Stainless Alloy Drive Shaft", "explode": [-0.3, 1.1, 0], "description": "Duplex stainless shaft carrying torque from motor to impeller." },
+        "Pump_Casing": { "category": "04PumpCasing", "label": "04 · Centrifugal Volute Casing", "explode": [0.6, 0, 0], "description": "Spiral volute casing converting fluid kinetic energy into pressure head." },
+        "Casing_Cover": { "category": "04PumpCasing", "label": "04 · Rear Stuffing Box Cover", "explode": [-0.4, 0, 0], "description": "Rear casing cover closing the volute and housing the mechanical seal." },
+        "Impeller_": { "category": "05Impeller", "label": "05 · Bronze Closed Impeller & Blades", "explode": [0.3, 0.5, 1.2], "description": "Rotating vaned wheel imparting centrifugal velocity to seawater." },
+        "Suction_Port": { "category": "06Ports", "label": "06 · Axial Suction Nozzle", "explode": [1.6, 0, 0], "description": "Axial suction port drawing water from the sea chest." },
+        "Suction_Flange": { "category": "06Ports", "label": "06 · DIN PN16 Suction Flange", "explode": [2.0, 0, 0], "description": "Bolted flange connection to suction piping." },
+        "Discharge_Port": { "category": "06Ports", "label": "06 · Radial Discharge Nozzle", "explode": [0.6, 0.9, 0], "description": "High-pressure radial discharge throat." },
+        "Discharge_Flange": { "category": "06Ports", "label": "06 · DIN PN16 Discharge Flange", "explode": [0.6, 1.4, 0], "description": "Discharge flange feeding the main cooling water header." },
+        "Shaft_Seal": { "category": "07ShaftSeal", "label": "07 · Cartridge Mechanical Shaft Seal", "explode": [-0.7, 0.7, 0], "description": " Silicon-carbide mechanical seal stopping leakage along the shaft." }
+      }
+    },
+    "fire": {
+      "id": "fire",
+      "title": "Main Fire Pump Set",
+      "subtitle": "SOLAS High-Pressure 440 V Fire Main Pump · 6-Blade Bronze Impeller",
+      "glb": "/marine_fire_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 95,
+        "powerFactor": 0.85,
+        "breakerId": "fireFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 5.5
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.9,
+        "rpm": 1780,
+        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+      },
+      "inherits": "cooling"
+    },
+    "ballast": {
+      "id": "ballast",
+      "title": "Main Ballast Pump Set",
+      "subtitle": "High-Capacity 440 V Ballast Trim & Heel Pump",
+      "glb": "/marine_ballast_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 110,
+        "powerFactor": 0.85,
+        "breakerId": "ballastFeed",
+        "busId": "lvBus",
+        "priority": "non-essential",
+        "startingMethod": "Star-Delta",
+        "inrushMultiplier": 2.2
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.9,
+        "rpm": 1450,
+        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+      },
+      "inherits": "cooling"
+    },
+    "bilge": {
+      "id": "bilge",
+      "title": "Machinery Space Bilge Pump Set",
+      "subtitle": "440 V Self-Priming Bilge Dewatering Pump",
+      "glb": "/marine_bilge_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 38,
+        "powerFactor": 0.82,
+        "breakerId": "bilgeFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 4.5
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.9,
+        "rpm": 1750,
+        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+      },
+      "inherits": "cooling"
+    },
+    "eFire": {
+      "id": "eFire",
+      "title": "SOLAS Emergency Fire Pump Set",
+      "subtitle": "Independent Forward Compartment 440 V Emergency Fire Pump",
+      "glb": "/marine_fire_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 75,
+        "powerFactor": 0.85,
+        "breakerId": "eFireFeed",
+        "busId": "eBus",
+        "priority": "emergency",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 5.0
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.9,
+        "rpm": 1780,
+        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+      },
+      "inherits": "cooling"
+    },
+    "motor": {
+      "id": "motor",
+      "title": "6.6 kV Electric Propulsion Motor",
+      "subtitle": "Medium-Voltage Squirrel-Cage Induction Motor · Form-Wound VPI Stator · Alloy Tailshaft Taper",
+      "glb": "/marine_propulsion_motor.glb",
+      "electrical": {
+        "voltage": "6.6 kV",
+        "ratedKw": 4800,
+        "powerFactor": 0.92,
+        "breakerId": "propFeed",
+        "busId": "busA",
+        "priority": "essential",
+        "startingMethod": "VFD",
+        "inrushMultiplier": 1.15
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.0,
+        "rpm": 140,
+        "rotatingPrefixes": ["Rotor_Shaft", "Shaft_Output_Taper", "Shaft_Key", "Cooling_Fan_Hub", "Fan_Blade"]
+      }
+    },
+    "drive": {
+      "id": "drive",
+      "title": "6.6 kV Propulsion Frequency Converter (VFD)",
+      "subtitle": "24-Pulse Rectifier · DC Link Capacitor Bank · Water-Cooled IGBT Inverter Stacks",
+      "glb": "/marine_propulsion_drive.glb",
+      "electrical": {
+        "voltage": "6.6 kV",
+        "ratedKw": 4950,
+        "powerFactor": 0.94,
+        "breakerId": "propFeed",
+        "busId": "busA",
+        "priority": "essential",
+        "startingMethod": "VFD",
+        "inrushMultiplier": 1.15
+      }
+    },
+    "txA": {
+      "id": "txA",
+      "title": "Main Distribution Transformer A (6.6 kV / 440 V)",
+      "subtitle": "1,500 kVA Cast-Resin Dry-Type Marine Transformer · CRGO Core · Forced-Air Cooling",
+      "glb": "/marine_transformer.glb",
+      "electrical": {
+        "voltage": "6.6 kV / 440 V",
+        "ratedKw": 1200,
+        "powerFactor": 0.85,
+        "breakerId": "txAFeed",
+        "busId": "busA",
+        "priority": "essential",
+        "startingMethod": "Transformer-Inrush",
+        "inrushMultiplier": 3.5
+      }
+    },
+    "steering": {
+      "id": "steering",
+      "title": "Twin-Ram Electro-Hydraulic Steering Gear",
+      "subtitle": "SOLAS Rapson-Slide Crosshead Tiller · Forged Rudder Stock · Dual Hydraulic Power Pack",
+      "glb": "/marine_steering_gear.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 75,
+        "powerFactor": 0.83,
+        "breakerId": "steerFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 4.0
+      }
+    },
+    "reefer": {
+      "id": "reefer",
+      "title": "440 V Reefer Container Distribution Panel",
+      "subtitle": "Watertight Deck Switchboard · 4 × 32 A CEE-17 Reefer Sockets · MCCB Protection",
+      "glb": "/marine_reefer_panel.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 420,
+        "powerFactor": 0.84,
+        "breakerId": "reeferFeed",
+        "busId": "lvBus",
+        "priority": "non-essential",
+        "startingMethod": "Feeder",
+        "inrushMultiplier": 1.5
+      }
+    },
+    "prop": {
+      "id": "prop",
+      "title": "4-Blade Skewed Kaplan Propeller & Stern Tube",
+      "subtitle": "Ni-Al-Bronze Boss · Stern Tube Cutaway · Multi-Stage Lip Seals · White-Metal Bearing",
+      "glb": "/propeller_assembly.glb",
+      "electrical": {
+        "voltage": "Mechanical",
+        "ratedKw": 4800,
+        "powerFactor": 1.0,
+        "breakerId": "propFeed",
+        "busId": "busA",
+        "priority": "essential",
+        "startingMethod": "VFD",
+        "inrushMultiplier": 1.0
+      }
+    }
+  }
+}

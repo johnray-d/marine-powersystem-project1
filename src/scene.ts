@@ -5,7 +5,7 @@ import { createModel, type ModelInstance } from './models';
 import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly, driveAssembly, motorAssembly, steeringAssembly, reeferAssembly, pumpAssembly } from './vessel';
 import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
-const C = { live: 0x0f9b72, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
+const C = { live: 0xff2222, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
 const BG = { vessel: 0xdfeaf1, exploded: 0xe9f1f6 };
 
 function renderer(host: HTMLElement): THREE.WebGLRenderer {
@@ -21,9 +21,27 @@ function lights(scene: THREE.Scene) {
   const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(-5, 12, 8); scene.add(key);
   const fill = new THREE.DirectionalLight(0xbfd8e6, 1); fill.position.set(8, 3, -8); scene.add(fill);
 }
-function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .024): THREE.Mesh {
+function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .028): THREE.Mesh {
   const diff = b.clone().sub(a);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, Math.max(.001, diff.length()), 6), new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .5, depthWrite: false }));
+  const len = Math.max(.001, diff.length());
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, len, 8),
+    new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .5, depthWrite: false })
+  );
+  // Outer red glow aura mesh (visible when energized)
+  const glow = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 2.3, radius * 2.3, len, 8),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3b3b,
+      transparent: true,
+      opacity: 0.38,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  glow.userData.glowAura = true;
+  glow.visible = false;
+  mesh.add(glow);
   mesh.position.copy(a).add(b).multiplyScalar(.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), diff.normalize());
   mesh.userData.path = true;
@@ -163,10 +181,29 @@ export class VesselView {
       for (let i = 1; i < points.length; i++) {
         if (points[i - 1].distanceTo(points[i]) < .015) continue;
         route.add(new THREE.LineCurve3(points[i - 1], points[i]));
-        group.add(lineBetween(points[i - 1], points[i], c.id === 'shaft' ? .06 : .024));
+        group.add(lineBetween(points[i - 1], points[i], c.id === 'shaft' ? .06 : .028));
       }
-      const pulse = new THREE.Mesh(new THREE.SphereGeometry(.063, 8, 6), new THREE.MeshBasicMaterial({ color: 0x055a41 }));
-      pulse.userData.pulse = true; pulse.userData.route = route; group.add(pulse);
+      for (const offset of [0, 0.33, 0.66]) {
+        const pulse = new THREE.Mesh(
+          new THREE.SphereGeometry(.068, 12, 10),
+          new THREE.MeshBasicMaterial({ color: 0xfff01f })
+        );
+        const pulseHalo = new THREE.Mesh(
+          new THREE.SphereGeometry(.135, 12, 10),
+          new THREE.MeshBasicMaterial({
+            color: 0xfacc15,
+            transparent: true,
+            opacity: 0.52,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        pulse.add(pulseHalo);
+        pulse.userData.pulse = true;
+        pulse.userData.route = route;
+        pulse.userData.offset = offset;
+        group.add(pulse);
+      }
       const gap = new THREE.Mesh(new THREE.TorusGeometry(.095, .021, 6, 14), new THREE.MeshBasicMaterial({ color: C.open, side: THREE.DoubleSide }));
       gap.position.copy(route.getPoint(.45)); gap.userData.gap = true; group.add(gap);
       this.paths.set(c.id, group); this.scene.add(group);
@@ -205,7 +242,7 @@ export class VesselView {
     for (const [id, group] of this.objects) {
       const halo = group.children.find(o => o.userData.halo) as THREE.Mesh;
       (halo.material as THREE.MeshBasicMaterial).color.setHex(id === selection ? C.selected : live.has(id) ? C.live : C.dead);
-      (halo.material as THREE.MeshBasicMaterial).opacity = id === selection ? .95 : .48;
+      (halo.material as THREE.MeshBasicMaterial).opacity = id === selection ? .95 : .58;
     }
     const reeferOn = live.has('reeferUnit');
     this.objects.get('reeferUnit')?.traverse(o => {
@@ -219,8 +256,11 @@ export class VesselView {
         if (child.userData.pulse) { child.visible = status === 'live' && c.id !== 'shaft'; continue; }
         if (child.userData.gap) { child.visible = status === 'open'; continue; }
         const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        const isLiveCable = status === 'live' && c.id !== 'shaft';
         mat.color.setHex(c.id === 'shaft' ? 0x5f7a8b : status === 'live' ? C.live : status === 'open' ? C.open : C.dead);
-        mat.opacity = c.id === 'shaft' ? .95 : status === 'live' ? .86 : status === 'open' ? .10 : .23;
+        mat.opacity = c.id === 'shaft' ? .95 : status === 'live' ? .94 : status === 'open' ? .14 : .25;
+        const aura = child.children.find(ch => ch.userData.glowAura);
+        if (aura) aura.visible = isLiveCable;
       }
     }
   }
@@ -318,7 +358,8 @@ export class VesselView {
       if (connectionState(c, this.state, this.live) !== 'live') continue;
       for (const child of this.paths.get(c.id)!.children) if (child.userData.pulse && child.visible) {
         const route = child.userData.route as THREE.CurvePath<THREE.Vector3>;
-        child.position.copy(route.getPoint((this.phase * .22) % 1));
+        const offset = child.userData.offset || 0;
+        child.position.copy(route.getPoint((this.phase * .38 + offset) % 1));
       }
     }
     this.renderer.render(this.scene, this.camera);

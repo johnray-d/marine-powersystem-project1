@@ -5,6 +5,7 @@ dist/
 .DS_Store
 Thumbs.db
 *.png
+!public/**/*.png
 __pycache__/
 .vscode/
 *.pyc

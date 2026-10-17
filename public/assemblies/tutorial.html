@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETO Marine Power System Simulator — Complete User Guide & Tutorial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070d17;
+      --surface: #0e1726;
+      --surface-elevated: #132035;
+      --border: rgba(148, 163, 184, 0.22);
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --red-glow: #ef4444;
+      --yellow-flow: #fde047;
+      --green: #10b981;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 24px 64px;
+      background: radial-gradient(circle at top, #0f1b2e 0%, #070d17 70%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.65;
+    }
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    .hero {
+      padding: 28px 32px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(19, 32, 53, 0.95), rgba(11, 19, 32, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      margin-bottom: 28px;
+    }
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 30px;
+      margin: 0 0 10px;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .legend-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .swatch-red {
+      width: 22px;
+      height: 6px;
+      border-radius: 999px;
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444, 0 0 18px rgba(239, 68, 68, 0.8);
+    }
+    .swatch-yellow {
+      width: 22px;
+      height: 6px;
+      border-radius: 999px;
+      background: repeating-linear-gradient(90deg, #fde047 0 8px, transparent 8px 13px);
+      box-shadow: 0 0 10px #facc15;
+    }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 26px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .step-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 8px;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--accent);
+    }
+    h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      margin: 0;
+    }
+    p {
+      color: var(--muted);
+      font-size: 15px;
+      margin: 0 0 14px;
+    }
+    ul, ol {
+      color: var(--muted);
+      font-size: 15px;
+      padding-left: 22px;
+      margin: 0 0 16px;
+    }
+    li { margin-bottom: 8px; }
+    li strong { color: var(--text); }
+    .shot-frame {
+      margin-top: 16px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: #050911;
+    }
+    .shot-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .shot-caption {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.9);
+      border-top: 1px solid var(--border);
+    }
+    .kbd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .kbd-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+    kbd {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #070d17;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <div class="eyebrow">BS Electrical Engineering · Electro-Technical Officer (ETO) Training Lab</div>
+      <h1>Marine High-Voltage (6.6 kV / 440 V / 220 V) Power System Simulator</h1>
+      <p class="subtitle">
+        Step-by-step operational guide for Switchboard &amp; PMS control, Generator Paralleling &amp; Synchroscope operation, Glowing Red/Yellow Power Flow monitoring, and Blackout / Fault Recovery drills.
+      </p>
+      <div class="legend-bar">
+        <div class="legend-pill">
+          <span class="swatch-red"></span>
+          <span>Glowing Red Line = Energized Bus / Feeder Cable (6.6 kV / 440 V / 220 V)</span>
+        </div>
+        <div class="legend-pill">
+          <span class="swatch-yellow"></span>
+          <span>Glowing Yellow Flowing Animation = Active Real-Power Flow Direction</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 01</span>
+        <h2>3D Vessel Overview &amp; Glowing Red / Yellow Power Flow</h2>
+      </div>
+      <p>
+        The simulator models a complete marine diesel-electric power plant inside a translucent hull so future ETO officers can see both physical compartment locations and live electrical power distribution simultaneously.
+      </p>
+      <ul>
+        <li><strong>Glowing Red Power Cables:</strong> Any feeder or bus tie that is actively energized glows bright red in both the 3D Vessel View and the Single-Line Diagram.</li>
+        <li><strong>Glowing Yellow Flowing Pulses:</strong> Animated yellow energy pulses travel from the generating source (DGs, Emergency Gen, or Shore Connection) through the switchboards, transformers, and drives to every running consumer load.</li>
+        <li><strong>Camera Navigation:</strong> Left-drag to orbit, right-drag to pan, scroll wheel to zoom, or click any 3D equipment model to focus the camera and open its ETO Inspector card on the right.</li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_01_overview.png" alt="3D Vessel View with Glowing Red Power Lines and Glowing Yellow Power Flow" />
+        <div class="shot-caption">Fig 1 — 3D Vessel View ("02 · Underway") showing glowing red energized feeders and glowing yellow power flow pulses from DG 1 &amp; DG 2 to the aft propulsion motor.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 02</span>
+        <h2>Expandable Simulation Control Console (Compact vs. Expanded 2-Column Mode)</h2>
+      </div>
+      <p>
+        The left <strong>Switchboard &amp; PMS</strong> drawer has been redesigned with larger, high-contrast typography and can be expanded into a wide 2-column engineering console for intensive simulation drills:
+      </p>
+      <ul>
+        <li>Click <strong>⤢ Expand</strong> in the top-right corner of the left drawer (or press <kbd>E</kbd>) to widen the panel to <strong>680 px</strong> and arrange sections side-by-side in a 2-column grid.</li>
+        <li>Click <strong>⤡ Compact</strong> (or press <kbd>E</kbd> again) to return to the standard 390 px drawer, or click <strong>◀ Hide</strong> (or press <kbd>[</kbd>) to collapse the drawer completely for an unobstructed 3D view.</li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_02_expanded_console.png" alt="Expanded 2-Column Simulation Control Console" />
+        <div class="shot-caption">Fig 2 — Expanded 2-Column Simulation Control Console (press E or click "⤢ Expand") displaying Presets, Synchroscope, PMS Protection, Alarm Logbook, and Source Breakers side by side.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 03</span>
+        <h2>Interactive Single-Line Diagram (SLD) &amp; Bus Telemetry</h2>
+      </div>
+      <p>
+        Switch to the <strong>Single-Line Diagram</strong> tab in the top bar (or press <kbd>2</kbd>) to inspect the radial electrical hierarchy from 6.6 kV Main HV Bus down to the 440 V Distribution Bus, 440 V Emergency Bus, and 220 V Lighting/Galley Bus:
+      </p>
+      <ul>
+        <li><strong>Glowing Red + Animated Yellow Stream:</strong> Energized feeders glow red while a bright yellow dashed stream animates along the circuit path to show real-time power flow.</li>
+        <li><strong>Direct Breaker Switching:</strong> Double-click any generator, transformer, or consumer node on the Single-Line Diagram to trip or close its circuit breaker immediately.</li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_03_single_line_flow.png" alt="Single-Line Diagram with Glowing Red Lines and Yellow Power Flow Animation" />
+        <div class="shot-caption">Fig 3 — Interactive Single-Line Diagram showing glowing red energized buses/feeders with animated yellow power flow dashes and live 4-bus voltage/frequency cards.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 04</span>
+        <h2>Generator Paralleling &amp; Synchroscope Lab</h2>
+      </div>
+      <p>
+        Before connecting an incoming diesel generator to a live 6.6 kV bus, an ETO must match frequency, voltage, and phase angle (`Δθ ≈ 0°`, 12 o'clock on the synchroscope) to prevent destructive out-of-phase torque:
+      </p>
+      <ol>
+        <li>Click Scenario <strong>05 · Parallel &amp; sync DG 2</strong> (or click the <strong>SYNC</strong> button on any offline generator while the 6.6 kV bus is live).</li>
+        <li>Watch the rotating <strong>Synchroscope needle</strong>. If the needle rotates clockwise (<strong>FAST</strong>), incoming frequency is slightly higher than the bus.</li>
+        <li>Use <strong>Gov −0.05 Hz</strong> / <strong>Gov +0.05 Hz</strong> to adjust the incoming generator's speed, or click <strong>Auto-Sync</strong> to engage automatic governor speed matching.</li>
+        <li>When the needle enters the green <strong>12 o'clock window (|Δθ| &lt; 15°, |Δf| &lt; 0.35 Hz)</strong>, click <strong>Close Breaker (ACB)</strong> to parallel the generator onto the 6.6 kV bus!</li>
+      </ol>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_04_synchroscope_parallel.png" alt="Synchroscope and Generator Paralleling Lab" />
+        <div class="shot-caption">Fig 4 — Synchroscope &amp; Paralleling Panel active on DG 2 showing live phase angle Δθ, slip frequency Δf, Governor Trim controls, and ACB closure readiness.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 05</span>
+        <h2>PMS Protection, Blackout Simulation, Earth Faults &amp; Alarm Logbook</h2>
+      </div>
+      <p>
+        Test marine Power Management System (PMS) protection relays and casualty recovery procedures using the <strong>PMS Protection &amp; Faults</strong> panel:
+      </p>
+      <ul>
+        <li><strong>Auto-Standby DG Start:</strong> When enabled, if a blackout occurs or bus load exceeds 85%, the PMS automatically cranks, synchronizes, and closes the next standby generator after a 3.5 s start delay.</li>
+        <li><strong>Pref. Trip (&gt;94%):</strong> Automatically sheds non-essential hotel loads (Accommodation HVAC, Galley, Reefer sub-bus, and 220 V hotel outlets) before an overload trips the main generators.</li>
+        <li><strong>Trip Online DG:</strong> Simulates an immediate mechanical/electrical trip of an online main generator to test load transfer or blackout recovery.</li>
+        <li><strong>6.6 kV &amp; 440 V Earth Fault Injection:</strong> Simulates insulation breakdown (`IR = 0.02 MΩ` on 440 V or `IR = 0.08 MΩ` on 6.6 kV) and triggers an Insulation Monitoring Device (IMD) alarm in the <strong>ETO Alarm Logbook</strong>.</li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_05_blackout_pms.png" alt="PMS Protection, Fault Injection, and ETO Alarm Logbook" />
+        <div class="shot-caption">Fig 5 — PMS Fault &amp; Protection drill showing an injected Earth Fault, generator trip alarm, and timestamped entries in the ETO Alarm Logbook.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 06</span>
+        <h2>Keyboard Shortcuts &amp; Quick Controls Reference</h2>
+      </div>
+      <div class="kbd-grid">
+        <div class="kbd-item"><span>3D Vessel View</span><kbd>1</kbd></div>
+        <div class="kbd-item"><span>Single-Line Diagram</span><kbd>2</kbd></div>
+        <div class="kbd-item"><span>Expand / Compact Left Console</span><kbd>E</kbd></div>
+        <div class="kbd-item"><span>Show / Hide Left Drawer</span><kbd>[</kbd></div>
+        <div class="kbd-item"><span>Reset 3D Camera View</span><kbd>R</kbd></div>
+        <div class="kbd-item"><span>Close Modal / Clear Selection</span><kbd>Esc</kbd></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

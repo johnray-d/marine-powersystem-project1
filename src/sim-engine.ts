@@ -1,0 +1,1193 @@
+import { type SimState, powered, edgeById, byId } from './network';
+
+export type LoadPriority = 'essential' | 'non-essential' | 'emergency';
+export type StartingMethod = 'VFD' | 'Soft-Starter' | 'Star-Delta' | 'DOL' | 'Feeder' | 'Transformer';
+
+export interface LoadSpec {
+  id: string;
+  name: string;
+  busId: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus';
+  breakerId: string;
+  nominalVoltageV: number;
+  ratedKw: number;
+  powerFactor: number;
+  priority: LoadPriority;
+  startingMethod: StartingMethod;
+  inrushMultiplier: number;
+  preferentialTripStage?: 1 | 2;
+}
+
+export const LOAD_SPECS: Record<string, LoadSpec> = {
+  drive: {
+    id: 'drive',
+    name: 'Propulsion VFD & Motor',
+    busId: 'busA',
+    breakerId: 'propFeed',
+    nominalVoltageV: 6600,
+    ratedKw: 3600,
+    powerFactor: 0.92,
+    priority: 'essential',
+    startingMethod: 'VFD',
+    inrushMultiplier: 1.15
+  },
+  bow: {
+    id: 'bow',
+    name: 'Bow Thruster',
+    busId: 'busB',
+    breakerId: 'bowFeed',
+    nominalVoltageV: 6600,
+    ratedKw: 950,
+    powerFactor: 0.85,
+    priority: 'non-essential',
+    startingMethod: 'Soft-Starter',
+    inrushMultiplier: 2.4,
+    preferentialTripStage: 2
+  },
+  reefer: {
+    id: 'reefer',
+    name: 'Reefer Distribution Bay',
+    busId: 'lvBus',
+    breakerId: 'reeferFeed',
+    nominalVoltageV: 440,
+    ratedKw: 380,
+    powerFactor: 0.84,
+    priority: 'non-essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.4,
+    preferentialTripStage: 1
+  },
+  reeferUnit: {
+    id: 'reeferUnit',
+    name: 'Reefer Container #1',
+    busId: 'lvBus',
+    breakerId: 'reeferPlug',
+    nominalVoltageV: 440,
+    ratedKw: 18,
+    powerFactor: 0.82,
+    priority: 'non-essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 3.5,
+    preferentialTripStage: 1
+  },
+  crane: {
+    id: 'crane',
+    name: 'Deck Cargo Crane',
+    busId: 'lvBus',
+    breakerId: 'craneFeed',
+    nominalVoltageV: 440,
+    ratedKw: 240,
+    powerFactor: 0.79,
+    priority: 'non-essential',
+    startingMethod: 'VFD',
+    inrushMultiplier: 1.5,
+    preferentialTripStage: 1
+  },
+  fire: {
+    id: 'fire',
+    name: 'Main Fire Pump',
+    busId: 'lvBus',
+    breakerId: 'fireFeed',
+    nominalVoltageV: 440,
+    ratedKw: 95,
+    powerFactor: 0.85,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.5
+  },
+  ballast: {
+    id: 'ballast',
+    name: 'Ballast Pump',
+    busId: 'lvBus',
+    breakerId: 'ballastFeed',
+    nominalVoltageV: 440,
+    ratedKw: 110,
+    powerFactor: 0.85,
+    priority: 'non-essential',
+    startingMethod: 'Star-Delta',
+    inrushMultiplier: 2.2,
+    preferentialTripStage: 2
+  },
+  bilge: {
+    id: 'bilge',
+    name: 'Machinery Bilge Pump',
+    busId: 'lvBus',
+    breakerId: 'bilgeFeed',
+    nominalVoltageV: 440,
+    ratedKw: 38,
+    powerFactor: 0.82,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 4.5
+  },
+  cooling: {
+    id: 'cooling',
+    name: 'Seawater Cooling Pump',
+    busId: 'lvBus',
+    breakerId: 'coolingFeed',
+    nominalVoltageV: 440,
+    ratedKw: 135,
+    powerFactor: 0.86,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.0
+  },
+  steering: {
+    id: 'steering',
+    name: 'Main Steering Gear',
+    busId: 'lvBus',
+    breakerId: 'steerFeed',
+    nominalVoltageV: 440,
+    ratedKw: 75,
+    powerFactor: 0.83,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 4.0
+  },
+  galley: {
+    id: 'galley',
+    name: 'Ship Galley',
+    busId: 'consumer',
+    breakerId: 'galleyFeed',
+    nominalVoltageV: 220,
+    ratedKw: 145,
+    powerFactor: 0.96,
+    priority: 'non-essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.1,
+    preferentialTripStage: 1
+  },
+  lights: {
+    id: 'lights',
+    name: 'Accommodation Lighting',
+    busId: 'consumer',
+    breakerId: 'lightFeed',
+    nominalVoltageV: 220,
+    ratedKw: 65,
+    powerFactor: 0.95,
+    priority: 'essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.2
+  },
+  outlets: {
+    id: 'outlets',
+    name: '220 V Service Outlets',
+    busId: 'consumer',
+    breakerId: 'outletFeed',
+    nominalVoltageV: 220,
+    ratedKw: 42,
+    powerFactor: 0.90,
+    priority: 'non-essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.1,
+    preferentialTripStage: 2
+  },
+  eFire: {
+    id: 'eFire',
+    name: 'Emergency Fire Pump',
+    busId: 'eBus',
+    breakerId: 'eFireFeed',
+    nominalVoltageV: 440,
+    ratedKw: 75,
+    powerFactor: 0.85,
+    priority: 'emergency',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.0
+  },
+  eSteer: {
+    id: 'eSteer',
+    name: 'Emergency Steering Gear',
+    busId: 'eBus',
+    breakerId: 'eSteerFeed',
+    nominalVoltageV: 440,
+    ratedKw: 45,
+    powerFactor: 0.83,
+    priority: 'emergency',
+    startingMethod: 'DOL',
+    inrushMultiplier: 4.0
+  },
+  nav: {
+    id: 'nav',
+    name: 'Bridge Navigation & Console',
+    busId: 'eBus',
+    breakerId: 'navFeed',
+    nominalVoltageV: 440,
+    ratedKw: 22,
+    powerFactor: 0.94,
+    priority: 'emergency',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.2
+  },
+  eLights: {
+    id: 'eLights',
+    name: 'SOLAS Emergency Lighting',
+    busId: 'eBus',
+    breakerId: 'eLightFeed',
+    nominalVoltageV: 440,
+    ratedKw: 18,
+    powerFactor: 0.96,
+    priority: 'emergency',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.1
+  }
+};
+
+export interface GeneratorTelemetry {
+  id: string;
+  short: string;
+  breakerId: string;
+  busId: 'busA' | 'busB' | 'eBus';
+  nominalVoltageV: number;
+  ratedKw: number;
+  ratedKva: number;
+  running: boolean;
+  breakerClosed: boolean;
+  runupProgress: number; // 0..1 (1 = ready)
+  govSetpointHz: number; // No-load frequency reference (default 60.8 Hz for 4% droop around 60 Hz)
+  avrSetpointPu: number; // No-load voltage reference (default 1.015 pu)
+  frequencyHz: number;
+  voltageV: number;
+  kw: number;
+  kvar: number;
+  kva: number;
+  powerFactor: number;
+  currentAmps: number;
+  loadPercent: number;
+  status: 'STOPPED' | 'STARTING' | 'STANDBY' | 'ONLINE' | 'OVERLOAD' | 'REVERSE_POWER';
+}
+
+export interface BusTelemetry {
+  id: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus';
+  label: string;
+  nominalVoltageV: number;
+  live: boolean;
+  voltageV: number;
+  voltageDipPercent: number;
+  frequencyHz: number;
+  kw: number;
+  kvar: number;
+  kva: number;
+  powerFactor: number;
+  currentAmps: number;
+  essentialKw: number;
+  nonEssentialKw: number;
+  thdPercent: number;
+  insulationKohm: number;
+}
+
+export interface SyncTelemetry {
+  targetGenId: 'dg1' | 'dg2' | 'dg3' | 'dg4';
+  busLive: boolean;
+  genReady: boolean;
+  alreadyClosed: boolean;
+  busFreqHz: number;
+  genFreqHz: number;
+  slipHz: number;
+  busVoltageKv: number;
+  genVoltageKv: number;
+  voltageDiffPercent: number;
+  phaseAngleDeg: number; // -180 to +180 (0 = 12 o'clock in-phase)
+  inSyncWindow: boolean;
+  autoSyncActive: boolean;
+}
+
+export interface SimAlarm {
+  id: string;
+  time: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  code: string;
+  message: string;
+  acknowledged: boolean;
+}
+
+export class MarinePowerSimEngine {
+  public propulsionThrottle = 0.55; // 0.0 to 1.15 (55% = 1,980 kW default)
+  public pmsAutoStandby = true;
+  public pmsAutoLoadShed = true;
+  public pmsAutoEmergency = true;
+  public checkSyncInterlock = true;
+
+  public syncTargetGen: 'dg1' | 'dg2' | 'dg3' | 'dg4' = 'dg2';
+  public autoSyncGen: string | null = null;
+  public recoveryStage: string | null = null;
+
+  public earthFaultHv = false;
+  public earthFaultLv = false;
+
+  public generators: Record<string, GeneratorTelemetry> = {};
+  public buses: Record<'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus', BusTelemetry>;
+  public sync: SyncTelemetry;
+  public alarms: SimAlarm[] = [];
+  public transformerLoading: Record<'txA' | 'txB' | 'tx220', { kva: number; ratedKva: number; percent: number }> = {
+    txA: { kva: 0, ratedKva: 1250, percent: 0 },
+    txB: { kva: 0, ratedKva: 1250, percent: 0 },
+    tx220: { kva: 0, ratedKva: 350, percent: 0 }
+  };
+
+  private inrushTimers: Record<string, { extraKw: number; extraKvar: number; decay: number }> = {};
+  private overloadTimers: Record<string, number> = {};
+  private standbyStartCooldown = 0;
+  private blackoutDetected = false;
+  private recoveryTimer = 0;
+  private recoveryStepIdx = 0;
+  private phaseAngleRad = Math.PI * 0.65; // Start away from 0 so synchroscope movement is visible
+
+  constructor() {
+    const initGen = (
+      id: string,
+      short: string,
+      breakerId: string,
+      busId: 'busA' | 'busB' | 'eBus',
+      nominalVoltageV: number,
+      ratedKw: number,
+      running: boolean
+    ): GeneratorTelemetry => ({
+      id,
+      short,
+      breakerId,
+      busId,
+      nominalVoltageV,
+      ratedKw,
+      ratedKva: Math.round(ratedKw / 0.8),
+      running,
+      breakerClosed: id === 'dg1',
+      runupProgress: running ? 1 : 0,
+      govSetpointHz: id === 'dg2' ? 60.65 : 60.8,
+      avrSetpointPu: 1.012,
+      frequencyHz: running ? 60.0 : 0,
+      voltageV: running ? nominalVoltageV : 0,
+      kw: 0,
+      kvar: 0,
+      kva: 0,
+      powerFactor: 0.85,
+      currentAmps: 0,
+      loadPercent: 0,
+      status: running ? 'ONLINE' : 'STOPPED'
+    });
+
+    this.generators = {
+      dg1: initGen('dg1', 'DG 1', 'gb1', 'busA', 6600, 2200, true),
+      dg2: initGen('dg2', 'DG 2', 'gb2', 'busA', 6600, 2200, false),
+      dg3: initGen('dg3', 'DG 3', 'gb3', 'busB', 6600, 2200, false),
+      dg4: initGen('dg4', 'DG 4', 'gb4', 'busB', 6600, 2200, false),
+      eg: initGen('eg', 'EM GEN', 'egBreaker', 'eBus', 440, 350, false)
+    };
+
+    const initBus = (
+      id: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus',
+      label: string,
+      nominalVoltageV: number
+    ): BusTelemetry => ({
+      id,
+      label,
+      nominalVoltageV,
+      live: false,
+      voltageV: 0,
+      voltageDipPercent: 0,
+      frequencyHz: 0,
+      kw: 0,
+      kvar: 0,
+      kva: 0,
+      powerFactor: 1.0,
+      currentAmps: 0,
+      essentialKw: 0,
+      nonEssentialKw: 0,
+      thdPercent: 0,
+      insulationKohm: nominalVoltageV >= 6600 ? 15000 : 3200
+    });
+
+    this.buses = {
+      busA: initBus('busA', '6.6 kV Main Bus A', 6600),
+      busB: initBus('busB', '6.6 kV Main Bus B', 6600),
+      lvBus: initBus('lvBus', '440 V Main LV Bus', 440),
+      consumer: initBus('consumer', '220 V Hotel Bus', 220),
+      eBus: initBus('eBus', '440 V Emergency Bus', 440)
+    };
+
+    this.sync = {
+      targetGenId: 'dg2',
+      busLive: true,
+      genReady: false,
+      alreadyClosed: false,
+      busFreqHz: 60.0,
+      genFreqHz: 0,
+      slipHz: 0,
+      busVoltageKv: 6.6,
+      genVoltageKv: 0,
+      voltageDiffPercent: 0,
+      phaseAngleDeg: 117,
+      inSyncWindow: false,
+      autoSyncActive: false
+    };
+
+    this.pushAlarm('INFO', 'PMS-INIT', 'Marine Power Management System V2 initialized. DG 1 online on 6.6 kV Bus A.');
+  }
+
+  public pushAlarm(severity: SimAlarm['severity'], code: string, message: string): void {
+    // Avoid spamming duplicate unacknowledged code at top of list
+    if (this.alarms.length > 0 && this.alarms[0].code === code && this.alarms[0].message === message) {
+      return;
+    }
+    const now = new Date();
+    const time = now.toTimeString().slice(0, 8);
+    this.alarms.unshift({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      time,
+      severity,
+      code,
+      message,
+      acknowledged: false
+    });
+    if (this.alarms.length > 25) this.alarms.pop();
+  }
+
+  public acknowledgeAllAlarms(): void {
+    for (const a of this.alarms) a.acknowledged = true;
+  }
+
+  /**
+   * Validate breaker operation against ETO safety interlocks (Shore Power interlock & ANSI 25 Check-Sync).
+   */
+  public validateBreakerToggle(
+    breakerId: string,
+    state: SimState,
+    live: Set<string>
+  ): { allowed: boolean; reason?: string } {
+    const isCurrentlyClosed = !!state.closed[breakerId];
+    // Opening a breaker is always permitted
+    if (isCurrentlyClosed) return { allowed: true };
+
+    // 1. Shore connection interlock: cannot close shoreBreaker if any main DG breaker is closed on connected bus
+    if (breakerId === 'shoreBreaker') {
+      if (!state.running.shore) {
+        state.running.shore = true; // Energize shore supply cable automatically when shore breaker is requested
+      }
+      const connectedDgs = ['gb1', 'gb2', ...(state.closed.tie ? ['gb3', 'gb4'] : [])];
+      if (connectedDgs.some((gb) => state.closed[gb])) {
+        this.pushAlarm(
+          'WARNING',
+          'INTLK-SHORE',
+          'Shore Breaker blocked: Open all connected Main Generator breakers before closing Shore Supply (Cold Ironing interlock).'
+        );
+        return {
+          allowed: false,
+          reason:
+            'INTERLOCK BLOCKED: Cannot parallel Shore Supply with ship generators directly. Open main generator breakers first.'
+        };
+      }
+      this.pushAlarm('INFO', 'SHORE-ON', '6.6 kV Shore Connection (Cold Ironing) breaker closed onto Main Bus A.');
+      return { allowed: true };
+    }
+
+    // Prevent closing main DG breaker while shore power is feeding the same bus
+    if (['gb1', 'gb2', 'gb3', 'gb4'].includes(breakerId)) {
+      const shoreOnThisBus =
+        state.closed.shoreBreaker && (breakerId === 'gb1' || breakerId === 'gb2' || state.closed.tie);
+      if (shoreOnThisBus) {
+        this.pushAlarm(
+          'WARNING',
+          'INTLK-DG-SHORE',
+          `${edgeById[breakerId].name} blocked: Shore power is currently feeding the main bus. Open Shore Breaker first.`
+        );
+        return {
+          allowed: false,
+          reason: 'INTERLOCK BLOCKED: Disconnect Shore Supply before closing a ship generator breaker.'
+        };
+      }
+
+      const genId = `dg${breakerId.slice(2)}` as 'dg1' | 'dg2' | 'dg3' | 'dg4';
+      const gen = this.generators[genId];
+      if (gen && state.running[genId] && gen.runupProgress < 0.95) {
+        this.pushAlarm(
+          'WARNING',
+          'GEN-RUNUP',
+          `${gen.short} is still ramping up (${Math.round(gen.runupProgress * 100)}%). Wait for rated voltage & frequency.`
+        );
+        return {
+          allowed: false,
+          reason: `${gen.short} is still ramping up to 6.6 kV / 60 Hz.`
+        };
+      }
+
+      // Check-Sync (ANSI 25) interlock when closing onto an ALREADY LIVE bus
+      const targetBus = gen.busId;
+      if (this.checkSyncInterlock && live.has(targetBus) && state.running[genId]) {
+        // Select this generator on the synchroscope
+        this.syncTargetGen = genId;
+        this.updateSynchroscope(0, state, live);
+        if (!this.sync.inSyncWindow) {
+          this.pushAlarm(
+            'CRITICAL',
+            'ANSI-25-BLOCK',
+            `Check-Sync Relay (ANSI 25) blocked ${gen.short} breaker! Phase Δθ=${Math.round(this.sync.phaseAngleDeg)}°, Δf=${this.sync.slipHz.toFixed(2)} Hz. Use Synchroscope or click Auto-Sync.`
+          );
+          return {
+            allowed: false,
+            reason: `ANSI 25 CHECK-SYNC BLOCKED: ${gen.short} is out of phase (Δθ = ${Math.round(this.sync.phaseAngleDeg)}°). Use Auto-Sync or close at 12 o'clock.`
+          };
+        }
+      }
+    }
+
+    // Check-sync across Bus Tie if both Bus A and Bus B are independently energized
+    if (breakerId === 'tie' && this.checkSyncInterlock && live.has('busA') && live.has('busB')) {
+      const df = Math.abs(this.buses.busA.frequencyHz - this.buses.busB.frequencyHz);
+      if (df > 0.45) {
+        this.pushAlarm(
+          'WARNING',
+          'ANSI-25-TIE',
+          `Bus-Tie Check-Sync blocked: Bus A (${this.buses.busA.frequencyHz.toFixed(2)} Hz) and Bus B (${this.buses.busB.frequencyHz.toFixed(2)} Hz) frequency mismatch.`
+        );
+        return {
+          allowed: false,
+          reason: `ANSI 25 TIE BLOCKED: Match Bus A and Bus B frequencies before closing the bus tie.`
+        };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  public notifyBreakerChanged(breakerId: string, isClosed: boolean, live: Set<string>): void {
+    if (!isClosed) return;
+    // Find any load controlled by this breaker to trigger starting inrush current spike
+    for (const spec of Object.values(LOAD_SPECS)) {
+      if (spec.breakerId === breakerId && live.has(spec.busId) && spec.inrushMultiplier > 1.2) {
+        const baseKw = spec.id === 'drive' ? spec.ratedKw * this.propulsionThrottle : spec.ratedKw;
+        const baseKvar = baseKw * Math.tan(Math.acos(spec.powerFactor));
+        this.inrushTimers[spec.id] = {
+          extraKw: baseKw * Math.min(1.6, (spec.inrushMultiplier - 1) * 0.35),
+          extraKvar: baseKvar * (spec.inrushMultiplier - 1) * 0.85,
+          decay: 1.0
+        };
+        this.pushAlarm(
+          'INFO',
+          'INRUSH-START',
+          `${spec.name} started (${spec.startingMethod}, ${spec.inrushMultiplier.toFixed(1)}× inrush transient).`
+        );
+      }
+    }
+  }
+
+  public nudgeGovernor(genId: string, deltaHz: number): void {
+    const g = this.generators[genId];
+    if (!g) return;
+    g.govSetpointHz = Math.max(58.5, Math.min(62.5, Number((g.govSetpointHz + deltaHz).toFixed(2))));
+  }
+
+  public startAutoSync(genId: 'dg1' | 'dg2' | 'dg3' | 'dg4', state: SimState): string {
+    this.syncTargetGen = genId;
+    if (!state.running[genId]) {
+      state.running[genId] = true;
+    }
+    this.autoSyncGen = genId;
+    this.pushAlarm('INFO', 'AUTO-SYNC', `Auto-Synchronizer (ANSI 25A) engaged for ${byId[genId].short}. Matching speed & phase...`);
+    return `Auto-Synchronizer engaged for ${byId[genId].short}. Needle will lock to 12 o'clock and close breaker automatically.`;
+  }
+
+  public triggerBlackout(state: SimState): string {
+    for (const id of ['dg1', 'dg2', 'dg3', 'dg4']) {
+      state.running[id] = false;
+      state.closed[`gb${id.slice(2)}`] = false;
+    }
+    state.running.shore = false;
+    state.closed.shoreBreaker = false;
+    this.autoSyncGen = null;
+    this.recoveryStage = null;
+    this.blackoutDetected = true;
+    this.pushAlarm(
+      'CRITICAL',
+      'BLACKOUT',
+      'MAIN 6.6 kV SWITCHBOARD BLACKOUT! All main generators tripped. Emergency generator auto-start initiated.'
+    );
+    return 'BLACKOUT SIMULATED: Main 6.6 kV bus de-energized. Emergency Generator starting automatically...';
+  }
+
+  public startPmsRecovery(state: SimState): string {
+    this.recoveryStage = 'Step 1/5: Starting DG 1 & ramping to 6.6 kV...';
+    this.recoveryTimer = 0;
+    this.recoveryStepIdx = 1;
+    // Open heavy non-essential loads first so dead-bus closure doesn't overload DG 1
+    for (const b of ['propFeed', 'bowFeed', 'reeferFeed', 'craneFeed', 'ballastFeed', 'galleyFeed']) {
+      state.closed[b] = false;
+    }
+    state.running.dg1 = true;
+    state.closed.gb1 = false;
+    this.pushAlarm('INFO', 'PMS-REC-1', 'PMS Auto-Recovery initiated: Starting DG 1 and shedding heavy loads prior to dead-bus closure.');
+    return this.recoveryStage;
+  }
+
+  public toggleEarthFault(level: 'hv' | 'lv'): string {
+    if (level === 'hv') {
+      this.earthFaultHv = !this.earthFaultHv;
+      if (this.earthFaultHv) {
+        this.pushAlarm(
+          'WARNING',
+          'IMD-6.6KV',
+          '6.6 kV IT-System Earth Fault detected! Insulation dropped to 14 kΩ. Bus remains online (insulated neutral).'
+        );
+        return 'Injected 6.6 kV Earth Fault (14 kΩ). Notice the IT bus stays live while IMD raises an alarm.';
+      } else {
+        this.pushAlarm('INFO', 'IMD-6.6KV-CLR', '6.6 kV Earth Fault cleared. Insulation restored to 15.0 MΩ.');
+        return '6.6 kV Earth Fault cleared.';
+      }
+    } else {
+      this.earthFaultLv = !this.earthFaultLv;
+      if (this.earthFaultLv) {
+        this.pushAlarm(
+          'WARNING',
+          'IMD-440V',
+          '440 V IT-System Earth Fault detected! Insulation dropped to 8 kΩ. Locate faulted feeder by selective isolation.'
+        );
+        return 'Injected 440 V Earth Fault (8 kΩ). In an IT system, the first earth fault does not trip the breaker.';
+      } else {
+        this.pushAlarm('INFO', 'IMD-440V-CLR', '440 V Earth Fault cleared. Insulation restored to 3.2 MΩ.');
+        return '440 V Earth Fault cleared.';
+      }
+    }
+  }
+
+  /**
+   * Main quasi-steady-state simulation step (called every frame or 50-100ms tick).
+   * Returns true if any breaker or generator state was automatically mutated by PMS/Protection.
+   */
+  public step(dt: number, state: SimState, onStateMutated?: (msg: string) => void): void {
+    const clampedDt = Math.min(dt, 0.15);
+    const live = powered(state);
+
+    // 1. Update generator start-up / run-up ramps
+    for (const [id, gen] of Object.entries(this.generators)) {
+      gen.running = !!state.running[id];
+      gen.breakerClosed = !!state.closed[gen.breakerId];
+      if (gen.running) {
+        gen.runupProgress = Math.min(1, gen.runupProgress + clampedDt * 0.55);
+      } else {
+        gen.runupProgress = Math.max(0, gen.runupProgress - clampedDt * 0.8);
+        gen.kw = 0;
+        gen.kvar = 0;
+        gen.kva = 0;
+        gen.currentAmps = 0;
+        gen.loadPercent = 0;
+        gen.frequencyHz = gen.runupProgress * 60.0;
+        gen.voltageV = gen.runupProgress * gen.nominalVoltageV;
+        gen.status = 'STOPPED';
+      }
+    }
+
+    // 2. Decay motor-starting inrush transients
+    let totalInrushKvarHv = 0;
+    let totalInrushKvarLv = 0;
+    for (const [loadId, timer] of Object.entries(this.inrushTimers)) {
+      timer.decay = Math.max(0, timer.decay - clampedDt * 0.65);
+      if (timer.decay <= 0.01) {
+        delete this.inrushTimers[loadId];
+      } else {
+        const spec = LOAD_SPECS[loadId];
+        if (spec.nominalVoltageV >= 6600) totalInrushKvarHv += timer.extraKvar * timer.decay;
+        else totalInrushKvarLv += timer.extraKvar * timer.decay;
+      }
+    }
+
+    // 3. Calculate active & reactive load on each bus from connected & powered equipment
+    const busLoads: Record<'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus', { kw: number; kvar: number; essKw: number; nonEssKw: number }> = {
+      busA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      busB: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      lvBus: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      consumer: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      eBus: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 }
+    };
+
+    for (const spec of Object.values(LOAD_SPECS)) {
+      if (!live.has(spec.id)) continue;
+      let kw = spec.id === 'drive' ? spec.ratedKw * this.propulsionThrottle : spec.ratedKw;
+      let kvar = kw * Math.tan(Math.acos(spec.powerFactor));
+      const inrush = this.inrushTimers[spec.id];
+      if (inrush) {
+        kw += inrush.extraKw * inrush.decay;
+        kvar += inrush.extraKvar * inrush.decay;
+      }
+      const bucket = busLoads[spec.busId];
+      bucket.kw += kw;
+      bucket.kvar += kvar;
+      if (spec.priority === 'non-essential') bucket.nonEssKw += kw;
+      else bucket.essKw += kw;
+    }
+
+    // 4. Propagate downstream bus loads upstream through transformers (Consumer 220V -> LV 440V -> HV 6.6kV Bus A / B)
+    if (live.has('consumer') && state.closed.tx220Feed && live.has('lvBus')) {
+      const tx220LossKw = busLoads.consumer.kw * 0.018;
+      const tx220LossKvar = busLoads.consumer.kvar * 0.04;
+      busLoads.lvBus.kw += busLoads.consumer.kw + tx220LossKw;
+      busLoads.lvBus.kvar += busLoads.consumer.kvar + tx220LossKvar;
+      busLoads.lvBus.essKw += busLoads.consumer.essKw;
+      busLoads.lvBus.nonEssKw += busLoads.consumer.nonEssKw;
+      const tx220Kva = Math.hypot(busLoads.consumer.kw, busLoads.consumer.kvar);
+      this.transformerLoading.tx220.kva = tx220Kva;
+      this.transformerLoading.tx220.percent = Math.round((tx220Kva / this.transformerLoading.tx220.ratedKva) * 100);
+    } else {
+      this.transformerLoading.tx220.kva = 0;
+      this.transformerLoading.tx220.percent = 0;
+    }
+
+    const txAFeeding = live.has('busA') && state.closed.txAFeed && live.has('lvBus');
+    const txBFeeding = live.has('busB') && state.closed.txBFeed && live.has('lvBus');
+    const activeTxCount = (txAFeeding ? 1 : 0) + (txBFeeding ? 1 : 0);
+
+    if (activeTxCount > 0) {
+      const shareKw = (busLoads.lvBus.kw * 1.015) / activeTxCount;
+      const shareKvar = (busLoads.lvBus.kvar * 1.04) / activeTxCount;
+      const shareKva = Math.hypot(shareKw, shareKvar);
+      if (txAFeeding) {
+        busLoads.busA.kw += shareKw;
+        busLoads.busA.kvar += shareKvar;
+        busLoads.busA.essKw += busLoads.lvBus.essKw / activeTxCount;
+        busLoads.busA.nonEssKw += busLoads.lvBus.nonEssKw / activeTxCount;
+        this.transformerLoading.txA.kva = shareKva;
+        this.transformerLoading.txA.percent = Math.round((shareKva / this.transformerLoading.txA.ratedKva) * 100);
+      } else {
+        this.transformerLoading.txA.kva = 0;
+        this.transformerLoading.txA.percent = 0;
+      }
+      if (txBFeeding) {
+        busLoads.busB.kw += shareKw;
+        busLoads.busB.kvar += shareKvar;
+        busLoads.busB.essKw += busLoads.lvBus.essKw / activeTxCount;
+        busLoads.busB.nonEssKw += busLoads.lvBus.nonEssKw / activeTxCount;
+        this.transformerLoading.txB.kva = shareKva;
+        this.transformerLoading.txB.percent = Math.round((shareKva / this.transformerLoading.txB.ratedKva) * 100);
+      } else {
+        this.transformerLoading.txB.kva = 0;
+        this.transformerLoading.txB.percent = 0;
+      }
+    } else {
+      this.transformerLoading.txA = { ...this.transformerLoading.txA, kva: 0, percent: 0 };
+      this.transformerLoading.txB = { ...this.transformerLoading.txB, kva: 0, percent: 0 };
+    }
+
+    // 5. Solve Generator Governor Droop (Frequency) & AVR Droop (Voltage) per electrical island
+    const solveHvIsland = (busIds: ('busA' | 'busB')[], genIds: ('dg1' | 'dg2' | 'dg3' | 'dg4')[]) => {
+      const totalKw = busIds.reduce((acc, b) => acc + busLoads[b].kw, 0);
+      const totalKvar = busIds.reduce((acc, b) => acc + busLoads[b].kvar, 0);
+      const onlineGens = genIds
+        .map((id) => this.generators[id])
+        .filter((g) => g.running && g.breakerClosed && g.runupProgress >= 0.9);
+
+      const shoreConnected =
+        busIds.includes('busA') && state.running.shore && state.closed.shoreBreaker;
+
+      if (shoreConnected) {
+        // Shore connection acts as a stiff 60.0 Hz / 6.60 kV port grid
+        for (const b of busIds) {
+          this.buses[b].live = true;
+          this.buses[b].frequencyHz = 60.0;
+          this.buses[b].voltageV = 6600;
+          this.buses[b].voltageDipPercent = 0;
+        }
+        return;
+      }
+
+      if (onlineGens.length === 0) {
+        for (const b of busIds) {
+          this.buses[b].live = false;
+          this.buses[b].frequencyHz = 0;
+          this.buses[b].voltageV = 0;
+          this.buses[b].voltageDipPercent = 0;
+        }
+        return;
+      }
+
+      // 4% speed droop: f_bus = (sum(f_nl_i * P_rated_i) - R_gov * 60 * P_total) / sum(P_rated_i)
+      const droopR = 0.04;
+      const sumRatedKw = onlineGens.reduce((s, g) => s + g.ratedKw, 0);
+      const weightedNlHz = onlineGens.reduce((s, g) => s + g.govSetpointHz * g.ratedKw, 0);
+      const islandFreqHz = Math.max(
+        55.0,
+        Math.min(62.5, (weightedNlHz - droopR * 60.0 * totalKw) / sumRatedKw)
+      );
+
+      // 2.5% AVR voltage droop + transient starting inrush voltage dip
+      const avrDroop = 0.025;
+      const sumRatedKva = onlineGens.reduce((s, g) => s + g.ratedKva, 0);
+      const inrushDipPu = Math.min(0.085, totalInrushKvarHv / Math.max(2500, sumRatedKva) * 0.045);
+      const avgAvrPu = onlineGens.reduce((s, g) => s + g.avrSetpointPu, 0) / onlineGens.length;
+      const islandVoltagePu = Math.max(
+        0.86,
+        Math.min(1.05, avgAvrPu - avrDroop * (totalKvar / sumRatedKva) - inrushDipPu)
+      );
+      const islandVoltageV = islandVoltagePu * 6600;
+
+      // Distribute kW and kVAr across online generators according to their droop curves
+      for (const g of onlineGens) {
+        const rawKw = ((g.govSetpointHz - islandFreqHz) / (droopR * 60.0)) * g.ratedKw;
+        g.kw = rawKw;
+        g.kvar = totalKvar * (g.ratedKva / sumRatedKva);
+        g.kva = Math.hypot(g.kw, g.kvar);
+        g.powerFactor = g.kva > 1 ? Math.abs(g.kw) / g.kva : 1.0;
+        g.frequencyHz = islandFreqHz;
+        g.voltageV = islandVoltageV;
+        g.currentAmps = (g.kva * 1000) / (Math.sqrt(3) * Math.max(100, g.voltageV));
+        g.loadPercent = Math.round((g.kw / g.ratedKw) * 100);
+
+        if (g.kw < -0.06 * g.ratedKw) {
+          g.status = 'REVERSE_POWER';
+        } else if (g.loadPercent > 100) {
+          g.status = 'OVERLOAD';
+        } else {
+          g.status = 'ONLINE';
+        }
+      }
+
+      for (const b of busIds) {
+        this.buses[b].live = true;
+        this.buses[b].frequencyHz = islandFreqHz;
+        this.buses[b].voltageV = islandVoltageV;
+        this.buses[b].voltageDipPercent = Number(((1.0 - islandVoltageV / 6600) * 100).toFixed(1));
+      }
+    };
+
+    if (state.closed.tie) {
+      solveHvIsland(['busA', 'busB'], ['dg1', 'dg2', 'dg3', 'dg4']);
+    } else {
+      solveHvIsland(['busA'], ['dg1', 'dg2']);
+      solveHvIsland(['busB'], ['dg3', 'dg4']);
+    }
+
+    // Update Standby running generators (running but breaker open)
+    for (const id of ['dg1', 'dg2', 'dg3', 'dg4'] as const) {
+      const g = this.generators[id];
+      if (g.running && !g.breakerClosed) {
+        g.kw = 0;
+        g.kvar = 0;
+        g.kva = 0;
+        g.currentAmps = 0;
+        g.loadPercent = 0;
+        g.frequencyHz = g.govSetpointHz * g.runupProgress;
+        g.voltageV = 6600 * g.avrSetpointPu * g.runupProgress;
+        g.status = g.runupProgress < 0.95 ? 'STARTING' : 'STANDBY';
+      }
+    }
+
+    // Solve Emergency Generator & Emergency Bus (440 V)
+    const eg = this.generators.eg;
+    if (eg.running && eg.breakerClosed && eg.runupProgress >= 0.9) {
+      const eKw = busLoads.eBus.kw;
+      const eKvar = busLoads.eBus.kvar;
+      eg.kw = eKw;
+      eg.kvar = eKvar;
+      eg.kva = Math.hypot(eKw, eKvar);
+      eg.powerFactor = eg.kva > 1 ? eKw / eg.kva : 1.0;
+      eg.frequencyHz = 60.6 - 0.04 * 60.0 * (eKw / eg.ratedKw);
+      eg.voltageV = 440 * (1.01 - 0.025 * (eg.kva / eg.ratedKva));
+      eg.currentAmps = (eg.kva * 1000) / (Math.sqrt(3) * eg.voltageV);
+      eg.loadPercent = Math.round((eKw / eg.ratedKw) * 100);
+      eg.status = eg.loadPercent > 100 ? 'OVERLOAD' : 'ONLINE';
+      this.buses.eBus.live = true;
+      this.buses.eBus.frequencyHz = eg.frequencyHz;
+      this.buses.eBus.voltageV = eg.voltageV;
+    } else {
+      if (eg.running && !eg.breakerClosed) {
+        eg.frequencyHz = 60.5 * eg.runupProgress;
+        eg.voltageV = 440 * eg.runupProgress;
+        eg.status = eg.runupProgress < 0.95 ? 'STARTING' : 'STANDBY';
+      }
+      this.buses.eBus.live = false;
+      this.buses.eBus.frequencyHz = 0;
+      this.buses.eBus.voltageV = 0;
+    }
+
+    // 6. Populate downstream LV (440 V) and Consumer (220 V) bus voltage & frequency
+    const upstreamHvBus = txAFeeding ? this.buses.busA : txBFeeding ? this.buses.busB : null;
+    if (upstreamHvBus && live.has('lvBus')) {
+      const lvInrushDip = Math.min(0.06, totalInrushKvarLv / 1500 * 0.04);
+      const txDrop = (Math.max(this.transformerLoading.txA.percent, this.transformerLoading.txB.percent) / 100) * 0.018;
+      this.buses.lvBus.live = true;
+      this.buses.lvBus.frequencyHz = upstreamHvBus.frequencyHz;
+      this.buses.lvBus.voltageV = 440 * (upstreamHvBus.voltageV / 6600) * (1 - txDrop - lvInrushDip);
+      this.buses.lvBus.voltageDipPercent = Number(((1.0 - this.buses.lvBus.voltageV / 440) * 100).toFixed(1));
+    } else {
+      this.buses.lvBus.live = false;
+      this.buses.lvBus.frequencyHz = 0;
+      this.buses.lvBus.voltageV = 0;
+      this.buses.lvBus.voltageDipPercent = 0;
+    }
+
+    if (this.buses.lvBus.live && state.closed.tx220Feed && live.has('consumer')) {
+      this.buses.consumer.live = true;
+      this.buses.consumer.frequencyHz = this.buses.lvBus.frequencyHz;
+      this.buses.consumer.voltageV = 220 * (this.buses.lvBus.voltageV / 440) * (1 - (this.transformerLoading.tx220.percent / 100) * 0.015);
+    } else {
+      this.buses.consumer.live = false;
+      this.buses.consumer.frequencyHz = 0;
+      this.buses.consumer.voltageV = 0;
+    }
+
+    // Finalize bus power & THD metrics
+    for (const bId of ['busA', 'busB', 'lvBus', 'consumer', 'eBus'] as const) {
+      const b = this.buses[bId];
+      const ld = busLoads[bId];
+      b.kw = b.live ? Math.round(ld.kw) : 0;
+      b.kvar = b.live ? Math.round(ld.kvar) : 0;
+      b.kva = b.live ? Math.round(Math.hypot(ld.kw, ld.kvar)) : 0;
+      b.powerFactor = b.kva > 1 ? Number((b.kw / b.kva).toFixed(2)) : 1.0;
+      b.currentAmps = b.live && b.voltageV > 10 ? Math.round((b.kva * 1000) / (Math.sqrt(3) * b.voltageV)) : 0;
+      b.essentialKw = b.live ? Math.round(ld.essKw) : 0;
+      b.nonEssentialKw = b.live ? Math.round(ld.nonEssKw) : 0;
+
+      // VFD harmonic THD calculation
+      if (!b.live) {
+        b.thdPercent = 0;
+      } else if (bId === 'busA' || bId === 'busB') {
+        const vfdActive = live.has('drive') ? this.propulsionThrottle * 3.8 : 0;
+        const bowActive = live.has('bow') ? 1.4 : 0;
+        b.thdPercent = Number((1.2 + vfdActive + bowActive).toFixed(1));
+      } else {
+        b.thdPercent = Number((1.8 + (live.has('crane') ? 1.6 : 0)).toFixed(1));
+      }
+
+      // IT-system insulation resistance (kOhm)
+      if (bId === 'busA' || bId === 'busB') {
+        b.insulationKohm = this.earthFaultHv ? 14 : 15000;
+      } else {
+        b.insulationKohm = this.earthFaultLv ? 8 : 3200;
+      }
+    }
+
+    // 7. Update Synchroscope & Auto-Synchronizer
+    this.updateSynchroscope(clampedDt, state, live, onStateMutated);
+
+    // 8. Run Protection Relays & PMS Automation (Standby Start, Load Shedding, Blackout & Recovery)
+    this.runProtectionAndPms(clampedDt, state, live, onStateMutated);
+  }
+
+  private updateSynchroscope(
+    dt: number,
+    state: SimState,
+    live: Set<string>,
+    onStateMutated?: (msg: string) => void
+  ): void {
+    // Auto-select a running standby generator if current syncTargetGen is not in standby
+    const standbyCandidate = (['dg1', 'dg2', 'dg3', 'dg4'] as const).find(
+      (id) => state.running[id] && !state.closed[`gb${id.slice(2)}`]
+    );
+    if (standbyCandidate && (!state.running[this.syncTargetGen] || state.closed[`gb${this.syncTargetGen.slice(2)}`])) {
+      this.syncTargetGen = standbyCandidate;
+    }
+
+    const gen = this.generators[this.syncTargetGen];
+    const targetBus = this.buses[gen.busId];
+    const busLive = targetBus.live;
+    const genReady = gen.running && gen.runupProgress >= 0.95;
+    const alreadyClosed = gen.breakerClosed;
+
+    // Auto-Sync Governor Trim & Automatic Breaker Close at 12 o'clock
+    if (this.autoSyncGen === this.syncTargetGen && genReady && !alreadyClosed) {
+      if (!busLive) {
+        // Dead bus: close immediately
+        state.closed[gen.breakerId] = true;
+        this.autoSyncGen = null;
+        this.pushAlarm('INFO', 'DEAD-BUS-CLS', `${gen.short} breaker closed onto dead ${targetBus.label}.`);
+        onStateMutated?.(`${gen.short} breaker closed onto dead ${targetBus.label}.`);
+      } else {
+        // Trim incoming generator frequency to busFreq + 0.12 Hz for smooth clockwise rotation
+        const desiredFreq = targetBus.frequencyHz + 0.12;
+        gen.govSetpointHz += (desiredFreq - gen.frequencyHz) * Math.min(1, dt * 2.5);
+      }
+    }
+
+    const slipHz = genReady && busLive ? gen.frequencyHz - targetBus.frequencyHz : 0;
+    if (genReady && busLive && !alreadyClosed) {
+      this.phaseAngleRad += 2 * Math.PI * slipHz * dt;
+      // Wrap between -PI and +PI
+      this.phaseAngleRad = ((this.phaseAngleRad + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    } else if (alreadyClosed) {
+      this.phaseAngleRad = 0;
+    }
+
+    const phaseAngleDeg = (this.phaseAngleRad * 180) / Math.PI;
+    const voltageDiffPercent =
+      busLive && genReady
+        ? Math.abs(((gen.voltageV - targetBus.voltageV) / 6600) * 100)
+        : 0;
+
+    const inSyncWindow =
+      genReady &&
+      (!busLive ||
+        (Math.abs(phaseAngleDeg) <= 18 && Math.abs(slipHz) <= 0.35 && voltageDiffPercent <= 5.0));
+
+    if (this.autoSyncGen === this.syncTargetGen && inSyncWindow && busLive && Math.abs(phaseAngleDeg) <= 8) {
+      state.closed[gen.breakerId] = true;
+      this.autoSyncGen = null;
+      this.phaseAngleRad = 0;
+      this.pushAlarm(
+        'INFO',
+        'SYNC-CLOSED',
+        `ANSI 25A Auto-Synchronizer closed ${gen.short} breaker at Δθ=${Math.round(phaseAngleDeg)}°, Δf=${slipHz.toFixed(2)} Hz. Load sharing active.`
+      );
+      onStateMutated?.(`${gen.short} synchronized and paralleled onto ${targetBus.label}!`);
+    }
+
+    this.sync = {
+      targetGenId: this.syncTargetGen,
+      busLive,
+      genReady,
+      alreadyClosed,
+      busFreqHz: targetBus.frequencyHz,
+      genFreqHz: gen.frequencyHz,
+      slipHz,
+      busVoltageKv: targetBus.voltageV / 1000,
+      genVoltageKv: gen.voltageV / 1000,
+      voltageDiffPercent,
+      phaseAngleDeg,
+      inSyncWindow,
+      autoSyncActive: this.autoSyncGen === this.syncTargetGen
+    };
+  }
+
+  private runProtectionAndPms(
+    dt: number,
+    state: SimState,
+    live: Set<string>,
+    onStateMutated?: (msg: string) => void
+  ): void {
+    this.standbyStartCooldown = Math.max(0, this.standbyStartCooldown - dt);
+
+    // 1. Generator Protection Relays (ANSI 32R Reverse Power & ANSI 51 Overload)
+    for (const id of ['dg1', 'dg2', 'dg3', 'dg4'] as const) {
+      const g = this.generators[id];
+      if (!g.running || !g.breakerClosed) {
+        this.overloadTimers[id] = 0;
+        continue;
+      }
+
+      if (g.status === 'REVERSE_POWER') {
+        this.overloadTimers[id] = (this.overloadTimers[id] || 0) + dt;
+        if (this.overloadTimers[id] > 1.8) {
+          state.closed[g.breakerId] = false;
+          this.overloadTimers[id] = 0;
+          this.pushAlarm(
+            'CRITICAL',
+            'ANSI-32R-TRIP',
+            `Reverse Power Relay (ANSI 32R) tripped ${g.short} breaker (${Math.round(g.kw)} kW motoring)!`
+          );
+          onStateMutated?.(`ANSI 32R Reverse Power Relay tripped ${g.short} breaker!`);
+        }
+      } else if (g.loadPercent > 112) {
+        this.overloadTimers[id] = (this.overloadTimers[id] || 0) + dt;
+        if (this.overloadTimers[id] > 3.5) {
+          state.closed[g.breakerId] = false;
+          this.overloadTimers[id] = 0;
+          this.pushAlarm(
+            'CRITICAL',
+            'ANSI-51-TRIP',
+            `Overcurrent Relay (ANSI 51) tripped ${g.short} breaker due to sustained ${g.loadPercent}% overload!`
+          );
+          onStateMutated?.(`ANSI 51 Overcurrent tripped ${g.short} breaker!`);
+        }
+      } else {
+        this.overloadTimers[id] = Math.max(0, (this.overloadTimers[id] || 0) - dt * 0.5);
+      }
+    }
+
+    // 2. PMS Preferential Trip (Load Shedding) when any online DG exceeds 92% load
+    const maxGenLoad = Math.max(
+      ...(['dg1', 'dg2', 'dg3', 'dg4'] as const)
+        .map((id) => this.generators[id])
+        .filter((g) => g.running && g.breakerClosed)
+        .map((g) => g.loadPercent),
+      0
+    );
+
+    if (this.pmsAutoLoadShed && maxGenLoad >= 94) {
+      // Shed Stage 1 non-essential feeders first, then Stage 2
+      const stage1Feeders = ['reeferFeed', 'craneFeed', 'galleyFeed', 'outletFeed', 'ballastFeed'];
+      const toShed = stage1Feeders.find((b) => state.closed[b]);
+      if (toShed) {
+        state.closed[toShed] = false;
+        this.pushAlarm(
+          'WARNING',
+          'PMS-LOAD-SHED',
+          `PMS Preferential Trip opened ${edgeById[toShed].name} (Generator load reached ${maxGenLoad}%).`
+        );
+        onStateMutated?.(`PMS Preferential Trip shed ${edgeById[toShed].name} to prevent overload blackout.`);
+      }
+    }
+
+    // 3. PMS Automatic Standby Generator Start & Parallel when load >= 82%
+    if (this.pmsAutoStandby && maxGenLoad >= 82 && this.standbyStartCooldown <= 0 && !this.autoSyncGen) {
+      const nextStandby = (['dg2', 'dg3', 'dg4', 'dg1'] as const).find(
+        (id) => !state.closed[`gb${id.slice(2)}`] && (state.closed.tie || this.generators[id].busId === 'busA')
+      );
+      if (nextStandby) {
+        this.standbyStartCooldown = 5.0;
+        state.running[nextStandby] = true;
+        this.syncTargetGen = nextStandby;
+        this.autoSyncGen = nextStandby;
+        this.pushAlarm(
+          'INFO',
+          'PMS-STBY-START',
+          `PMS Load-Dependent Start: High load (${maxGenLoad}%) detected. Auto-starting & synchronizing ${byId[nextStandby].short}.`
+        );
+        onStateMutated?.(`PMS Auto-Standby started ${byId[nextStandby].short} (Load ${maxGenLoad}% > 82%).`);
+      }
+    }
+
+    // 4. Blackout Detection & Automatic Emergency Generator Start
+    const isMainBlackout = !live.has('busA') && !live.has('busB');
+    if (isMainBlackout && this.pmsAutoEmergency) {
+      if (!state.running.eg) {
+        state.running.eg = true;
+        this.pushAlarm('WARNING', 'EM-GEN-START', 'Main bus dead: Emergency Generator (EM GEN) auto-started.');
+        onStateMutated?.('Blackout detected: Emergency Generator starting automatically...');
+      } else if (this.generators.eg.runupProgress >= 0.95 && !state.closed.egBreaker) {
+        state.closed.egBreaker = true;
+        this.pushAlarm(
+          'INFO',
+          'EM-BUS-LIVE',
+          'Emergency Generator breaker closed. 440 V Emergency Switchboard supplying SOLAS essential services.'
+        );
+        onStateMutated?.('Emergency Generator online: SOLAS Emergency Switchboard energized.');
+      }
+    }
+
+    // 5. PMS Sequential Blackout Auto-Recovery State Machine
+    if (this.recoveryStepIdx > 0) {
+      this.recoveryTimer += dt;
+      if (this.recoveryStepIdx === 1 && this.generators.dg1.runupProgress >= 0.95) {
+        state.closed.gb1 = true;
+        state.closed.tie = true;
+        state.closed.txAFeed = true;
+        state.closed.txBFeed = true;
+        this.recoveryStepIdx = 2;
+        this.recoveryTimer = 0;
+        this.recoveryStage = 'Step 2/5: Main 6.6 kV & 440 V buses energized. Starting Cooling & Steering...';
+        this.pushAlarm('INFO', 'PMS-REC-2', 'DG 1 closed onto dead bus. Main 6.6 kV & 440 V switchboards restored.');
+        onStateMutated?.(this.recoveryStage);
+      } else if (this.recoveryStepIdx === 2 && this.recoveryTimer >= 1.2) {
+        state.closed.coolingFeed = true;
+        state.closed.steerFeed = true;
+        this.notifyBreakerChanged('coolingFeed', true, powered(state));
+        this.recoveryStepIdx = 3;
+        this.recoveryTimer = 0;
+        this.recoveryStage = 'Step 3/5: Essential Cooling & Steering online. Starting Fire & Bilge pumps...';
+        onStateMutated?.(this.recoveryStage);
+      } else if (this.recoveryStepIdx === 3 && this.recoveryTimer >= 1.2) {
+        state.closed.fireFeed = true;
+        state.closed.bilgeFeed = true;
+        state.closed.lightFeed = true;
+        this.notifyBreakerChanged('fireFeed', true, powered(state));
+        this.recoveryStepIdx = 4;
+        this.recoveryTimer = 0;
+        this.recoveryStage = 'Step 4/5: Auxiliary pumps restored. Re-energizing Propulsion Drive...';
+        onStateMutated?.(this.recoveryStage);
+      } else if (this.recoveryStepIdx === 4 && this.recoveryTimer >= 1.3) {
+        state.closed.propFeed = true;
+        this.notifyBreakerChanged('propFeed', true, powered(state));
+        this.recoveryStepIdx = 0;
+        this.recoveryStage = null;
+        this.pushAlarm('INFO', 'PMS-REC-DONE', 'PMS Sequential Blackout Recovery complete. Vessel propulsion and essential services restored.');
+        onStateMutated?.('PMS Sequential Blackout Recovery complete! All essential systems online.');
+      }
+    }
+  }
+}
+
+export const simEngine = new MarinePowerSimEngine();
