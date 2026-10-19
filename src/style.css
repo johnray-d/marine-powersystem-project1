@@ -2701,4 +2701,585 @@ body.has-assembly-modal {
   color: #f8fafc;
 }
 
+/* ============================================================================
+   PHASE 1: PROTECTIVE RELAY ENGINE (ANSI 32 / ANSI 40 / ANSI 51 IDMT)
+   ============================================================================ */
+.gov-btn.fault-active {
+  background: rgba(239, 68, 68, 0.32) !important;
+  border-color: #f87171 !important;
+  color: #fecaca !important;
+}
 
+.gen-relay-line {
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: rgba(239, 68, 68, 0.22);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+  font: 700 10.5px/1.25 var(--font-mono);
+}
+
+.relay-engine-card {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: #0d1b2d;
+  border: 1px solid #335c85;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relay-functions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.relay-fn-row {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-left: 3px solid #38bdf8;
+}
+
+.relay-fn-row.pickup {
+  border-color: rgba(245, 158, 11, 0.6);
+  border-left-color: #f59e0b;
+  background: rgba(120, 53, 15, 0.26);
+}
+
+.relay-fn-row.tripped {
+  border-color: rgba(239, 68, 68, 0.75);
+  border-left-color: #ef4444;
+  background: rgba(127, 29, 29, 0.38);
+}
+
+.relay-fn-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.relay-fn-head strong {
+  font: 700 11.5px/1.2 var(--font-mono);
+  color: #f8fafc;
+}
+
+.relay-pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font: 700 10px/1.2 var(--font-mono);
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+
+.relay-fn-row.pickup .relay-pill {
+  background: rgba(245, 158, 11, 0.28);
+  color: #fde68a;
+}
+
+.relay-fn-row.tripped .relay-pill {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+}
+
+.relay-fn-sub {
+  margin-top: 4px;
+  font: 500 10.5px/1.35 var(--font-mono);
+  color: #cbd5e1;
+}
+
+.relay-test-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.relay-test-btn {
+  font-size: 11px !important;
+  padding: 6px 8px !important;
+}
+
+.relay-test-btn.fault-active {
+  background: rgba(239, 68, 68, 0.28) !important;
+  border-color: #f87171 !important;
+  color: #fecaca !important;
+}
+
+/* ============================================================================
+   PHASE 2: HIGH-RESISTANCE EARTHING (HRE) & ANSI 67N SWITCHBOARD
+   ============================================================================ */
+.earthing-arch-box {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+}
+
+.earthing-arch-label {
+  font: 700 10px/1.1 var(--font-mono);
+  color: #7dd3fc;
+  letter-spacing: 0.05em;
+}
+
+.earthing-arch-toggle {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.earthing-arch-btn {
+  padding: 6px 9px;
+  border-radius: 6px;
+  font: 700 11px/1.2 var(--font-mono);
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.earthing-arch-btn:hover {
+  border-color: #38bdf8;
+  color: #f8fafc;
+}
+
+.earthing-arch-btn.active {
+  background: rgba(14, 165, 233, 0.26);
+  border-color: #38bdf8;
+  color: #f0f9ff;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+
+.hre-telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.hre-telemetry-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hre-telemetry-grid span {
+  font: 700 9.5px/1.1 var(--font-mono);
+  color: #94a3b8;
+}
+
+.hre-telemetry-grid strong {
+  font: 700 11.5px/1.2 var(--font-mono);
+  color: #fde047;
+}
+
+.ansi67n-alarm-badge {
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: rgba(220, 38, 38, 0.32);
+  border: 1px solid #f87171;
+  color: #fecaca;
+  font: 700 11px/1.3 var(--font-mono);
+}
+
+/* ============================================================================
+   PHASE 3: SOLAS BLACKOUT RECOVERY SEQUENTIAL WATERFALL HUD
+   ============================================================================ */
+.solas-waterfall-hud {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(12, 31, 52, 0.96), rgba(9, 22, 38, 0.96));
+  border: 1px solid rgba(56, 189, 248, 0.48);
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.45);
+}
+
+.solas-wf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.solas-wf-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.solas-wf-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.28);
+  border: 1px solid #38bdf8;
+  color: #bae6fd;
+  font: 700 10px/1.2 var(--font-mono);
+}
+
+.solas-wf-title strong {
+  font: 700 12px/1.2 var(--font-mono);
+  color: #f8fafc;
+}
+
+.solas-wf-pct {
+  font: 700 12.5px/1 var(--font-mono);
+  color: #fde047;
+}
+
+.solas-wf-bar-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.9);
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.solas-wf-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9, #22c55e, #facc15);
+  transition: width 0.2s ease;
+}
+
+.solas-wf-stages-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.solas-wf-stage-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.solas-wf-stage-pill.active {
+  border-color: #facc15;
+  background: rgba(234, 179, 8, 0.18);
+}
+
+.solas-wf-stage-pill.done {
+  border-color: rgba(34, 197, 94, 0.65);
+  background: rgba(21, 128, 61, 0.22);
+}
+
+.solas-wf-stage-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  font: 700 9.5px/1.1 var(--font-mono);
+}
+
+.solas-wf-stage-time {
+  color: #7dd3fc;
+}
+
+.solas-wf-stage-state {
+  color: #94a3b8;
+}
+
+.solas-wf-stage-pill.active .solas-wf-stage-state {
+  color: #fde047;
+}
+
+.solas-wf-stage-pill.done .solas-wf-stage-state {
+  color: #86efac;
+}
+
+.solas-wf-stage-name {
+  font: 600 10.5px/1.2 var(--font-sans);
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================================
+   PHASE 4: INTERACTIVE 5-STEP HV LOTO & PTW + ARC-FLASH VIOLATION WARNING
+   ============================================================================ */
+.arc-flash-stage-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 92%;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: rgba(127, 29, 29, 0.95);
+  border: 2px solid #ef4444;
+  color: #fef2f2;
+  box-shadow: 0 10px 28px rgba(220, 38, 38, 0.45);
+}
+
+.arc-flash-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.arc-flash-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arc-flash-copy strong {
+  font: 800 12px/1.2 var(--font-mono);
+  color: #fde047;
+  letter-spacing: 0.04em;
+}
+
+.arc-flash-copy span {
+  font: 500 11.5px/1.3 var(--font-sans);
+  color: #fee2e2;
+}
+
+.arc-flash-dismiss {
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(254, 202, 202, 0.4);
+  color: #fef2f2;
+  cursor: pointer;
+}
+
+.hv-loto-card {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0d1b2d;
+  border: 1px solid #f59e0b;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.hv-loto-card.is-safe {
+  border-color: #22c55e;
+  background: rgba(6, 38, 28, 0.55);
+}
+
+.hv-loto-card.is-violation {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+
+.hv-loto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hv-loto-header h4 {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #f8fafc;
+}
+
+.ptw-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font: 700 10px/1.2 var(--font-mono);
+  white-space: nowrap;
+}
+
+.ptw-badge.live {
+  background: rgba(245, 158, 11, 0.25);
+  border: 1px solid #f59e0b;
+  color: #fde68a;
+}
+
+.ptw-badge.safe {
+  background: rgba(34, 197, 94, 0.25);
+  border: 1px solid #22c55e;
+  color: #86efac;
+}
+
+.arc-flash-violation-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(153, 27, 27, 0.55);
+  border: 1.5px solid #f87171;
+  color: #fef2f2;
+}
+
+.arc-flash-badge-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.arc-flash-violation-badge strong {
+  display: block;
+  font: 800 11.5px/1.2 var(--font-mono);
+  color: #fde047;
+}
+
+.arc-flash-violation-badge p {
+  margin: 3px 0 0 0;
+  font: 500 11px/1.35 var(--font-sans);
+  color: #fee2e2;
+}
+
+.loto-status-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.loto-status-strip div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loto-status-strip span {
+  font: 700 9.5px/1 var(--font-mono);
+  color: #94a3b8;
+}
+
+.loto-status-strip strong {
+  font: 700 11px/1.2 var(--font-mono);
+  color: #f8fafc;
+}
+
+.loto-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loto-step-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.loto-step-row.next {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.14);
+}
+
+.loto-step-row.done {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(21, 128, 61, 0.18);
+}
+
+.loto-step-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.loto-step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font: 700 11px/1 var(--font-mono);
+  background: rgba(51, 65, 85, 0.9);
+  color: #cbd5e1;
+}
+
+.loto-step-row.next .loto-step-num {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.loto-step-row.done .loto-step-num {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.loto-step-info strong {
+  display: block;
+  font: 700 11.5px/1.25 var(--font-sans);
+  color: #f8fafc;
+}
+
+.loto-step-info p {
+  margin: 2px 0 0 0;
+  font: 400 10.5px/1.3 var(--font-sans);
+  color: #94a3b8;
+}
+
+.loto-step-btn {
+  padding: 5px 9px;
+  border-radius: 6px;
+  font: 700 10.5px/1.15 var(--font-mono);
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.loto-step-btn.primary {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.loto-step-btn.done {
+  background: rgba(22, 163, 74, 0.25);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #86efac;
+  cursor: default;
+}
+
+.loto-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.loto-vcb-ref {
+  font: 600 10.5px/1.2 var(--font-mono);
+  color: #94a3b8;
+}
+
+.loto-reset-btn {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+}

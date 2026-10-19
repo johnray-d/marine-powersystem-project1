@@ -1,7 +1,8 @@
 import './style.css';
-import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, allSupplyIds, VOLTAGES, type SimState, type Equipment, type ModelType, type Connection } from './network';
-import { modelParts } from './models';
+import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, allSupplyIds, VOLTAGES, type SimState, type Equipment, type ModelType, type Connection, type EarthingArchitecture } from './network';
+import { modelParts, HV_LOTO_STEPS, HV_EQUIPMENT_VCB_MAP, hvLotoManager, PROTECTION_RELAY_CATALOG } from './models';
 import { VesselView, ExplodedView } from './scene';
+import { SOLAS_WATERFALL_STAGES } from './vessel-layout';
 import { propellerAssembly } from './propeller-assembly';
 import { transformerAssembly } from './transformer-assembly';
 import { driveAssembly } from './drive-assembly';
@@ -47,7 +48,7 @@ app.innerHTML=`
       <div class="telemetry-pill"><span class="telemetry-label">6.6 kV BUS</span><strong id="topBusFreq">60.00 Hz · 6.56 kV</strong></div>
       <div class="telemetry-pill"><span class="telemetry-label">LOAD</span><strong id="topTotalKw">0 kW · PF 0.89</strong></div>
       <div class="telemetry-pill"><span class="telemetry-label">TIE</span><strong id="topTieState" class="is-closed">CLOSED</strong></div>
-      <div class="telemetry-pill"><span class="telemetry-label">IMD</span><strong id="topImdState" class="is-closed">15.0 MΩ OK</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">EARTHING / IMD</span><strong id="topImdState" class="is-closed">IT · 15.0 MΩ OK</strong></div>
     </div>
     <div class="top-actions">
       <button class="button button-quiet" id="openTutorialBtn" type="button" title="Open Step-by-Step ETO Simulation Tutorial">📖 Tutorial</button>
@@ -73,10 +74,10 @@ app.innerHTML=`
         </div>
       </div>
       <div class="scenario-list" id="scenarios"></div>
-      <section class="control-section" id="secGenerators"><div class="section-heading"><h3>Generation & Shore</h3><span class="subtle">${VOLTAGES.hv} Droop & Trim</span></div><div id="generators"></div></section>
+      <section class="control-section" id="secGenerators"><div class="section-heading"><h3>Generation & Shore</h3><span class="subtle">${VOLTAGES.hv} Droop & Relays</span></div><div id="generators"></div></section>
       <section class="control-section" id="secSync"><div class="section-heading"><h3>Synchroscope & Paralleling</h3><span class="subtle">ANSI 25 / 25A</span></div><div id="synchroscopeSection"></div></section>
       <section class="control-section" id="secThrottle"><div class="section-heading"><h3>Propulsion & Sea Load</h3><span class="subtle">VFD Throttle</span></div><div id="throttleSection"></div></section>
-      <section class="control-section" id="secPms"><div class="section-heading"><h3>PMS & Fault Simulation</h3><span class="subtle">Blackout · IMD</span></div><div id="pmsSection"></div></section>
+      <section class="control-section" id="secPms"><div class="section-heading"><h3>PMS, HRE & Fault Switchboard</h3><span class="subtle">IT / HRE · ANSI 67N</span></div><div id="pmsSection"></div></section>
       <section class="control-section" id="secTie"><div class="section-heading"><h3>Bus section tie</h3><span class="subtle">A ↔ B</span></div><div id="tieControl"></div></section>
       <section class="control-section" id="secEmergency"><div class="section-heading"><h3>Emergency supply</h3><span class="subtle">SOLAS 440 V</span></div><div id="emergencyControls"></div></section>
       <section class="control-section" id="secFeeders"><div class="section-heading"><h3>Representative feeders</h3><span class="subtle">Tap to switch</span></div><div id="feeders"></div></section>
@@ -99,6 +100,14 @@ app.innerHTML=`
       <div class="visual-stage" id="visualStage">
         <div class="vessel-host" id="vesselHost" aria-label="Interactive 3D vessel view"></div>
         <div class="schematic-host hidden" id="schematicHost" aria-label="Interactive single-line diagram"></div>
+        <div class="arc-flash-stage-banner hidden" id="arcFlashBanner" role="alert">
+          <span class="arc-flash-icon">⚡</span>
+          <div class="arc-flash-copy">
+            <strong>ARC-FLASH VIOLATION WARNING — HV PANEL NOT ISOLATED</strong>
+            <span id="arcFlashBannerText">Complete the mandatory 5-step 6.6 kV LOTO &amp; Permit-to-Work sequence in the Equipment Inspector before opening or exploding HV enclosures.</span>
+          </div>
+          <button type="button" class="arc-flash-dismiss" id="dismissArcFlashBanner" aria-label="Dismiss Arc-Flash Warning">✕</button>
+        </div>
         <div class="view-tools" id="viewTools">
           <button id="resetCamera" type="button">⌖ Reset view</button>
           <button id="focusEquipment" type="button">◎ Focus item</button>
@@ -114,6 +123,7 @@ app.innerHTML=`
         </div>
       </div>
       <div class="bottom-hud">
+        <div class="solas-waterfall-hud hidden" id="solasWaterfallHud" aria-label="SOLAS Blackout Recovery 5-Stage Sequential Waterfall"></div>
         <div class="bus-telemetry-strip" id="busTelemetryStrip" aria-label="Live switchboard bus telemetry"></div>
         <div class="status-strip">
           <div class="legend">
@@ -171,9 +181,27 @@ const exploded=new ExplodedView(document.createElement('div'));
 vessel.onSelect=id=>select(id);
 exploded.onPart=id=>{selectedPart=id;const model=modelForSelection();if(model)updatePartDescription(model);};
 
+document.querySelector('#dismissArcFlashBanner')?.addEventListener('click',()=>{
+  document.querySelector('#arcFlashBanner')?.classList.add('hidden');
+});
+
 function setMessage(text:string){message=text;document.querySelector('#notice')!.textContent=text;}
 function statusText(id:string){return live.has(id)?'POWERED':'NOT POWERED';}
 function toggleBreaker(id:string){
+  // Prevent closing a breaker if its HV equipment has an active LOTO lock (racked out / padlocked / earthed)
+  if(!state.closed[id]){
+    for(const [eqId,map] of Object.entries(HV_EQUIPMENT_VCB_MAP)){
+      if(map.vcbIds.includes(id)){
+        const rec=hvLotoManager.getRecord(eqId);
+        if(rec.completedSteps>=2){
+          const msg=`LOTO Interlock Blocked: Cannot close ${edgeById[id]?.name||id} while ${map.label} is racked out / padlocked / earthed under ${rec.ptwNumber}. Reset LOTO in Inspector first.`;
+          setMessage(msg);
+          refresh();
+          return;
+        }
+      }
+    }
+  }
   const check=simEngine.validateBreakerToggle(id,state,live);
   if(!check.allowed){
     setMessage(check.reason||'Breaker operation blocked by safety interlock.');
@@ -184,7 +212,15 @@ function toggleBreaker(id:string){
   activeScenario='';
   const c=edgeById[id];
   const nextLive=powered(state);
-  simEngine.notifyBreakerChanged(id,state.closed[id],nextLive);
+  simEngine.notifyBreakerChanged(id,state.closed[id],nextLive,state);
+  // If user closed a VCB that was at Step 1 LOTO, reset its LOTO step to 0
+  if(state.closed[id]){
+    for(const [eqId,map] of Object.entries(HV_EQUIPMENT_VCB_MAP)){
+      if(map.vcbIds.includes(id) && hvLotoManager.getRecord(eqId).completedSteps===1){
+        hvLotoManager.resetEquipmentLoto(eqId);
+      }
+    }
+  }
   setMessage(`${c.name} ${state.closed[id]?'closed':'opened'}. ${state.closed[id]?'The path can carry power if its upstream source is active.':'The downstream path is isolated unless another route supplies it.'}`);
   refresh();
 }
@@ -208,11 +244,18 @@ function scenario(id:string){
   activeScenario=id;
   selected=item.focus;
   selectedPart=undefined;
+  simEngine.waterfall.active=false;
+  simEngine.waterfall.completed=false;
+  simEngine.recoveryStage=null;
   if(id==='parallel'){
     simEngine.syncTargetGen='dg2';
     simEngine.propulsionThrottle=0.60;
   } else if(id==='overload'){
     simEngine.propulsionThrottle=0.82;
+  } else if(id==='emergency'){
+    simEngine.propulsionThrottle=0.55;
+    // Start the SOLAS 5-stage sequential blackout restoration waterfall
+    simEngine.startPmsRecovery(state,0);
   } else {
     simEngine.propulsionThrottle=0.55;
   }
@@ -223,8 +266,25 @@ function reset(){
   simEngine.propulsionThrottle=0.55;
   simEngine.earthFaultHv=false;
   simEngine.earthFaultLv=false;
+  simEngine.earthingArchitecture='IT';
   simEngine.autoSyncGen=null;
   simEngine.recoveryStage=null;
+  simEngine.waterfall.active=false;
+  simEngine.waterfall.completed=false;
+  hvLotoManager.resetAll();
+  for(const g of Object.values(simEngine.generators)){
+    g.relays.fieldLossInjected=false;
+    g.relays.lastTripCode=null;
+    g.relays.lastTripReason=null;
+    g.avrSetpointPu=1.015;
+    g.govSetpointHz=60.8;
+  }
+  for(const fr of Object.values(simEngine.feederRelays)){
+    fr.overcurrentInjected=false;
+    fr.idmtProgress=0;
+    fr.lastTripReason=null;
+  }
+  document.querySelector('#arcFlashBanner')?.classList.add('hidden');
   scenario('main');
   vessel.resetCamera();
   setMessage('Simulation reset. DG 1 and the main bus are energized.');
@@ -245,11 +305,13 @@ function sourceRow(id:string){
       <div class="gen-load-bar-track"><div class="gen-load-bar-fill" id="genBar-${id}" style="width:${Math.min(100,Math.max(0,g.loadPercent))}%"></div></div>
       <div class="gen-meta-line">
         <span class="gen-metrics-text" id="genMetrics-${id}">${g.status} · ${Math.round(g.kw)} kW (${g.loadPercent}%) · ${g.frequencyHz.toFixed(1)} Hz</span>
-        ${isMainDg?`<span class="gov-trim-group" title="Adjust governor speed reference (droop load sharing / manual sync)">
-          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="-0.1">Gov −</button>
-          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="0.1">Gov ＋</button>
+        ${isMainDg?`<span class="gov-trim-group" title="Adjust governor speed reference (ANSI 32 reverse power) or inject AVR field loss (ANSI 40)">
+          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="-0.15" title="Decrease Governor Speed Reference (Motorize / Test ANSI 32 Reverse Power)">Gov −</button>
+          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="0.15" title="Increase Governor Speed Reference">Gov ＋</button>
+          <button type="button" class="gov-btn ${g.relays.fieldLossInjected?'fault-active':''}" data-field-loss="${id}" title="Simulate Loss of Excitation / Field (ANSI 40)">AVR 40</button>
         </span>`:''}
       </div>
+      <div class="gen-relay-line hidden" id="genRelay-${id}"></div>
     </div>`:`<div class="gen-telemetry-subrow"><span class="gen-metrics-text">Port 6.6 kV Cold Ironing · Interlocked with Main DGs</span></div>`}
   </div>`;
 }
@@ -312,7 +374,9 @@ function renderControls(){
       </div>
     </div>`;
 
-  // PMS & Fault Simulation
+  // PMS, HRE & Fault Switchboard
+  const earthing=simEngine.hvEarthing;
+  const ansi67nMsg=earthing.ansi67nActive?`ANSI 67N Directional Earth Fault Alarm · ${earthing.faultedPhase||'Phase A-Earth'} (V_N = ${earthing.neutralDisplacementV} V, I_ef = ${earthing.groundFaultCurrentAmps.toFixed(1)} A)`:'ANSI 67N Directional Earth Fault Relay: Normal';
   document.querySelector('#pmsSection')!.innerHTML=`
     <div class="pms-card">
       <div class="pms-toggles-row">
@@ -321,9 +385,23 @@ function renderControls(){
       </div>
       <div class="pms-action-grid">
         <button type="button" class="button button-danger" id="btnTriggerBlackout">🚨 Simulate Blackout</button>
-        <button type="button" class="button button-primary" id="btnStartRecovery">🔄 PMS Auto-Recovery</button>
+        <button type="button" class="button button-primary" id="btnStartRecovery">🔄 SOLAS Waterfall</button>
       </div>
       <div class="pms-recovery-banner ${simEngine.recoveryStage?'':'hidden'}" id="pmsRecoveryBanner">${simEngine.recoveryStage||''}</div>
+      <div class="earthing-arch-box">
+        <div class="earthing-arch-label">6.6 kV BUSBAR EARTHING ARCHITECTURE</div>
+        <div class="earthing-arch-toggle" role="group" aria-label="Busbar earthing architecture">
+          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='IT'?'active':''}" data-earthing-arch="IT">Unearthed IT System</button>
+          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='HRE'?'active':''}" data-earthing-arch="HRE">High-Resistance Earthed (HRE) System</button>
+        </div>
+        <div class="hre-telemetry-grid" id="hreTelemetryBox">
+          <div><span>NEUTRAL DISPLACEMENT (V_N)</span><strong id="hreVnVal">${earthing.neutralDisplacementV.toLocaleString()} V</strong></div>
+          <div><span>EARTH FAULT CURRENT (I_ef)</span><strong id="hreIefVal">${earthing.groundFaultCurrentAmps.toFixed(2)} A ${simEngine.earthingArchitecture==='HRE'?'(381 Ω NER)':'(Capacitive)'}</strong></div>
+        </div>
+        <div class="ansi67n-alarm-badge ${earthing.ansi67nActive?'active':'hidden'}" id="ansi67nBadge">
+          ⚡ ${ansi67nMsg}
+        </div>
+      </div>
       <div class="pms-fault-row">
         <button type="button" class="mini-toggle ${simEngine.earthFaultHv?'fault-active':''}" id="btnFaultHv">⚡ 6.6 kV Earth Fault</button>
         <button type="button" class="mini-toggle ${simEngine.earthFaultLv?'fault-active':''}" id="btnFaultLv">⚡ 440 V Earth Fault</button>
@@ -351,6 +429,18 @@ function renderControls(){
     const delta=parseFloat(b.dataset.govDelta||'0');
     simEngine.nudgeGovernor(id,delta);
     setMessage(`Adjusted ${byId[id].short} governor speed reference to ${simEngine.generators[id].govSetpointHz.toFixed(2)} Hz.`);
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-field-loss]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.fieldLoss!;
+    setMessage(simEngine.toggleFieldLoss(id));
+    renderControls();
+    if(selected===id)renderInspector();
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-earthing-arch]').forEach(b=>b.onclick=()=>{
+    const arch=b.dataset.earthingArch as EarthingArchitecture;
+    setMessage(simEngine.setEarthingArchitecture(arch));
+    renderControls();
+    renderInspector();
   });
   document.querySelectorAll<HTMLButtonElement>('[data-sync-target]').forEach(b=>b.onclick=()=>{
     simEngine.syncTargetGen=b.dataset.syncTarget as 'dg1'|'dg2'|'dg3'|'dg4';
@@ -395,16 +485,18 @@ function renderControls(){
     refresh();
   });
   document.querySelector<HTMLButtonElement>('#btnStartRecovery')?.addEventListener('click',()=>{
-    setMessage(simEngine.startPmsRecovery(state));
+    setMessage(simEngine.startPmsRecovery(state,0));
     refresh();
   });
   document.querySelector<HTMLButtonElement>('#btnFaultHv')?.addEventListener('click',()=>{
     setMessage(simEngine.toggleEarthFault('hv'));
     renderControls();
+    renderInspector();
   });
   document.querySelector<HTMLButtonElement>('#btnFaultLv')?.addEventListener('click',()=>{
     setMessage(simEngine.toggleEarthFault('lv'));
     renderControls();
+    renderInspector();
   });
   document.querySelector<HTMLButtonElement>('#btnAckAlarms')?.addEventListener('click',()=>{
     simEngine.acknowledgeAllAlarms();
@@ -847,6 +939,26 @@ document.querySelector('#assemblyBackdrop')?.addEventListener('click', closeAsse
 
 function modelForSelection():ModelType|undefined {return byId[selected]?.model||edgeById[selected]?.model;}
 
+function verifyHvIsolationOrWarn(equipmentId: string): boolean {
+  const access = hvLotoManager.verify3dInspectAccess(equipmentId, state.closed);
+  const banner = document.querySelector<HTMLElement>('#arcFlashBanner');
+  const bannerText = document.querySelector<HTMLElement>('#arcFlashBannerText');
+  if (!access.allowed) {
+    const warnMsg = access.violationMessage || 'ARC-FLASH VIOLATION WARNING: Complete the mandatory 5-step 6.6 kV LOTO isolation sequence before opening or exploding HV panels!';
+    simEngine.pushAlarm('CRITICAL', 'ARC-FLASH', warnMsg);
+    if (banner && bannerText) {
+      bannerText.textContent = warnMsg;
+      banner.classList.remove('hidden');
+    }
+    setMessage(warnMsg);
+    renderInspector();
+    updateLiveTelemetryDOM();
+    return false;
+  }
+  banner?.classList.add('hidden');
+  return true;
+}
+
 function renderInspector(){
   const pane=document.querySelector('#inspector')!;
   const e=byId[selected],c=edgeById[selected];
@@ -863,6 +975,7 @@ function renderInspector(){
   const loadSpec=LOAD_SPECS[selected]||Object.values(LOAD_SPECS).find(ls=>ls.breakerId===selected);
   const genSpec=simEngine.generators[selected];
   const busSpec=(simEngine.buses as Record<string, any>)[selected];
+  const feederRelay=c?.breaker?simEngine.feederRelays[c.id]:undefined;
 
   let electricalSpecCard='';
   if(loadSpec){
@@ -888,10 +1001,12 @@ function renderInspector(){
           <div><span>RATED CAPACITY</span><strong>${genSpec.ratedKw} kW / ${genSpec.ratedKva} kVA</strong></div>
           <div><span>LIVE OUTPUT</span><strong>${Math.round(genSpec.kw)} kW · ${Math.round(genSpec.kvar)} kVAr (${genSpec.loadPercent}%)</strong></div>
           <div><span>TERMINAL V / Hz</span><strong>${Math.round(genSpec.voltageV)} V · ${genSpec.frequencyHz.toFixed(2)} Hz</strong></div>
-          <div><span>DROOP REF</span><strong>Gov ${genSpec.govSetpointHz.toFixed(2)} Hz (4% Droop)</strong></div>
+          <div><span>DROOP / AVR REF</span><strong>Gov ${genSpec.govSetpointHz.toFixed(2)} Hz · AVR ${genSpec.relays.fieldLossInjected?'FIELD LOSS':`${Math.round(genSpec.avrSetpointPu*100)}%`}</strong></div>
         </div>
       </div>`;
   } else if(busSpec){
+    const isHvBus=selected==='busA'||selected==='busB';
+    const earthing=simEngine.hvEarthing;
     electricalSpecCard=`
       <div class="eto-elec-card">
         <div class="eyebrow">SWITCHBOARD BUS TELEMETRY</div>
@@ -899,7 +1014,123 @@ function renderInspector(){
           <div><span>BUS VOLTAGE / Hz</span><strong>${Math.round(busSpec.voltageV)} V · ${busSpec.frequencyHz.toFixed(2)} Hz</strong></div>
           <div><span>TOTAL LOAD</span><strong>${busSpec.kw} kW · ${busSpec.kvar} kVAr (PF ${busSpec.powerFactor})</strong></div>
           <div><span>CURRENT / THD</span><strong>${busSpec.currentAmps} A · THD ${busSpec.thdPercent}%</strong></div>
-          <div><span>IT INSULATION (IMD)</span><strong>${busSpec.insulationKohm>=1000?`${(busSpec.insulationKohm/1000).toFixed(1)} MΩ`:`${busSpec.insulationKohm} kΩ FAULT`}</strong></div>
+          <div><span>${isHvBus?`EARTHING (${simEngine.earthingArchitecture})`:'IT INSULATION (IMD)'}</span><strong>${isHvBus&&simEngine.earthingArchitecture==='HRE'?(simEngine.earthFaultHv?`V_N=${earthing.neutralDisplacementV}V · I_ef=${earthing.groundFaultCurrentAmps.toFixed(1)}A`:'381 Ω NER (V_N=0V)'):(busSpec.insulationKohm>=1000?`${(busSpec.insulationKohm/1000).toFixed(1)} MΩ`:`${busSpec.insulationKohm} kΩ FAULT`)}</strong></div>
+        </div>
+      </div>`;
+  }
+
+  // Phase 1: Protective Relay Engine Card (ANSI 32 / ANSI 40 / ANSI 51 IDMT)
+  let protectionRelayCard='';
+  if(genSpec && ['dg1','dg2','dg3','dg4'].includes(selected)){
+    const r=genSpec.relays;
+    const ratedQ=genSpec.ratedKvar;
+    const tripped32=r.lastTripCode==='ANSI-32';
+    const tripped40=r.lastTripCode==='ANSI-40';
+    const tripped51=r.lastTripCode==='ANSI-51';
+    protectionRelayCard=`
+      <div class="relay-engine-card">
+        <div class="eyebrow">MULTIFUNCTION PROTECTION RELAY (ANSI 32 / 40 / 51)</div>
+        <div class="relay-functions-list">
+          <div class="relay-fn-row ${tripped32?'tripped':r.reversePowerTimer>0?'pickup':''}">
+            <div class="relay-fn-head">
+              <strong>ANSI 32 · Reverse Power Protection</strong>
+              <span class="relay-pill">${tripped32?'TRIPPED':r.reversePowerTimer>0?`PICKUP ${r.reversePowerTimer.toFixed(1)}s / 3.0s`:'NORMAL'}</span>
+            </div>
+            <div class="relay-fn-sub">Pickup: P &lt; −5% P_rated (−${Math.round(genSpec.ratedKw*0.05)} kW) for &gt; 3.0 s · Live P: ${Math.round(genSpec.kw)} kW</div>
+          </div>
+          <div class="relay-fn-row ${tripped40?'tripped':r.lossOfFieldTimer>0||r.fieldLossInjected?'pickup':''}">
+            <div class="relay-fn-head">
+              <strong>ANSI 40 · Loss of Excitation / Field</strong>
+              <span class="relay-pill">${tripped40?'TRIPPED':r.lossOfFieldTimer>0?`PICKUP ${r.lossOfFieldTimer.toFixed(1)}s / 1.5s`:r.fieldLossInjected?'ARMED':'NORMAL'}</span>
+            </div>
+            <div class="relay-fn-sub">Pickup: Q &lt; −20% Q_rated (−${Math.round(ratedQ*0.20)} kVAr) &amp; V &lt; 85% (5.61 kV) for 1.5 s · Live Q: ${Math.round(genSpec.kvar)} kVAr, V: ${(genSpec.voltageV/1000).toFixed(2)} kV</div>
+          </div>
+          <div class="relay-fn-row ${tripped51?'tripped':r.idmtProgress>0?'pickup':''}">
+            <div class="relay-fn-head">
+              <strong>ANSI 51 · IDMT Overcurrent Curve</strong>
+              <span class="relay-pill">${tripped51?'TRIPPED':r.idmtProgress>0?`DIAL ${(r.idmtProgress*100).toFixed(0)}%`:'NORMAL'}</span>
+            </div>
+            <div class="relay-fn-sub">IEC Standard Inverse: t = 0.14 / ((I / I_s)^0.02 − 1) · Live I: ${genSpec.currentAmps} A</div>
+          </div>
+        </div>
+        <div class="relay-test-actions">
+          <button type="button" class="button button-secondary relay-test-btn ${r.fieldLossInjected?'fault-active':''}" id="btnInspectorFieldLoss">⚡ ${r.fieldLossInjected?'Restore AVR Field':'Inject Field Loss (ANSI 40)'}</button>
+          <button type="button" class="button button-secondary relay-test-btn" id="btnInspectorMotorize">↙ Motorize Gov −0.4 Hz (ANSI 32)</button>
+        </div>
+      </div>`;
+  } else if(feederRelay && c){
+    const fTripped=Boolean(feederRelay.lastTripReason);
+    protectionRelayCard=`
+      <div class="relay-engine-card">
+        <div class="eyebrow">FEEDER PROTECTION RELAY (ANSI 51 IDMT CURVE)</div>
+        <div class="relay-functions-list">
+          <div class="relay-fn-row ${fTripped?'tripped':feederRelay.idmtProgress>0?'pickup':''}">
+            <div class="relay-fn-head">
+              <strong>ANSI 51 · IEC Standard Inverse IDMT</strong>
+              <span class="relay-pill">${fTripped?'TRIPPED':feederRelay.idmtProgress>0?`DIAL ${(feederRelay.idmtProgress*100).toFixed(0)}%`:'NORMAL'}</span>
+            </div>
+            <div class="relay-fn-sub">Curve: t = k / ((I / I_s)^α − 1) [k=0.14, α=0.02] · Pickup I_s = ${feederRelay.pickupAmps} A · Live I = ${feederRelay.currentAmps} A</div>
+          </div>
+        </div>
+        <div class="relay-test-actions">
+          <button type="button" class="button button-secondary relay-test-btn ${feederRelay.overcurrentInjected?'fault-active':''}" id="btnInspectorFeederOverload">⚡ ${feederRelay.overcurrentInjected?'Clear Feeder Overload':'Inject 185% Feeder Overload (ANSI 51)'}</button>
+        </div>
+      </div>`;
+  }
+
+  // Phase 4: Interactive 5-Step LOTO & High Voltage Permit to Work (PTW) Card
+  let hvLotoCard='';
+  const needsLoto=hvLotoManager.requiresHvLoto(selected);
+  if(needsLoto){
+    const lotoRec=hvLotoManager.getRecord(selected);
+    const map=HV_EQUIPMENT_VCB_MAP[selected];
+    const vcbIds=map.vcbIds;
+    const anyVcbClosed=vcbIds.some(id=>!!state.closed[id]);
+    const vcbNames=vcbIds.map(id=>edgeById[id]?.name||id).join(', ');
+    const isIsolated=hvLotoManager.isFullyIsolated(selected,state.closed);
+    hvLotoCard=`
+      <div class="hv-loto-card ${isIsolated?'is-safe':lotoRec.arcFlashViolation?'is-violation':''}" id="hvLotoCard">
+        <div class="hv-loto-header">
+          <div>
+            <div class="eyebrow">6.6 kV HIGH-VOLTAGE PERMIT TO WORK (PTW)</div>
+            <h4>Mandatory 5-Step LOTO Safety Isolation</h4>
+          </div>
+          <span class="ptw-badge ${isIsolated?'safe':'live'}">${lotoRec.ptwNumber} · ${isIsolated?'ISOLATED & EARTHED':`${lotoRec.completedSteps} / 5 STEPS`}</span>
+        </div>
+        <div class="arc-flash-violation-badge ${lotoRec.arcFlashViolation?'':'hidden'}" id="inspectorArcFlashBadge" role="alert">
+          <span class="arc-flash-badge-icon">⚡</span>
+          <div>
+            <strong>ARC-FLASH VIOLATION WARNING</strong>
+            <p>${lotoRec.violationMessage||'Un-isolated 6.6 kV enclosure access attempted! Complete all 5 LOTO steps before opening or exploding 3D HV models.'}</p>
+          </div>
+        </div>
+        <div class="loto-status-strip">
+          <div><span>FEEDER VCB (${vcbIds.join('/')})</span><strong>${anyVcbClosed?'CLOSED (LIVE)':'OPEN'}</strong></div>
+          <div><span>VCB TRUCK</span><strong>${lotoRec.completedSteps>=2?'TEST / ISOLATED':'SERVICE'}</strong></div>
+          <div><span>6.6 kV WAND</span><strong>${lotoRec.completedSteps>=4?'0.0 kV DEAD':'UNVERIFIED'}</strong></div>
+          <div><span>CME SWITCH</span><strong>${lotoRec.completedSteps>=5?'EARTHED TO HULL':'OPEN'}</strong></div>
+        </div>
+        <div class="loto-steps-list">
+          ${HV_LOTO_STEPS.map(st=>{
+            const done=lotoRec.completedSteps>=st.stepNumber;
+            const isNext=lotoRec.completedSteps===st.stepNumber-1;
+            return `<div class="loto-step-row ${done?'done':isNext?'next':'locked'}">
+              <div class="loto-step-info">
+                <span class="loto-step-num">${done?'✓':st.stepNumber}</span>
+                <div>
+                  <strong>${st.shortLabel}</strong>
+                  <p>${st.detail}</p>
+                </div>
+              </div>
+              <button type="button" class="loto-step-btn ${done?'done':isNext?'primary':''}" data-loto-step="${st.stepNumber}" ${done?'disabled':''}>
+                ${done?'Completed':st.actionLabel}
+              </button>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="loto-card-footer">
+          <span class="loto-vcb-ref">Associated VCB: ${vcbNames}</span>
+          <button type="button" class="button button-quiet loto-reset-btn" id="btnResetLoto">↺ De-Isolate &amp; Reset PTW</button>
         </div>
       </div>`;
   }
@@ -907,6 +1138,8 @@ function renderInspector(){
   pane.innerHTML=`<div class="inspector-header"><div class="eyebrow">EQUIPMENT INSPECTOR</div><span class="inspector-icon">◈</span><h2>${title}</h2><div class="zone">${sub}</div><span class="status-pill ${status.startsWith('POWERED')||status==='ENERGIZED'?'live':status.startsWith('OPEN')?'open':'dead'}">${status}</span></div>
     <div class="inspector-scroll"><div class="facts"><div><span>VOLTAGE / TYPE</span><strong>${e?.voltage||'Vacuum circuit breaker'}</strong></div><div><span>NORMAL STATE</span><strong>${normal}</strong></div></div>
     ${electricalSpecCard}
+    ${protectionRelayCard}
+    ${hvLotoCard}
     <div class="detail-copy"><h3>Purpose</h3><p>${purpose}</p><h3>Power path</h3><p>${path}</p><h3>Understand it</h3><p>${lesson}</p></div>
     ${e&&allSupplyIds.includes(e.id)?`<div class="inspector-actions"><button class="button button-primary" data-source="${e.id}" type="button">${state.running[e.id]?'Stop':'Start'} ${e.id==='shore'?'shore supply':'generator'}</button></div>`:''}
     ${c?.breaker?`<div class="inspector-actions"><button class="button button-primary" data-breaker="${c.id}" type="button">${state.closed[c.id]?'Open':'Close'} breaker</button></div>`:''}
@@ -942,7 +1175,7 @@ function renderInspector(){
       <div class="transformer-controls-card">
         <div class="card-header">
           <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
             <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">6.6 kV / 440 V Distribution Transformer</h4>
           </div>
           <span id="transformer-explosion-val" class="transformer-val-badge">${Math.round(transformerAssembly.targetExplosionFactor * 100)}%</span>
@@ -968,7 +1201,7 @@ function renderInspector(){
       <div class="drive-controls-card">
         <div class="card-header">
           <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
             <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Propulsion Frequency Converter</h4>
           </div>
           <span id="drive-explosion-val" class="drive-val-badge">${Math.round(driveAssembly.targetExplosionFactor * 100)}%</span>
@@ -994,7 +1227,7 @@ function renderInspector(){
       <div class="motor-controls-card">
         <div class="card-header">
           <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
+            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
             <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Electric Propulsion Motor</h4>
           </div>
           <span id="motor-explosion-val" class="motor-val-badge">${Math.round(motorAssembly.targetExplosionFactor * 100)}%</span>
@@ -1101,8 +1334,56 @@ function renderInspector(){
   pane.querySelectorAll<HTMLButtonElement>('[data-breaker]').forEach(b=>b.onclick=()=>toggleBreaker(b.dataset.breaker!));
   pane.querySelectorAll<HTMLButtonElement>('[data-select]').forEach(b=>b.onclick=()=>select(b.dataset.select!));
 
+  // Wire Phase 1 Relay Test Buttons in Inspector
+  pane.querySelector<HTMLButtonElement>('#btnInspectorFieldLoss')?.addEventListener('click',()=>{
+    setMessage(simEngine.toggleFieldLoss(selected));
+    renderControls();
+    renderInspector();
+  });
+  pane.querySelector<HTMLButtonElement>('#btnInspectorMotorize')?.addEventListener('click',()=>{
+    simEngine.nudgeGovernor(selected,-0.4);
+    setMessage(`Lowered ${byId[selected]?.short||selected} governor reference to ${simEngine.generators[selected].govSetpointHz.toFixed(2)} Hz to test ANSI 32 Reverse Power protection.`);
+    renderControls();
+    renderInspector();
+  });
+  pane.querySelector<HTMLButtonElement>('#btnInspectorFeederOverload')?.addEventListener('click',()=>{
+    if(c){
+      setMessage(simEngine.toggleFeederOvercurrent(c.id));
+      renderInspector();
+    }
+  });
+
+  // Wire Phase 4 LOTO Step Buttons in Inspector
+  pane.querySelectorAll<HTMLButtonElement>('[data-loto-step]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const stepNum=parseInt(btn.dataset.lotoStep||'1',10) as 1|2|3|4|5;
+      const res=hvLotoManager.executeStep(selected,stepNum,state.closed);
+      if(res.success){
+        document.querySelector('#arcFlashBanner')?.classList.add('hidden');
+        simEngine.pushAlarm('INFO','HV LOTO',res.message);
+      } else {
+        simEngine.pushAlarm('WARNING','HV LOTO',res.message);
+      }
+      setMessage(res.message);
+      refresh();
+    });
+  });
+  pane.querySelector<HTMLButtonElement>('#btnResetLoto')?.addEventListener('click',()=>{
+    const msg=hvLotoManager.resetEquipmentLoto(selected);
+    document.querySelector('#arcFlashBanner')?.classList.add('hidden');
+    if(selected==='txA'||selected==='txB')transformerAssembly.setExplosionFactor(0);
+    if(selected==='drive'||model==='drive')driveAssembly.setExplosionFactor(0);
+    if(selected==='motor'||model==='motor')motorAssembly.setExplosionFactor(0);
+    if(exploded.isExploded())exploded.setExploded(false);
+    setMessage(msg);
+    refresh();
+  });
+
   if(assemblyInfo){
-    pane.querySelector<HTMLButtonElement>('#openCadAssembly')?.addEventListener('click',()=>openAssemblyModal(assemblyInfo));
+    pane.querySelector<HTMLButtonElement>('#openCadAssembly')?.addEventListener('click',()=>{
+      if(needsLoto && !verifyHvIsolationOrWarn(selected))return;
+      openAssemblyModal(assemblyInfo);
+    });
   }
 
   if (selected === 'prop' || e?.kind === 'propeller') {
@@ -1129,6 +1410,11 @@ function renderInspector(){
     const txSlider = document.getElementById('transformer-explosion-slider') as HTMLInputElement;
     txSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
+      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+        txSlider.value = '0';
+        transformerAssembly.setExplosionFactor(0);
+        return;
+      }
       transformerAssembly.setExplosionFactor(factor);
       const label = document.getElementById('transformer-explosion-val');
       if (label) label.textContent = `${Math.round(factor * 100)}%`;
@@ -1137,6 +1423,11 @@ function renderInspector(){
     pane.querySelectorAll<HTMLButtonElement>('[data-tx-preset]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const factor = parseFloat(btn.dataset.txPreset || '0');
+        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+          if (txSlider) txSlider.value = '0';
+          transformerAssembly.setExplosionFactor(0);
+          return;
+        }
         transformerAssembly.setExplosionFactor(factor);
         if (txSlider) txSlider.value = String(factor);
         const label = document.getElementById('transformer-explosion-val');
@@ -1149,6 +1440,11 @@ function renderInspector(){
     const driveSlider = document.getElementById('drive-explosion-slider') as HTMLInputElement;
     driveSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
+      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+        driveSlider.value = '0';
+        driveAssembly.setExplosionFactor(0);
+        return;
+      }
       driveAssembly.setExplosionFactor(factor);
       const label = document.getElementById('drive-explosion-val');
       if (label) label.textContent = `${Math.round(factor * 100)}%`;
@@ -1157,6 +1453,11 @@ function renderInspector(){
     pane.querySelectorAll<HTMLButtonElement>('[data-drive-preset]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const factor = parseFloat(btn.dataset.drivePreset || '0');
+        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+          if (driveSlider) driveSlider.value = '0';
+          driveAssembly.setExplosionFactor(0);
+          return;
+        }
         driveAssembly.setExplosionFactor(factor);
         if (driveSlider) driveSlider.value = String(factor);
         const label = document.getElementById('drive-explosion-val');
@@ -1169,6 +1470,11 @@ function renderInspector(){
     const motorSlider = document.getElementById('motor-explosion-slider') as HTMLInputElement;
     motorSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
+      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+        motorSlider.value = '0';
+        motorAssembly.setExplosionFactor(0);
+        return;
+      }
       motorAssembly.setExplosionFactor(factor);
       const label = document.getElementById('motor-explosion-val');
       if (label) label.textContent = `${Math.round(factor * 100)}%`;
@@ -1177,6 +1483,11 @@ function renderInspector(){
     pane.querySelectorAll<HTMLButtonElement>('[data-motor-preset]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const factor = parseFloat(btn.dataset.motorPreset || '0');
+        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
+          if (motorSlider) motorSlider.value = '0';
+          motorAssembly.setExplosionFactor(0);
+          return;
+        }
         motorAssembly.setExplosionFactor(factor);
         if (motorSlider) motorSlider.value = String(factor);
         const label = document.getElementById('motor-explosion-val');
@@ -1247,6 +1558,7 @@ function renderInspector(){
 
   if(model){
     pane.querySelector<HTMLButtonElement>('#explodeExpand')!.onclick=()=>{
+      if(needsLoto && !verifyHvIsolationOrWarn(selected))return;
       if(assemblyInfo){
         openAssemblyModal(assemblyInfo);
       }else{
@@ -1259,7 +1571,11 @@ function renderInspector(){
     exploded.setModel(model);
     exploded.setPart(selectedPart);
     const button=pane.querySelector<HTMLButtonElement>('#explodeToggle')!;
-    button.onclick=()=>{exploded.setExploded(!exploded.isExploded());button.textContent=exploded.isExploded()?'↙ Assemble view':'↗ Explode view';};
+    button.onclick=()=>{
+      if(!exploded.isExploded() && needsLoto && !verifyHvIsolationOrWarn(selected))return;
+      exploded.setExploded(!exploded.isExploded());
+      button.textContent=exploded.isExploded()?'↙ Assemble view':'↗ Explode view';
+    };
     pane.querySelector<HTMLButtonElement>('#focusPart')!.onclick=()=>exploded.focusPart();
     pane.querySelector<HTMLButtonElement>('#resetModelView')!.onclick=()=>exploded.resetView();
     const list=pane.querySelector('#partsList')!;
@@ -1364,16 +1680,35 @@ function updatePartDescription(model:ModelType){
 }
 
 function updateLiveTelemetryDOM(){
-  // 1. Update generator telemetry bars & text
+  // 1. Update generator telemetry bars, text, and Phase 1 protective relay timers
   for(const [id,g] of Object.entries(simEngine.generators)){
     const bar=document.getElementById(`genBar-${id}`);
     if(bar){
       bar.style.width=`${Math.min(100,Math.max(0,g.loadPercent))}%`;
-      bar.className=`gen-load-bar-fill ${g.loadPercent>95?'crit':g.loadPercent>80?'warn':''}`;
+      bar.className=`gen-load-bar-fill ${g.loadPercent>95||g.kw<0||g.relays.fieldLossInjected?'crit':g.loadPercent>80?'warn':''}`;
     }
     const txt=document.getElementById(`genMetrics-${id}`);
     if(txt){
       txt.textContent=`${g.status} · ${Math.round(g.kw)} kW (${g.loadPercent}%) · ${g.frequencyHz.toFixed(1)} Hz`;
+    }
+    const relayEl=document.getElementById(`genRelay-${id}`);
+    if(relayEl){
+      const r=g.relays;
+      const tags:string[]=[];
+      if(r.lastTripCode==='ANSI-32')tags.push('TRIP: ANSI 32 Reverse Power');
+      else if(r.reversePowerTimer>0)tags.push(`ANSI 32 Reverse P: ${r.reversePowerTimer.toFixed(1)}s / 3.0s`);
+      if(r.lastTripCode==='ANSI-40')tags.push('TRIP: ANSI 40 Loss of Field');
+      else if(r.lossOfFieldTimer>0)tags.push(`ANSI 40 Loss of Field: ${r.lossOfFieldTimer.toFixed(1)}s / 1.5s (${(g.voltageV/1000).toFixed(2)} kV)`);
+      else if(r.fieldLossInjected)tags.push('ANSI 40 Field Loss Armed');
+      if(r.lastTripCode==='ANSI-51')tags.push('TRIP: ANSI 51 IDMT Overcurrent');
+      else if(r.idmtProgress>0)tags.push(`ANSI 51 IDMT Dial: ${(r.idmtProgress*100).toFixed(0)}%`);
+      if(tags.length){
+        relayEl.textContent=`⚡ ${tags.join(' · ')}`;
+        relayEl.classList.remove('hidden');
+      } else {
+        relayEl.textContent='';
+        relayEl.classList.add('hidden');
+      }
     }
   }
 
@@ -1397,12 +1732,59 @@ function updateLiveTelemetryDOM(){
   const autoBtn=document.getElementById('btnAutoSync');
   if(autoBtn)autoBtn.textContent=`⚡ ${s.autoSyncActive?'Auto-Syncing...':'Auto-Sync & Close'}`;
 
-  // 3. Update PMS Recovery Banner & Alarm Logbook
+  // 3. Update PMS Recovery Banner, HRE Telemetry & Alarm Logbook
   const recBanner=document.getElementById('pmsRecoveryBanner');
   if(recBanner){
     recBanner.classList.toggle('hidden',!simEngine.recoveryStage);
     recBanner.textContent=simEngine.recoveryStage||'';
   }
+  const earthing=simEngine.hvEarthing;
+  const hreVn=document.getElementById('hreVnVal');
+  if(hreVn)hreVn.textContent=`${earthing.neutralDisplacementV.toLocaleString()} V`;
+  const hreIef=document.getElementById('hreIefVal');
+  if(hreIef)hreIef.textContent=`${earthing.groundFaultCurrentAmps.toFixed(2)} A ${simEngine.earthingArchitecture==='HRE'?'(381 Ω NER)':'(Capacitive)'}`;
+  const ansi67n=document.getElementById('ansi67nBadge');
+  if(ansi67n){
+    const ansi67nMsg=earthing.ansi67nActive?`ANSI 67N Directional Earth Fault Alarm · ${earthing.faultedPhase||'Phase A-Earth'} (V_N = ${earthing.neutralDisplacementV} V, I_ef = ${earthing.groundFaultCurrentAmps.toFixed(1)} A)`:'ANSI 67N Directional Earth Fault Relay: Normal';
+    ansi67n.className=`ansi67n-alarm-badge ${earthing.ansi67nActive?'active':'hidden'}`;
+    ansi67n.textContent=`⚡ ${ansi67nMsg}`;
+  }
+
+  // 3b. Update Phase 3 SOLAS Blackout Recovery 5-Stage Sequential Waterfall HUD Progress Bar
+  const wfHud=document.getElementById('solasWaterfallHud');
+  const wf=simEngine.waterfall;
+  if(wfHud){
+    const showWf=wf.active || wf.completed || activeScenario==='emergency';
+    wfHud.classList.toggle('hidden',!showWf);
+    if(showWf){
+      const curTitle=wf.currentStage?`Stage ${wf.currentStage.stageNumber}: ${wf.currentStage.shortTitle}`:(wf.completed?'All 5 SOLAS Stages Restored':'SOLAS Blackout Recovery');
+      wfHud.innerHTML=`
+        <div class="solas-wf-header">
+          <div class="solas-wf-title">
+            <span class="solas-wf-badge">${wf.active?'SOLAS SEQUENTIAL WATERFALL ACTIVE':'SOLAS WATERFALL COMPLETE'}</span>
+            <strong>${curTitle} (T = ${wf.elapsedSec.toFixed(1)}s)</strong>
+          </div>
+          <span class="solas-wf-pct">${wf.progressPercent}%</span>
+        </div>
+        <div class="solas-wf-bar-track">
+          <div class="solas-wf-bar-fill" style="width:${wf.progressPercent}%"></div>
+        </div>
+        <div class="solas-wf-stages-grid">
+          ${SOLAS_WATERFALL_STAGES.map((st,idx)=>{
+            const isDone=wf.completed || (wf.active && idx<wf.currentStageIndex);
+            const isCur=wf.active && idx===wf.currentStageIndex;
+            return `<div class="solas-wf-stage-pill ${isDone?'done':isCur?'active':'pending'}">
+              <div class="solas-wf-stage-top">
+                <span class="solas-wf-stage-time">${st.timeWindowLabel}</span>
+                <span class="solas-wf-stage-state">${isDone?'✓ ENERGIZED':isCur?'⚡ SEQUENCING':'QUEUED'}</span>
+              </div>
+              <strong class="solas-wf-stage-name">Stage ${st.stageNumber}: ${st.shortTitle}</strong>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+  }
+
   const alarmList=document.getElementById('alarmLogList');
   if(alarmList){
     alarmList.innerHTML=simEngine.alarms.slice(0,8).map(a=>`
@@ -1422,12 +1804,12 @@ function updateLiveTelemetryDOM(){
     const txA=simEngine.transformerLoading.txA, txB=simEngine.transformerLoading.txB;
     strip.innerHTML=`
       <button type="button" class="bus-tele-card ${bA.live?'live':'dead'}" data-bus-jump="busA">
-        <span class="bus-tele-title">6.6 kV BUS A</span>
+        <span class="bus-tele-title">6.6 kV BUS A (${simEngine.earthingArchitecture})</span>
         <strong>${bA.live?`${(bA.voltageV/1000).toFixed(2)} kV · ${bA.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
         <span>${bA.kw} kW · ${bA.kvar} kVAr · PF ${bA.powerFactor} · THD ${bA.thdPercent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${bB.live?'live':'dead'}" data-bus-jump="busB">
-        <span class="bus-tele-title">6.6 kV BUS B</span>
+        <span class="bus-tele-title">6.6 kV BUS B (${simEngine.earthingArchitecture})</span>
         <strong>${bB.live?`${(bB.voltageV/1000).toFixed(2)} kV · ${bB.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
         <span>${bB.kw} kW · ${bB.kvar} kVAr · PF ${bB.powerFactor} · THD ${bB.thdPercent}%</span>
       </button>
@@ -1477,7 +1859,15 @@ function updateLiveTelemetryDOM(){
   const topImd=document.querySelector('#topImdState');
   if(topImd){
     const fault=simEngine.earthFaultHv||simEngine.earthFaultLv;
-    topImd.textContent=simEngine.earthFaultHv?'6.6kV FAULT (14 kΩ)':simEngine.earthFaultLv?'440V FAULT (8 kΩ)':'15.0 MΩ OK';
+    if(simEngine.earthFaultHv && simEngine.earthingArchitecture==='HRE'){
+      topImd.textContent='HRE · V_N 3810V · 10.0A (67N)';
+    } else if(simEngine.earthFaultHv){
+      topImd.textContent='IT · 6.6kV FAULT (14 kΩ)';
+    } else if(simEngine.earthFaultLv){
+      topImd.textContent='440V FAULT (8 kΩ)';
+    } else {
+      topImd.textContent=`${simEngine.earthingArchitecture} · 15.0 MΩ OK`;
+    }
     topImd.className=fault?'is-open':'is-closed';
   }
 }
@@ -1550,4 +1940,4 @@ setInterval(()=>{
   updateLiveTelemetryDOM();
 },100);
 
-(window as any).app = { vessel, exploded, simEngine, scenario, select, toggleBreaker, toggleSource, reset, refresh, setLeftPanel, setLeftPanelExpanded, setRightPanel, getState: () => state, getLive: () => live };
+(window as any).app = { vessel, exploded, simEngine, hvLotoManager, scenario, select, toggleBreaker, toggleSource, reset, refresh, setLeftPanel, setLeftPanelExpanded, setRightPanel, getState: () => state, getLive: () => live };

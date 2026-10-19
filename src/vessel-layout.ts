@@ -99,3 +99,123 @@ export const vesselLayout: Record<string, VesselPlacement> = {
   eLights: { position: [-12.7, 3.2, -0.05], size: [0.58, 0.13, 0.16], space: 'house' },
   shore: { position: [6.7, 0.94, -2.55], size: [0.6, 0.67, 0.38], space: 'deck' }
 };
+
+// ============================================================================
+// PHASE 3: SOLAS BLACKOUT RECOVERY 5-STAGE SEQUENTIAL WATERFALL
+// ============================================================================
+export interface SolasWaterfallStage {
+  stageNumber: 1 | 2 | 3 | 4 | 5;
+  id: string;
+  timeWindowLabel: string;
+  startSec: number;
+  endSec: number;
+  shortTitle: string;
+  description: string;
+  sourcesToStart: string[];
+  breakersToClose: string[];
+}
+
+export interface SolasWaterfallStatus {
+  active: boolean;
+  completed: boolean;
+  elapsedSec: number;
+  totalDurationSec: number;
+  progressPercent: number;
+  currentStageIndex: number; // 0..4 (-1 when inactive)
+  currentStage: SolasWaterfallStage | null;
+  timeScale: number; // Default 2.5x so users can observe the 50s SOLAS sequence smoothly, or toggle 1x/5x
+}
+
+/**
+ * All main 6.6 kV and 440 V load feeder breakers that must open upon blackout
+ * so loads NEVER energize simultaneously upon main breaker closure.
+ */
+export const MAIN_BLACKOUT_SHED_BREAKERS: string[] = [
+  'propFeed',
+  'bowFeed',
+  'txAFeed',
+  'txBFeed',
+  'reeferFeed',
+  'craneFeed',
+  'fireFeed',
+  'ballastFeed',
+  'bilgeFeed',
+  'coolingFeed',
+  'steerFeed',
+  'tx220Feed',
+  'galleyFeed',
+  'lightFeed',
+  'outletFeed'
+];
+
+export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
+  {
+    stageNumber: 1,
+    id: 'stage-1-esb',
+    timeWindowLabel: 'T = 0s – 10s',
+    startSec: 0,
+    endSec: 10,
+    shortTitle: 'ESB & Emergency DG',
+    description: 'T = 0s–10s: Emergency DG start → ESB supply (Steering Gear, Emergency Lighting, Nav)',
+    sourcesToStart: ['eg'],
+    breakersToClose: ['egBreaker', 'eSteerFeed', 'eLightFeed', 'navFeed', 'eFireFeed']
+  },
+  {
+    stageNumber: 2,
+    id: 'stage-2-aux1',
+    timeWindowLabel: 'T = 10s – 20s',
+    startSec: 10,
+    endSec: 20,
+    shortTitle: 'Main DG & Stage 1 Aux',
+    description: 'T = 10s–20s: Main DG start → Stage 1 Auxiliaries (Lube Oil & Jacket Water pumps, 6.6kV/440V Bus)',
+    sourcesToStart: ['dg1'],
+    breakersToClose: ['gb1', 'tie', 'txAFeed', 'txBFeed']
+  },
+  {
+    stageNumber: 3,
+    id: 'stage-3-aux2',
+    timeWindowLabel: 'T = 20s – 30s',
+    startSec: 20,
+    endSec: 30,
+    shortTitle: 'Stage 2 Cooling & Fuel',
+    description: 'T = 20s–30s: Stage 2 Auxiliaries (Sea Water Cooling & Fuel Booster pumps)',
+    sourcesToStart: [],
+    breakersToClose: ['coolingFeed', 'steerFeed']
+  },
+  {
+    stageNumber: 4,
+    id: 'stage-4-ess',
+    timeWindowLabel: 'T = 30s – 45s',
+    startSec: 30,
+    endSec: 45,
+    shortTitle: 'Stage 3 Essential Loads',
+    description: 'T = 30s–45s: Stage 3 Essential Loads (Air Compressors & Boiler Auxiliaries / Fire & Bilge)',
+    sourcesToStart: [],
+    breakersToClose: ['fireFeed', 'bilgeFeed', 'tx220Feed', 'lightFeed']
+  },
+  {
+    stageNumber: 5,
+    id: 'stage-5-heavy',
+    timeWindowLabel: 'T > 45s',
+    startSec: 45,
+    endSec: 55,
+    shortTitle: 'Heavy & Non-Essential',
+    description: 'T > 45s: Non-Essential & Heavy Loads (Engine Room Ventilation, Thrusters, Air Conditioning, Propulsion)',
+    sourcesToStart: [],
+    breakersToClose: ['propFeed', 'reeferFeed', 'galleyFeed', 'outletFeed']
+  }
+];
+
+export function createInitialWaterfallStatus(): SolasWaterfallStatus {
+  return {
+    active: false,
+    completed: false,
+    elapsedSec: 0,
+    totalDurationSec: 55,
+    progressPercent: 0,
+    currentStageIndex: -1,
+    currentStage: null,
+    timeScale: 2.5
+  };
+}
+

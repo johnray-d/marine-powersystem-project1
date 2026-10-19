@@ -97,11 +97,92 @@ Scroll to **Propulsion & Sea Load** and **PMS & Fault Simulation** in the left p
 
 ---
 
-## 6. Keyboard Shortcuts Summary
+## 7. ANSI Protective Relay Engine (`ANSI 32`, `ANSI 40`, `ANSI 51 IDMT`)
+
+![ANSI Protective Relay Engine Telemetry and AVR Trip Control](public/tutorial/tut_06_protective_relays.png)
+
+High-voltage marine power systems demand active numerical protection relays to protect synchronous generators and switchgear against catastrophic electrical and mechanical failures:
+
+1. **ANSI 32 (Reverse Power Protection):**
+   - When a paralleled diesel generator's prime mover suffers fuel failure or governor stall, the generator begins drawing active power from the busbar (motoring action).
+   - If active power $P < -0.05 \times P_{\text{rated}}$ ($-5\%$) for $> 3.0\text{ s}$, the relay trips the generator vacuum circuit breaker (VCB) with **`ANSI 32: Reverse Power Trip`** to prevent engine crankshaft and gearbox damage.
+2. **ANSI 40 (Loss of Field / Excitation Failure):**
+   - If an Automatic Voltage Regulator (AVR) malfunctions or rotor field excitation collapses, the generator absorbs high reactive magnetizing power ($Q < -0.20 \times Q_{\text{rated}}$) while bus voltage sags below $85\%$ nominal ($5.61\text{ kV}$).
+   - The relay triggers a trip after a $1.5\text{ s}$ timer with **`ANSI 40: Loss of Field`**.
+   - Practice this in the simulator using the **AVR / Field Trip** switch on the generator control card.
+3. **ANSI 51 (IDMT Inverse-Time Overcurrent Curve):**
+   - Instantaneous trips are replaced with the **IEC 60255 Standard Inverse IDMT Curve**:
+     $$t = \frac{k}{(I / I_s)^\alpha - 1}$$
+     where $k = 0.14$, $\alpha = 0.02$, and pickup threshold $I_s = 1.10 \times I_{\text{rated}}$.
+   - Large motor starting currents ride through safely, while severe overloads trip in inverse proportion to current magnitude.
+
+---
+
+## 8. High-Resistance Earthing (HRE) Architecture & ANSI 67N
+
+![High-Resistance Earthing HRE and ANSI 67N Telemetry](public/tutorial/tut_07_hre_earthing.png)
+
+Toggle between earthing configurations in the **PMS & Earthing** panel:
+
+1. **Unearthed IT System vs. High-Resistance Earthing (HRE):**
+   - Switch between **"Unearthed IT System"** (zero ground trip current, high charging transients) and **"High-Resistance Earthed (HRE) System"** (modern offshore DP standard).
+2. **Neutral Earthing Resistor (NER = 381 Ω):**
+   - In HRE mode, the neutral point of each 6.6 kV transformer and generator connects to the vessel's steel hull through a calibrated $381\ \Omega$ resistor bank.
+3. **Ground Fault Current Clamped to 10.0 A:**
+   - Ground fault current is limited to:
+     $$I_{\text{fault}} = \frac{V_{L-N}}{R_{\text{ner}}} = \frac{3,810\text{ V}}{381\ \Omega} = 10.0\text{ A}$$
+   - This eliminates arc-flash escalation and iron core burning while maintaining continuous ship operations.
+4. **Neutral Displacement & ANSI 67N Directional Ground Fault Alarm:**
+   - The neutral point shifts to $V_N = 3,810\text{ V}$, immediately triggering an **`ANSI 67N: Directional Ground Fault Alarm`** in the ETO Alarm Logbook.
+
+---
+
+## 9. SOLAS Blackout Recovery 5-Stage Sequential Waterfall
+
+![SOLAS Blackout Recovery 5-Stage Sequential Waterfall and HUD Progress Bar](public/tutorial/tut_08_solas_waterfall.png)
+
+Under SOLAS Chapter II-1 regulations, restoring all consumers simultaneously causes excessive voltage drop and inrush currents, triggering a second cascading blackout. The simulator executes an automated 5-stage sequential restoration queue:
+
+1. **Stage 1 (T = 0s – 10s) — Emergency DG to ESB:**
+   - Emergency Diesel Generator starts within 10 seconds to supply the Emergency Switchboard (ESB): Steering Gear, Navigation Radios, Radar, and Emergency Lighting.
+2. **Stage 2 (T = 10s – 20s) — Main DG & Stage 1 Auxiliaries:**
+   - Main DG starts, energizes the 6.6 kV bus, and connects Main Engine Lube Oil and Jacket Water Circulating pumps.
+3. **Stage 3 (T = 20s – 30s) — Stage 2 Auxiliaries:**
+   - Sea Water Cooling and Heavy Fuel Oil (HFO) Booster supply pumps start.
+4. **Stage 4 (T = 30s – 45s) — Essential Services:**
+   - Starting Air Compressors and Auxiliary Boiler feed pumps restart.
+5. **Stage 5 (T > 45s) — Non-Essential & Heavy Loads:**
+   - Engine Room Ventilation Fans, Air Conditioning, Cargo Cranes, and Propulsion Thrusters are released.
+6. **Dynamic Bottom HUD Progress Bar:**
+   - A live progress bar at the bottom of the screen displays real-time stage name, elapsed timer, progress percentage, and load shed status.
+
+---
+
+## 10. Interactive 6.6 kV Permit to Work (PTW) & 5-Step LOTO Flow
+
+![6.6 kV High Voltage Permit to Work PTW and 5-Step LOTO Sequence](public/tutorial/tut_09_hv_loto.png)
+
+In compliance with IEC 60092-503 high-voltage safety standards, inspecting, opening cubicle doors, or exploding 3D CAD assemblies of 6.6 kV equipment requires a mandatory 5-step safety isolation workflow:
+
+1. **Step 1 — Trip & Open Feeder VCB:** Electrically isolate the feeder circuit breaker from the 6.6 kV busbar.
+2. **Step 2 — Rack Out VCB Truck to 'Test / Isolated':** Mechanically rack out the draw-out vacuum breaker truck to create a physical air-gap disconnection behind grounded safety shutters.
+3. **Step 3 — Apply Padlock & LOTO Danger Tag:** Lock out the racking shutter with a physical padlock and danger tag.
+4. **Step 4 — Prove Dead with 6.6 kV Capacitive Wand:** Test conductor terminals with a certified high-voltage test wand (verified on a proving unit before and after testing).
+5. **Step 5 — Close Circuit Main Earth (CME) Switch:** Close the mechanical earthing switch to bond all three phases directly to the vessel hull.
+6. **Arc-Flash Violation Warning:**
+   - If an un-isolated 6.6 kV assembly is opened without completing the 5-step LOTO sequence, the simulator activates a high-voltage **`⚡ ARC-FLASH VIOLATION WARNING`** badge.
+
+---
+
+## 11. Keyboard Shortcuts Summary
 
 | Shortcut | Action |
 | :---: | :--- |
+| **`1`** | Switch to **3D Vessel Overview** |
+| **`2`** | Switch to **Interactive Single-Line Diagram (SLD)** |
 | **`E`** | Toggle Left Panel between **Compact (`390 px`)** and **Expanded 2-Column Console (`680 px`)** |
 | **`[`** | Collapse / Open Left **Switchboard Controls** Drawer |
 | **`]`** | Collapse / Open Right **Equipment Inspector** Drawer |
-| **`Esc`** | Close 3D CAD Assembly / Tutorial Modal or Enlarged Viewer |
+| **`R`** | Reset 3D Camera View to Default Position |
+| **`Esc`** | Close 3D CAD Assembly / Tutorial Modal or Clear Selection |
+

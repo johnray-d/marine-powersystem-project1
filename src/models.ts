@@ -253,3 +253,297 @@ export function createModel(type:ModelType):ModelInstance {
   });
   return {group,parts};
 }
+
+// ============================================================================
+// PHASE 1: 3D MODEL PROTECTIVE RELAY SPECIFICATIONS (ANSI 32 / 40 / 51)
+// ============================================================================
+export interface ProtectionRelaySpec {
+  ansiCode: '32' | '40' | '51' | '67N' | '25';
+  name: string;
+  pickupSetting: string;
+  timeDelaySetting: string;
+  tripAction: string;
+}
+
+export const PROTECTION_RELAY_CATALOG: Record<string, ProtectionRelaySpec[]> = {
+  generator: [
+    {
+      ansiCode: '32',
+      name: 'Reverse Power Protection',
+      pickupSetting: 'P < -5.0% P_rated (-110 kW)',
+      timeDelaySetting: '3.0 s definite time',
+      tripAction: 'Instant VCB trip ("ANSI 32: Reverse Power Trip") to prevent diesel motoring'
+    },
+    {
+      ansiCode: '40',
+      name: 'Loss of Excitation / Field',
+      pickupSetting: 'Q < -20% Q_rated (-330 kVAr) & V < 85% V_nom (5.61 kV)',
+      timeDelaySetting: '1.5 s definite time',
+      tripAction: 'Trip generator VCB ("ANSI 40: Loss of Field") before pole-slipping occurs'
+    },
+    {
+      ansiCode: '51',
+      name: 'IDMT Overcurrent Protection',
+      pickupSetting: 'I_s = 105% I_rated (253 A @ 6.6 kV)',
+      timeDelaySetting: 'IEC Standard Inverse: t = k / ((I / I_s)^0.02 - 1)',
+      tripAction: 'Inverse-time thermal overload trip of generator VCB'
+    }
+  ],
+  'hv-board': [
+    {
+      ansiCode: '51',
+      name: 'Bus & Feeder IDMT Overcurrent',
+      pickupSetting: 'I_s = 105% I_rated',
+      timeDelaySetting: 't = 0.14 * TMS / ((I / I_s)^0.02 - 1)',
+      tripAction: 'Selective inverse-time coordination between feeder and generator VCBs'
+    },
+    {
+      ansiCode: '67N',
+      name: 'Directional Earth Fault Relay',
+      pickupSetting: 'I_ef = 10.0 A (381 Ω NER) · V_N = 3810 V',
+      timeDelaySetting: 'Instantaneous alarm / selective feeder indication',
+      tripAction: 'Pinpoints faulted 6.6 kV feeder in High-Resistance Earthed (HRE) mode'
+    },
+    {
+      ansiCode: '25',
+      name: 'Check Synchronizer Relay',
+      pickupSetting: 'ΔV < 5%, Δf < 0.35 Hz, Δθ < ±18°',
+      timeDelaySetting: 'Continuous phase/slip window supervision',
+      tripAction: 'Blocks out-of-phase breaker closure across live 6.6 kV busbars'
+    }
+  ],
+  breaker: [
+    {
+      ansiCode: '51',
+      name: 'Feeder VCB IDMT Overcurrent',
+      pickupSetting: 'I_s = 105% feeder rated current',
+      timeDelaySetting: 'IEC Standard Inverse: t = k / ((I / I_s)^alpha - 1)',
+      tripAction: 'Shunt-trip release unlatches VCB operating mechanism'
+    }
+  ]
+};
+
+// ============================================================================
+// PHASE 4: INTERACTIVE LOTO & HIGH VOLTAGE PERMIT TO WORK (PTW) FLOW
+// ============================================================================
+export interface LotoStepSpec {
+  stepNumber: 1 | 2 | 3 | 4 | 5;
+  id: string;
+  shortLabel: string;
+  actionLabel: string;
+  detail: string;
+}
+
+export const HV_LOTO_STEPS: LotoStepSpec[] = [
+  {
+    stepNumber: 1,
+    id: 'step1_open_vcb',
+    shortLabel: 'Step 1: Trip & Open Feeder VCB',
+    actionLabel: 'Trip & Open Feeder VCB',
+    detail: 'Interrupt 6.6 kV load current by tripping and opening the upstream Vacuum Circuit Breaker (VCB).'
+  },
+  {
+    stepNumber: 2,
+    id: 'step2_rack_out',
+    shortLabel: "Step 2: Rack out VCB truck to 'Test/Isolated'",
+    actionLabel: "Rack Out VCB Truck",
+    detail: "Mechanically rack out the withdrawable VCB carriage to 'Test/Isolated' to establish physical air-gap separation."
+  },
+  {
+    stepNumber: 3,
+    id: 'step3_padlock_loto',
+    shortLabel: 'Step 3: Apply Padlock & LOTO Tag',
+    actionLabel: 'Apply Padlock & LOTO Tag',
+    detail: 'Lock racking shutter with ETO personal safety padlock, trap Castell key, and attach HV Danger LOTO Tag.'
+  },
+  {
+    stepNumber: 4,
+    id: 'step4_prove_dead',
+    shortLabel: 'Step 4: Prove Dead (6.6 kV Capacitive Detector Wand)',
+    actionLabel: 'Prove Dead (6.6 kV Wand)',
+    detail: 'Execute Test-Prove-Test protocol with calibrated 6.6 kV capacitive voltage detector wand across L1, L2, L3 (0.00 kV).'
+  },
+  {
+    stepNumber: 5,
+    id: 'step5_close_cme',
+    shortLabel: 'Step 5: Close Circuit Main Earth (CME) Switch',
+    actionLabel: 'Close CME Earth Switch',
+    detail: 'Close integral Circuit Main Earth (CME) switch to ground all three phases solidly to the ship hull.'
+  }
+];
+
+/**
+ * Maps 6.6 kV equipment IDs (Transformers, Switchboards, Propulsion Motors/Drives, Thrusters, HV Breakers)
+ * to the feeder/incomer VCBs that must be opened in Step 1 of the HV LOTO isolation sequence.
+ */
+export const HV_EQUIPMENT_VCB_MAP: Record<string, { label: string; vcbIds: string[] }> = {
+  txA: { label: '6.6 kV / 440 V Main Transformer A', vcbIds: ['txAFeed'] },
+  txB: { label: '6.6 kV / 440 V Main Transformer B', vcbIds: ['txBFeed'] },
+  busA: { label: '6.6 kV Main Switchboard · Bus A', vcbIds: ['gb1', 'gb2', 'tie', 'shoreBreaker'] },
+  busB: { label: '6.6 kV Main Switchboard · Bus B', vcbIds: ['gb3', 'gb4', 'tie'] },
+  motor: { label: '6.6 kV Electric Propulsion Motor', vcbIds: ['propFeed'] },
+  drive: { label: '6.6 kV Propulsion Frequency Converter', vcbIds: ['propFeed'] },
+  bow: { label: '6.6 kV Bow Thruster Motor', vcbIds: ['bowFeed'] },
+  dg1: { label: '6.6 kV Diesel-Generator 1 Alternator', vcbIds: ['gb1'] },
+  dg2: { label: '6.6 kV Diesel-Generator 2 Alternator', vcbIds: ['gb2'] },
+  dg3: { label: '6.6 kV Diesel-Generator 3 Alternator', vcbIds: ['gb3'] },
+  dg4: { label: '6.6 kV Diesel-Generator 4 Alternator', vcbIds: ['gb4'] },
+  propFeed: { label: '6.6 kV Propulsion Feeder VCB', vcbIds: ['propFeed'] },
+  bowFeed: { label: '6.6 kV Bow-Thruster Feeder VCB', vcbIds: ['bowFeed'] },
+  txAFeed: { label: '6.6 kV Transformer A Feeder VCB', vcbIds: ['txAFeed'] },
+  txBFeed: { label: '6.6 kV Transformer B Feeder VCB', vcbIds: ['txBFeed'] },
+  tie: { label: '6.6 kV Bus-Tie Vacuum Circuit Breaker', vcbIds: ['tie'] },
+  gb1: { label: '6.6 kV DG 1 Generator VCB', vcbIds: ['gb1'] },
+  gb2: { label: '6.6 kV DG 2 Generator VCB', vcbIds: ['gb2'] },
+  gb3: { label: '6.6 kV DG 3 Generator VCB', vcbIds: ['gb3'] },
+  gb4: { label: '6.6 kV DG 4 Generator VCB', vcbIds: ['gb4'] }
+};
+
+export interface EquipmentLotoRecord {
+  equipmentId: string;
+  ptwNumber: string;
+  completedSteps: number; // 0..5
+  arcFlashViolation: boolean;
+  violationMessage: string | null;
+}
+
+export class HvLotoManager {
+  private records: Record<string, EquipmentLotoRecord> = {};
+
+  public requiresHvLoto(equipmentId: string): boolean {
+    return Boolean(HV_EQUIPMENT_VCB_MAP[equipmentId]);
+  }
+
+  public getRecord(equipmentId: string): EquipmentLotoRecord {
+    if (!this.records[equipmentId]) {
+      const suffix = equipmentId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      this.records[equipmentId] = {
+        equipmentId,
+        ptwNumber: `PTW-HV-6600-${suffix}`,
+        completedSteps: 0,
+        arcFlashViolation: false,
+        violationMessage: null
+      };
+    }
+    return this.records[equipmentId];
+  }
+
+  public isFullyIsolated(equipmentId: string, closedBreakers: Record<string, boolean>): boolean {
+    if (!this.requiresHvLoto(equipmentId)) return true;
+    const rec = this.getRecord(equipmentId);
+    const map = HV_EQUIPMENT_VCB_MAP[equipmentId];
+    const anyVcbClosed = map.vcbIds.some((id) => !!closedBreakers[id]);
+    if (anyVcbClosed && rec.completedSteps > 0) {
+      // If upstream VCB was re-closed externally, isolation is invalidated
+      rec.completedSteps = 0;
+    }
+    return !anyVcbClosed && rec.completedSteps >= 5;
+  }
+
+  /**
+   * Executes the next sequential step (1 -> 5) in the mandatory 5-step HV LOTO isolation flow.
+   */
+  public executeStep(
+    equipmentId: string,
+    targetStep: number,
+    closedBreakers: Record<string, boolean>
+  ): { success: boolean; message: string; stepCompleted: number } {
+    const rec = this.getRecord(equipmentId);
+    const map = HV_EQUIPMENT_VCB_MAP[equipmentId];
+    if (!map) {
+      return { success: true, message: 'Low-voltage equipment does not require 6.6 kV PTW.', stepCompleted: 5 };
+    }
+
+    if (targetStep !== rec.completedSteps + 1) {
+      const expected = HV_LOTO_STEPS[rec.completedSteps];
+      return {
+        success: false,
+        message: `LOTO SEQUENCE INTERLOCK: Must complete ${expected ? expected.shortLabel : 'previous step'} first!`,
+        stepCompleted: rec.completedSteps
+      };
+    }
+
+    if (targetStep === 1) {
+      // Step 1: Trip & Open Feeder VCB(s)
+      for (const vcbId of map.vcbIds) {
+        closedBreakers[vcbId] = false;
+      }
+      rec.completedSteps = 1;
+      rec.arcFlashViolation = false;
+      rec.violationMessage = null;
+      return {
+        success: true,
+        message: `[${rec.ptwNumber}] Step 1/5 Complete: Feeder VCB (${map.vcbIds.join(', ')}) tripped & opened.`,
+        stepCompleted: 1
+      };
+    }
+
+    // Ensure VCBs are still open for Steps 2..5
+    if (map.vcbIds.some((id) => !!closedBreakers[id])) {
+      rec.completedSteps = 0;
+      return {
+        success: false,
+        message: `INTERLOCK BLOCKED: Feeder VCB is still CLOSED! Complete Step 1 (Trip & Open VCB) first.`,
+        stepCompleted: 0
+      };
+    }
+
+    const stepSpec = HV_LOTO_STEPS[targetStep - 1];
+    rec.completedSteps = targetStep;
+    rec.arcFlashViolation = false;
+    rec.violationMessage = null;
+
+    const suffix =
+      targetStep === 5
+        ? 'PERMIT TO WORK (PTW) AUTHORIZED: 3D HV Enclosure unlocked for safe inspection & exploded view.'
+        : `Proceed to Step ${targetStep + 1}/5.`;
+    return {
+      success: true,
+      message: `[${rec.ptwNumber}] ${stepSpec.shortLabel} verified. ${suffix}`,
+      stepCompleted: targetStep
+    };
+  }
+
+  /**
+   * Validates whether a 6.6 kV 3D model can be exploded or opened for internal inspection.
+   * Triggers an Arc-Flash Violation Warning if the 5-step LOTO sequence is incomplete.
+   */
+  public verify3dInspectAccess(
+    equipmentId: string,
+    closedBreakers: Record<string, boolean>
+  ): { allowed: boolean; violationMessage?: string } {
+    if (!this.requiresHvLoto(equipmentId)) {
+      return { allowed: true };
+    }
+    if (this.isFullyIsolated(equipmentId, closedBreakers)) {
+      const rec = this.getRecord(equipmentId);
+      rec.arcFlashViolation = false;
+      rec.violationMessage = null;
+      return { allowed: true };
+    }
+
+    const rec = this.getRecord(equipmentId);
+    const map = HV_EQUIPMENT_VCB_MAP[equipmentId];
+    const nextStep = HV_LOTO_STEPS[rec.completedSteps];
+    const msg = `ARC-FLASH VIOLATION WARNING: Attempted to open/explode live 6.6 kV ${map.label} without HV PTW isolation (Step ${rec.completedSteps}/5)! Next required: ${nextStep.shortLabel}.`;
+    rec.arcFlashViolation = true;
+    rec.violationMessage = msg;
+    return { allowed: false, violationMessage: msg };
+  }
+
+  public resetEquipmentLoto(equipmentId: string): string {
+    const rec = this.getRecord(equipmentId);
+    rec.completedSteps = 0;
+    rec.arcFlashViolation = false;
+    rec.violationMessage = null;
+    return `[${rec.ptwNumber}] CME Earth Switch opened, LOTO padlock removed, and VCB truck racked back into 'Service'.`;
+  }
+
+  public resetAll(): void {
+    this.records = {};
+  }
+}
+
+export const hvLotoManager = new HvLotoManager();
+
+

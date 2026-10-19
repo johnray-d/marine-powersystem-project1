@@ -1,4 +1,24 @@
-import { type SimState, powered, edgeById, byId } from './network';
+import {
+  type SimState,
+  type RelayState,
+  type FeederRelayState,
+  type EarthingArchitecture,
+  type HvEarthingTelemetry,
+  powered,
+  edgeById,
+  byId,
+  createInitialRelayState,
+  updateProtectiveRelays,
+  updateFeederIdmtRelay,
+  calculateHvEarthingState
+} from './network';
+import {
+  SOLAS_WATERFALL_STAGES,
+  MAIN_BLACKOUT_SHED_BREAKERS,
+  createInitialWaterfallStatus,
+  type SolasWaterfallStatus
+} from './vessel-layout';
+
 
 export type LoadPriority = 'essential' | 'non-essential' | 'emergency';
 export type StartingMethod = 'VFD' | 'Soft-Starter' | 'Star-Delta' | 'DOL' | 'Feeder' | 'Transformer';
@@ -239,6 +259,9 @@ export interface GeneratorTelemetry {
   nominalVoltageV: number;
   ratedKw: number;
   ratedKva: number;
+  ratedKvar: number;
+  ratedCurrentAmps: number;
+  pickupCurrentAmps: number;
   running: boolean;
   breakerClosed: boolean;
   runupProgress: number; // 0..1 (1 = ready)
@@ -252,7 +275,8 @@ export interface GeneratorTelemetry {
   powerFactor: number;
   currentAmps: number;
   loadPercent: number;
-  status: 'STOPPED' | 'STARTING' | 'STANDBY' | 'ONLINE' | 'OVERLOAD' | 'REVERSE_POWER';
+  relays: RelayState;
+  status: 'STOPPED' | 'STARTING' | 'STANDBY' | 'ONLINE' | 'OVERLOAD' | 'REVERSE_POWER' | 'LOSS_OF_FIELD';
 }
 
 export interface BusTelemetry {
@@ -309,11 +333,15 @@ export class MarinePowerSimEngine {
   public syncTargetGen: 'dg1' | 'dg2' | 'dg3' | 'dg4' = 'dg2';
   public autoSyncGen: string | null = null;
   public recoveryStage: string | null = null;
+  public waterfall: SolasWaterfallStatus = createInitialWaterfallStatus();
 
   public earthFaultHv = false;
   public earthFaultLv = false;
+  public earthingArchitecture: EarthingArchitecture = 'HRE';
+  public hvEarthing: HvEarthingTelemetry = calculateHvEarthingState('HRE', false, true);
 
   public generators: Record<string, GeneratorTelemetry> = {};
+  public feederRelays: Record<string, FeederRelayState> = {};
   public buses: Record<'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus', BusTelemetry>;
   public sync: SyncTelemetry;
   public alarms: SimAlarm[] = [];
@@ -324,7 +352,6 @@ export class MarinePowerSimEngine {
   };
 
   private inrushTimers: Record<string, { extraKw: number; extraKvar: number; decay: number }> = {};
-  private overloadTimers: Record<string, number> = {};
   private standbyStartCooldown = 0;
   private blackoutDetected = false;
   private recoveryTimer = 0;
@@ -340,29 +367,38 @@ export class MarinePowerSimEngine {
       nominalVoltageV: number,
       ratedKw: number,
       running: boolean
-    ): GeneratorTelemetry => ({
-      id,
-      short,
-      breakerId,
-      busId,
-      nominalVoltageV,
-      ratedKw,
-      ratedKva: Math.round(ratedKw / 0.8),
-      running,
-      breakerClosed: id === 'dg1',
-      runupProgress: running ? 1 : 0,
-      govSetpointHz: id === 'dg2' ? 60.65 : 60.8,
-      avrSetpointPu: 1.012,
-      frequencyHz: running ? 60.0 : 0,
-      voltageV: running ? nominalVoltageV : 0,
-      kw: 0,
-      kvar: 0,
-      kva: 0,
-      powerFactor: 0.85,
-      currentAmps: 0,
-      loadPercent: 0,
-      status: running ? 'ONLINE' : 'STOPPED'
-    });
+    ): GeneratorTelemetry => {
+      const ratedKva = Math.round(ratedKw / 0.8);
+      const ratedKvar = Math.round(ratedKva * 0.6); // sin(acos(0.8)) = 0.6
+      const ratedCurrentAmps = (ratedKva * 1000) / (Math.sqrt(3) * nominalVoltageV);
+      return {
+        id,
+        short,
+        breakerId,
+        busId,
+        nominalVoltageV,
+        ratedKw,
+        ratedKva,
+        ratedKvar,
+        ratedCurrentAmps: Number(ratedCurrentAmps.toFixed(1)),
+        pickupCurrentAmps: Number((ratedCurrentAmps * 1.05).toFixed(1)), // 105% I_rated IDMT pickup I_s
+        running,
+        breakerClosed: id === 'dg1',
+        runupProgress: running ? 1 : 0,
+        govSetpointHz: id === 'dg2' ? 60.65 : 60.8,
+        avrSetpointPu: 1.012,
+        frequencyHz: running ? 60.0 : 0,
+        voltageV: running ? nominalVoltageV : 0,
+        kw: 0,
+        kvar: 0,
+        kva: 0,
+        powerFactor: 0.85,
+        currentAmps: 0,
+        loadPercent: 0,
+        relays: createInitialRelayState(),
+        status: running ? 'ONLINE' : 'STOPPED'
+      };
+    };
 
     this.generators = {
       dg1: initGen('dg1', 'DG 1', 'gb1', 'busA', 6600, 2200, true),
@@ -371,6 +407,22 @@ export class MarinePowerSimEngine {
       dg4: initGen('dg4', 'DG 4', 'gb4', 'busB', 6600, 2200, false),
       eg: initGen('eg', 'EM GEN', 'egBreaker', 'eBus', 440, 350, false)
     };
+
+    for (const spec of Object.values(LOAD_SPECS)) {
+      const ratedKva = spec.ratedKw / spec.powerFactor;
+      const ratedAmps = (ratedKva * 1000) / (Math.sqrt(3) * spec.nominalVoltageV);
+      this.feederRelays[spec.breakerId] = {
+        breakerId: spec.breakerId,
+        name: spec.name,
+        currentAmps: 0,
+        pickupAmps: Number((ratedAmps * 1.05).toFixed(1)),
+        overcurrentTimer: 0,
+        idmtTripTimeSec: null,
+        idmtProgress: 0,
+        overcurrentInjected: false,
+        lastTripReason: null
+      };
+    }
 
     const initBus = (
       id: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus',
@@ -547,8 +599,19 @@ export class MarinePowerSimEngine {
     return { allowed: true };
   }
 
-  public notifyBreakerChanged(breakerId: string, isClosed: boolean, live: Set<string>): void {
+  public notifyBreakerChanged(breakerId: string, isClosed: boolean, live: Set<string>, state?: SimState): void {
     if (!isClosed) return;
+    // If main generator breaker is closed manually after a blackout, prevent simultaneous load energization
+    // and initiate SOLAS Sequential Waterfall from Stage 2 (T = 10s).
+    if (['gb1', 'gb2', 'gb3', 'gb4'].includes(breakerId) && this.blackoutDetected && state && !this.waterfall.active) {
+      this.blackoutDetected = false;
+      for (const b of MAIN_BLACKOUT_SHED_BREAKERS) {
+        if (b !== 'txAFeed' && b !== 'txBFeed') state.closed[b] = false;
+      }
+      this.startPmsRecovery(state, 10);
+      return;
+    }
+
     // Find any load controlled by this breaker to trigger starting inrush current spike
     for (const spec of Object.values(LOAD_SPECS)) {
       if (spec.breakerId === breakerId && live.has(spec.busId) && spec.inrushMultiplier > 1.2) {
@@ -574,6 +637,48 @@ export class MarinePowerSimEngine {
     g.govSetpointHz = Math.max(58.5, Math.min(62.5, Number((g.govSetpointHz + deltaHz).toFixed(2))));
   }
 
+  public nudgeAvr(genId: string, deltaPu: number): void {
+    const g = this.generators[genId];
+    if (!g) return;
+    g.avrSetpointPu = Math.max(0.75, Math.min(1.10, Number((g.avrSetpointPu + deltaPu).toFixed(3))));
+  }
+
+  public toggleFieldLoss(genId: string): string {
+    const g = this.generators[genId];
+    if (!g) return '';
+    g.relays.fieldLossInjected = !g.relays.fieldLossInjected;
+    if (g.relays.fieldLossInjected) {
+      this.pushAlarm(
+        'WARNING',
+        'AVR-FAULT-INJ',
+        `AVR Field Collapse simulated on ${g.short}: Reactive power Q dropping < -20% Q_rated & terminal voltage sagging < 85% (5.61 kV). ANSI 40 timer active (1.5s).`
+      );
+      return `Simulated Loss of Excitation (AVR failure) on ${g.short}. ANSI 40 will trip breaker after 1.5s.`;
+    } else {
+      g.relays.lossOfFieldTimer = 0;
+      this.pushAlarm('INFO', 'AVR-RESTORED', `AVR Excitation restored to normal on ${g.short}.`);
+      return `AVR Excitation restored on ${g.short}.`;
+    }
+  }
+
+  public toggleFeederOvercurrent(breakerId: string): string {
+    const fr = this.feederRelays[breakerId];
+    if (!fr) return '';
+    fr.overcurrentInjected = !fr.overcurrentInjected;
+    if (fr.overcurrentInjected) {
+      this.pushAlarm(
+        'WARNING',
+        'ANSI-51-PICKUP',
+        `ANSI 51 IDMT Overcurrent pickup on ${fr.name} (2.2× I_s). Inverse-time curve integrating...`
+      );
+      return `Injected 2.2× overload on ${fr.name}. ANSI 51 IDMT curve timer active.`;
+    } else {
+      fr.overcurrentTimer = 0;
+      fr.idmtProgress = 0;
+      return `Cleared overload injection on ${fr.name}.`;
+    }
+  }
+
   public startAutoSync(genId: 'dg1' | 'dg2' | 'dg3' | 'dg4', state: SimState): string {
     this.syncTargetGen = genId;
     if (!state.running[genId]) {
@@ -589,46 +694,151 @@ export class MarinePowerSimEngine {
       state.running[id] = false;
       state.closed[`gb${id.slice(2)}`] = false;
     }
+    // Shed all main HV & LV load feeders via Undervoltage Release (UVR) so loads NEVER re-energize simultaneously
+    for (const b of MAIN_BLACKOUT_SHED_BREAKERS) {
+      state.closed[b] = false;
+    }
     state.running.shore = false;
     state.closed.shoreBreaker = false;
     this.autoSyncGen = null;
     this.recoveryStage = null;
+    this.waterfall = createInitialWaterfallStatus();
     this.blackoutDetected = true;
     this.pushAlarm(
       'CRITICAL',
       'BLACKOUT',
-      'MAIN 6.6 kV SWITCHBOARD BLACKOUT! All main generators tripped. Emergency generator auto-start initiated.'
+      'MAIN 6.6 kV SWITCHBOARD BLACKOUT! All main generators tripped & main feeders shed via UVR. Emergency generator auto-start initiated.'
     );
-    return 'BLACKOUT SIMULATED: Main 6.6 kV bus de-energized. Emergency Generator starting automatically...';
+    return 'BLACKOUT SIMULATED: Main 6.6 kV bus de-energized & feeders shed. Click "PMS Auto-Recovery" or Scenario 04 for SOLAS 5-Stage Waterfall.';
   }
 
-  public startPmsRecovery(state: SimState): string {
-    this.recoveryStage = 'Step 1/5: Starting DG 1 & ramping to 6.6 kV...';
-    this.recoveryTimer = 0;
-    this.recoveryStepIdx = 1;
-    // Open heavy non-essential loads first so dead-bus closure doesn't overload DG 1
-    for (const b of ['propFeed', 'bowFeed', 'reeferFeed', 'craneFeed', 'ballastFeed', 'galleyFeed']) {
+  public startPmsRecovery(state: SimState, startAtSec = 0): string {
+    // Ensure all non-restored main feeders are open before starting sequential waterfall
+    for (const b of MAIN_BLACKOUT_SHED_BREAKERS) {
       state.closed[b] = false;
     }
-    state.running.dg1 = true;
-    state.closed.gb1 = false;
-    this.pushAlarm('INFO', 'PMS-REC-1', 'PMS Auto-Recovery initiated: Starting DG 1 and shedding heavy loads prior to dead-bus closure.');
-    return this.recoveryStage;
+    const timeScale = this.waterfall.timeScale || 2.5;
+    this.waterfall = {
+      active: true,
+      completed: false,
+      elapsedSec: startAtSec,
+      totalDurationSec: 55,
+      progressPercent: Math.round((startAtSec / 55) * 100),
+      currentStageIndex: -1,
+      currentStage: SOLAS_WATERFALL_STAGES[0],
+      timeScale
+    };
+    this.blackoutDetected = false;
+    this.recoveryTimer = startAtSec;
+    this.recoveryStepIdx = 1;
+    // Immediately execute Stage 1 (and Stage 2 if starting at 10s)
+    this.advanceWaterfallStages(state);
+    this.pushAlarm(
+      'INFO',
+      'SOLAS-WATERFALL',
+      `SOLAS 5-Stage Sequential Blackout Recovery Waterfall initiated at T = ${startAtSec}s.`
+    );
+    return this.recoveryStage || 'SOLAS 5-Stage Sequential Waterfall initiated...';
+  }
+
+  public setWaterfallTimeScale(scale: number): void {
+    this.waterfall.timeScale = scale;
+  }
+
+  private advanceWaterfallStages(state: SimState, onStateMutated?: (msg: string) => void): void {
+    const t = this.waterfall.elapsedSec;
+    let targetStageIdx = 0;
+    for (let i = 0; i < SOLAS_WATERFALL_STAGES.length; i++) {
+      if (t >= SOLAS_WATERFALL_STAGES[i].startSec) {
+        targetStageIdx = i;
+      }
+    }
+
+    while (this.waterfall.currentStageIndex < targetStageIdx) {
+      const nextIdx = this.waterfall.currentStageIndex + 1;
+      const stg = SOLAS_WATERFALL_STAGES[nextIdx];
+      this.waterfall.currentStageIndex = nextIdx;
+      this.waterfall.currentStage = stg;
+
+      for (const src of stg.sourcesToStart) {
+        state.running[src] = true;
+        if (this.generators[src]) {
+          this.generators[src].running = true;
+          this.generators[src].runupProgress = 1.0;
+        }
+      }
+      for (const brk of stg.breakersToClose) {
+        state.closed[brk] = true;
+        this.notifyBreakerChanged(brk, true, powered(state));
+      }
+
+      this.recoveryStage = `Stage ${stg.stageNumber}/5 (${stg.timeWindowLabel}): ${stg.description}`;
+      this.pushAlarm('INFO', `SOLAS-STG-${stg.stageNumber}`, this.recoveryStage);
+      onStateMutated?.(this.recoveryStage);
+    }
+  }
+
+  public setEarthingArchitecture(arch: EarthingArchitecture): string {
+    this.earthingArchitecture = arch;
+    const hvLive = this.buses.busA.live || this.buses.busB.live;
+    this.hvEarthing = calculateHvEarthingState(this.earthingArchitecture, this.earthFaultHv, hvLive);
+    if (arch === 'HRE') {
+      if (this.earthFaultHv) {
+        this.pushAlarm(
+          'CRITICAL',
+          'ANSI-67N',
+          'ANSI 67N Directional Earth Fault Alarm! High-Resistance Earthed (HRE) 6.6 kV bus: NER (381 Ω) limits fault current I_ef = 10.0 A, Neutral Displacement V_N = 3810 V.'
+        );
+      } else {
+        this.pushAlarm(
+          'INFO',
+          'HRE-MODE',
+          '6.6 kV Switchboard Earthing switched to High-Resistance Earthed (HRE) System (381 Ω NER, 10 A ground fault limit).'
+        );
+      }
+      return 'Switched 6.6 kV busbar earthing to High-Resistance Earthed (HRE) System (NER = 381 Ω, I_ef = 10.0 A limit).';
+    } else {
+      if (this.earthFaultHv) {
+        this.pushAlarm(
+          'WARNING',
+          'IMD-6.6KV',
+          '6.6 kV Unearthed IT System Earth Fault! Insulation = 14 kΩ, Neutral V_N = 3810 V (High capacitive arcing overvoltage risk).'
+        );
+      } else {
+        this.pushAlarm(
+          'INFO',
+          'IT-MODE',
+          '6.6 kV Switchboard Earthing switched to Unearthed IT System (Insulated Neutral with IMD monitoring).'
+        );
+      }
+      return 'Switched 6.6 kV busbar earthing to Unearthed IT System.';
+    }
   }
 
   public toggleEarthFault(level: 'hv' | 'lv'): string {
     if (level === 'hv') {
       this.earthFaultHv = !this.earthFaultHv;
+      const hvLive = this.buses.busA.live || this.buses.busB.live;
+      this.hvEarthing = calculateHvEarthingState(this.earthingArchitecture, this.earthFaultHv, hvLive);
       if (this.earthFaultHv) {
-        this.pushAlarm(
-          'WARNING',
-          'IMD-6.6KV',
-          '6.6 kV IT-System Earth Fault detected! Insulation dropped to 14 kΩ. Bus remains online (insulated neutral).'
-        );
-        return 'Injected 6.6 kV Earth Fault (14 kΩ). Notice the IT bus stays live while IMD raises an alarm.';
+        if (this.earthingArchitecture === 'HRE') {
+          this.pushAlarm(
+            'CRITICAL',
+            'ANSI-67N',
+            'ANSI 67N Directional Earth Fault Alarm! 6.6 kV Phase L1-Earth fault: Neutral displacement V_N = 3810 V, NER fault current limited to I_ef = 10.0 A (381 Ω).'
+          );
+          return 'Injected 6.6 kV Phase Earth Fault in HRE Mode: V_N = 3810 V, NER current limited to 10.0 A, ANSI 67N Directional Earth Fault Alarm active.';
+        } else {
+          this.pushAlarm(
+            'WARNING',
+            'IMD-6.6KV',
+            '6.6 kV IT-System Earth Fault detected! Insulation dropped to 14 kΩ, Neutral V_N = 3810 V. Bus remains online (insulated neutral).'
+          );
+          return 'Injected 6.6 kV Earth Fault (14 kΩ, V_N = 3810 V) in Unearthed IT System.';
+        }
       } else {
-        this.pushAlarm('INFO', 'IMD-6.6KV-CLR', '6.6 kV Earth Fault cleared. Insulation restored to 15.0 MΩ.');
-        return '6.6 kV Earth Fault cleared.';
+        this.pushAlarm('INFO', 'IMD-6.6KV-CLR', '6.6 kV Earth Fault cleared. Neutral voltage V_N = 0 V, Insulation restored to 15.0 MΩ.');
+        return '6.6 kV Earth Fault cleared (V_N = 0 V, I_ef = 0.0 A).';
       }
     } else {
       this.earthFaultLv = !this.earthFaultLv;
@@ -697,13 +907,25 @@ export class MarinePowerSimEngine {
     };
 
     for (const spec of Object.values(LOAD_SPECS)) {
-      if (!live.has(spec.id)) continue;
+      const fr = this.feederRelays[spec.breakerId];
+      if (!live.has(spec.id)) {
+        if (fr) fr.currentAmps = 0;
+        continue;
+      }
       let kw = spec.id === 'drive' ? spec.ratedKw * this.propulsionThrottle : spec.ratedKw;
       let kvar = kw * Math.tan(Math.acos(spec.powerFactor));
       const inrush = this.inrushTimers[spec.id];
       if (inrush) {
         kw += inrush.extraKw * inrush.decay;
         kvar += inrush.extraKvar * inrush.decay;
+      }
+      if (fr && fr.overcurrentInjected) {
+        kw *= 2.25;
+        kvar *= 2.25;
+      }
+      if (fr) {
+        const kva = Math.hypot(kw, kvar);
+        fr.currentAmps = (kva * 1000) / (Math.sqrt(3) * spec.nominalVoltageV);
       }
       const bucket = busLoads[spec.busId];
       bucket.kw += kw;
@@ -804,22 +1026,29 @@ export class MarinePowerSimEngine {
         Math.min(62.5, (weightedNlHz - droopR * 60.0 * totalKw) / sumRatedKw)
       );
 
-      // 2.5% AVR voltage droop + transient starting inrush voltage dip
+      // 2.5% AVR voltage droop + transient starting inrush voltage dip + Loss of Field (ANSI 40) excitation collapse
       const avrDroop = 0.025;
       const sumRatedKva = onlineGens.reduce((s, g) => s + g.ratedKva, 0);
       const inrushDipPu = Math.min(0.085, totalInrushKvarHv / Math.max(2500, sumRatedKva) * 0.045);
-      const avgAvrPu = onlineGens.reduce((s, g) => s + g.avrSetpointPu, 0) / onlineGens.length;
-      const islandVoltagePu = Math.max(
-        0.86,
-        Math.min(1.05, avgAvrPu - avrDroop * (totalKvar / sumRatedKva) - inrushDipPu)
-      );
+      const hasFieldLoss = onlineGens.some((g) => g.relays.fieldLossInjected);
+      const avgAvrPu =
+        onlineGens.reduce((s, g) => s + (g.relays.fieldLossInjected ? 0.76 : g.avrSetpointPu), 0) /
+        onlineGens.length;
+      const rawIslandVoltagePu = avgAvrPu - avrDroop * (totalKvar / sumRatedKva) - inrushDipPu;
+      const islandVoltagePu = hasFieldLoss
+        ? Math.min(0.81, Math.max(0.74, rawIslandVoltagePu)) // Sags below 85% nominal (5.61 kV) during field loss
+        : Math.max(0.78, Math.min(1.05, rawIslandVoltagePu));
       const islandVoltageV = islandVoltagePu * 6600;
 
       // Distribute kW and kVAr across online generators according to their droop curves
       for (const g of onlineGens) {
         const rawKw = ((g.govSetpointHz - islandFreqHz) / (droopR * 60.0)) * g.ratedKw;
         g.kw = rawKw;
-        g.kvar = totalKvar * (g.ratedKva / sumRatedKva);
+        const effectiveAvrPu = g.relays.fieldLossInjected ? 0.76 : g.avrSetpointPu;
+        const avrCirculatingKvar = ((effectiveAvrPu - avgAvrPu) / avrDroop) * g.ratedKvar;
+        g.kvar = g.relays.fieldLossInjected
+          ? -0.32 * g.ratedKvar // Draws negative VARs (< -0.20 * Q_rated) when excitation field collapses
+          : totalKvar * (g.ratedKva / sumRatedKva) + avrCirculatingKvar;
         g.kva = Math.hypot(g.kw, g.kvar);
         g.powerFactor = g.kva > 1 ? Math.abs(g.kw) / g.kva : 1.0;
         g.frequencyHz = islandFreqHz;
@@ -827,9 +1056,11 @@ export class MarinePowerSimEngine {
         g.currentAmps = (g.kva * 1000) / (Math.sqrt(3) * Math.max(100, g.voltageV));
         g.loadPercent = Math.round((g.kw / g.ratedKw) * 100);
 
-        if (g.kw < -0.06 * g.ratedKw) {
+        if (g.kvar < -0.20 * g.ratedKvar && g.voltageV < 0.85 * g.nominalVoltageV) {
+          g.status = 'LOSS_OF_FIELD';
+        } else if (g.kw < -0.05 * g.ratedKw) {
           g.status = 'REVERSE_POWER';
-        } else if (g.loadPercent > 100) {
+        } else if (g.loadPercent > 100 || g.currentAmps > g.pickupCurrentAmps) {
           g.status = 'OVERLOAD';
         } else {
           g.status = 'ONLINE';
@@ -951,6 +1182,12 @@ export class MarinePowerSimEngine {
       }
     }
 
+    this.hvEarthing = calculateHvEarthingState(
+      this.earthingArchitecture,
+      this.earthFaultHv,
+      this.buses.busA.live || this.buses.busB.live
+    );
+
     // 7. Update Synchroscope & Auto-Synchronizer
     this.updateSynchroscope(clampedDt, state, live, onStateMutated);
 
@@ -1050,41 +1287,43 @@ export class MarinePowerSimEngine {
   ): void {
     this.standbyStartCooldown = Math.max(0, this.standbyStartCooldown - dt);
 
-    // 1. Generator Protection Relays (ANSI 32R Reverse Power & ANSI 51 Overload)
-    for (const id of ['dg1', 'dg2', 'dg3', 'dg4'] as const) {
+    // 1. Generator Protective Relay Engine: ANSI 32 (Reverse Power), ANSI 40 (Loss of Field), ANSI 51 (IDMT Curve)
+    for (const id of ['dg1', 'dg2', 'dg3', 'dg4', 'eg'] as const) {
       const g = this.generators[id];
-      if (!g.running || !g.breakerClosed) {
-        this.overloadTimers[id] = 0;
-        continue;
-      }
+      updateProtectiveRelays(
+        {
+          id: g.id,
+          short: g.short,
+          breakerId: g.breakerId,
+          activePowerKW: g.kw,
+          ratedPowerKW: g.ratedKw,
+          reactivePowerKVAR: g.kvar,
+          ratedVAR: g.ratedKvar,
+          busVoltageKV: g.voltageV / 1000,
+          nominalVoltageKV: g.nominalVoltageV / 1000,
+          currentAmps: g.currentAmps,
+          pickupCurrentAmps: g.pickupCurrentAmps,
+          isBreakerClosed: g.running && g.breakerClosed,
+          relays: g.relays
+        },
+        dt,
+        (_dg, alarmMessage, ansiCode) => {
+          state.closed[g.breakerId] = false;
+          g.breakerClosed = false;
+          g.relays.fieldLossInjected = false;
+          this.pushAlarm('CRITICAL', ansiCode, alarmMessage);
+          onStateMutated?.(alarmMessage);
+        }
+      );
+    }
 
-      if (g.status === 'REVERSE_POWER') {
-        this.overloadTimers[id] = (this.overloadTimers[id] || 0) + dt;
-        if (this.overloadTimers[id] > 1.8) {
-          state.closed[g.breakerId] = false;
-          this.overloadTimers[id] = 0;
-          this.pushAlarm(
-            'CRITICAL',
-            'ANSI-32R-TRIP',
-            `Reverse Power Relay (ANSI 32R) tripped ${g.short} breaker (${Math.round(g.kw)} kW motoring)!`
-          );
-          onStateMutated?.(`ANSI 32R Reverse Power Relay tripped ${g.short} breaker!`);
-        }
-      } else if (g.loadPercent > 112) {
-        this.overloadTimers[id] = (this.overloadTimers[id] || 0) + dt;
-        if (this.overloadTimers[id] > 3.5) {
-          state.closed[g.breakerId] = false;
-          this.overloadTimers[id] = 0;
-          this.pushAlarm(
-            'CRITICAL',
-            'ANSI-51-TRIP',
-            `Overcurrent Relay (ANSI 51) tripped ${g.short} breaker due to sustained ${g.loadPercent}% overload!`
-          );
-          onStateMutated?.(`ANSI 51 Overcurrent tripped ${g.short} breaker!`);
-        }
-      } else {
-        this.overloadTimers[id] = Math.max(0, (this.overloadTimers[id] || 0) - dt * 0.5);
-      }
+    // 1b. Feeder Breaker ANSI 51 IDMT Overcurrent Relays
+    for (const [breakerId, fr] of Object.entries(this.feederRelays)) {
+      updateFeederIdmtRelay(fr, !!state.closed[breakerId], dt, (_f, alarmMessage) => {
+        state.closed[breakerId] = false;
+        this.pushAlarm('CRITICAL', 'ANSI-51-FDR', alarmMessage);
+        onStateMutated?.(alarmMessage);
+      });
     }
 
     // 2. PMS Preferential Trip (Load Shedding) when any online DG exceeds 92% load
@@ -1148,43 +1387,30 @@ export class MarinePowerSimEngine {
       }
     }
 
-    // 5. PMS Sequential Blackout Auto-Recovery State Machine
-    if (this.recoveryStepIdx > 0) {
-      this.recoveryTimer += dt;
-      if (this.recoveryStepIdx === 1 && this.generators.dg1.runupProgress >= 0.95) {
-        state.closed.gb1 = true;
-        state.closed.tie = true;
-        state.closed.txAFeed = true;
-        state.closed.txBFeed = true;
-        this.recoveryStepIdx = 2;
-        this.recoveryTimer = 0;
-        this.recoveryStage = 'Step 2/5: Main 6.6 kV & 440 V buses energized. Starting Cooling & Steering...';
-        this.pushAlarm('INFO', 'PMS-REC-2', 'DG 1 closed onto dead bus. Main 6.6 kV & 440 V switchboards restored.');
-        onStateMutated?.(this.recoveryStage);
-      } else if (this.recoveryStepIdx === 2 && this.recoveryTimer >= 1.2) {
-        state.closed.coolingFeed = true;
-        state.closed.steerFeed = true;
-        this.notifyBreakerChanged('coolingFeed', true, powered(state));
-        this.recoveryStepIdx = 3;
-        this.recoveryTimer = 0;
-        this.recoveryStage = 'Step 3/5: Essential Cooling & Steering online. Starting Fire & Bilge pumps...';
-        onStateMutated?.(this.recoveryStage);
-      } else if (this.recoveryStepIdx === 3 && this.recoveryTimer >= 1.2) {
-        state.closed.fireFeed = true;
-        state.closed.bilgeFeed = true;
-        state.closed.lightFeed = true;
-        this.notifyBreakerChanged('fireFeed', true, powered(state));
-        this.recoveryStepIdx = 4;
-        this.recoveryTimer = 0;
-        this.recoveryStage = 'Step 4/5: Auxiliary pumps restored. Re-energizing Propulsion Drive...';
-        onStateMutated?.(this.recoveryStage);
-      } else if (this.recoveryStepIdx === 4 && this.recoveryTimer >= 1.3) {
-        state.closed.propFeed = true;
-        this.notifyBreakerChanged('propFeed', true, powered(state));
+    // 5. SOLAS 5-Stage Sequential Blackout Recovery Waterfall State Machine
+    if (this.waterfall.active) {
+      this.waterfall.elapsedSec = Math.min(
+        this.waterfall.totalDurationSec,
+        this.waterfall.elapsedSec + dt * this.waterfall.timeScale
+      );
+      this.waterfall.progressPercent = Math.min(
+        100,
+        Math.round((this.waterfall.elapsedSec / this.waterfall.totalDurationSec) * 100)
+      );
+      this.advanceWaterfallStages(state, onStateMutated);
+
+      if (this.waterfall.elapsedSec >= this.waterfall.totalDurationSec) {
+        this.waterfall.active = false;
+        this.waterfall.completed = true;
+        this.waterfall.progressPercent = 100;
         this.recoveryStepIdx = 0;
-        this.recoveryStage = null;
-        this.pushAlarm('INFO', 'PMS-REC-DONE', 'PMS Sequential Blackout Recovery complete. Vessel propulsion and essential services restored.');
-        onStateMutated?.('PMS Sequential Blackout Recovery complete! All essential systems online.');
+        this.recoveryStage = 'SOLAS 5-Stage Waterfall Complete (T > 45s): All essential & heavy loads restored.';
+        this.pushAlarm(
+          'INFO',
+          'PMS-REC-DONE',
+          'SOLAS 5-Stage Sequential Blackout Recovery complete. All stages (0–10s ESB, 10–20s Stage 1 Aux, 20–30s Stage 2 Cooling/Fuel, 30–45s Stage 3 Essential, >45s Heavy Loads) online.'
+        );
+        onStateMutated?.(this.recoveryStage);
       }
     }
   }

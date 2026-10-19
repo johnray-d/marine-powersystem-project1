@@ -300,7 +300,104 @@
 
     <section class="step-card">
       <div class="step-header">
-        <span class="step-num">SECTION 06</span>
+        <span class="step-num">SECTION 07</span>
+        <h2>ANSI Protective Relay Engine (ANSI 32, ANSI 40 &amp; ANSI 51 IDMT Curves)</h2>
+      </div>
+      <p>
+        The simulator implements high-fidelity IEEE / ANSI protective relay algorithms governing all 6.6 kV diesel generators and heavy feeder breakers:
+      </p>
+      <ul>
+        <li><strong>ANSI 32 (Reverse Power Protection):</strong> If a generator's prime mover suffers fuel starvation or mechanical drag while paralleled, the generator motors and draws active power from the live busbar. When active power draws \(P &lt; -0.05 \times P_{\text{rated}}\) (\(-5\%\)) for \(> 3.0\text{ seconds}\), the relay instantly trips the generator vacuum circuit breaker (VCB) with an <em>"ANSI 32: Reverse Power Trip"</em> alarm.</li>
+        <li><strong>ANSI 40 (Loss of Excitation / Field Failure):</strong> If an Automatic Voltage Regulator (AVR) fails or rotor field excitation collapses, the synchronous machine absorbs large amounts of inductive reactive power (\(Q &lt; -0.20 \times Q_{\text{rated}}\)) accompanied by terminal voltage sag below \(85\%\) nominal (\(5.61\text{ kV}\)). The relay trips the breaker after a \(1.5\text{ s}\) timer with <em>"ANSI 40: Loss of Field"</em>. You can simulate this using the <strong>AVR / Field Trip</strong> toggle in the generator card.</li>
+        <li><strong>ANSI 51 (IDMT Inverse-Time Overcurrent Curve):</strong> Instantaneous hard trips are replaced with the IEC 60255 Standard Inverse IDMT equation:
+          <div style="margin: 12px 0; padding: 12px 16px; background: rgba(15,23,42,0.8); border: 1px solid var(--border); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--accent);">
+            t = k / [ (I / I_s)^α − 1 ] &nbsp;&nbsp;&nbsp;&nbsp;(where k = 0.14, α = 0.02, I_s = 1.10 × I_rated)
+          </div>
+          Transient motor starting inrushes safely ride through without nuisance tripping, while sustained overcurrents trip the feeder inversely proportional to the fault magnitude.
+        </li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_06_protective_relays.png" alt="ANSI Protective Relay Engine Telemetry and AVR Trip Control" />
+        <div class="shot-caption">Fig 6 — Protective Relay Engine showing live ANSI 32 Reverse Power, ANSI 40 Loss of Field status with AVR Trip simulator, and IEC Standard Inverse (ANSI 51) IDMT time-overcurrent curve readout.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 08</span>
+        <h2>High-Resistance Earthing (HRE) Architecture &amp; ANSI 67N Directional Ground Fault</h2>
+      </div>
+      <p>
+        Marine high-voltage installations require specialized earthing architectures to control ground fault currents while maintaining service continuity:
+      </p>
+      <ul>
+        <li><strong>System Architecture Toggle:</strong> ETOs can toggle between <strong>"Unearthed IT System"</strong> (classic commercial marine setup with high-capacitance ground paths) and <strong>"High-Resistance Earthed (HRE) System"</strong> (modern SOLAS offshore DP standard).</li>
+        <li><strong>Neutral Earthing Resistor (NER = 381 Ω):</strong> In HRE mode, the 6.6 kV transformer and generator neutrals are grounded to the vessel's hull structure through a calibrated \(381\ \Omega\) stainless steel resistor bank.</li>
+        <li><strong>Fault Current Limited to 10.0 A:</strong> When a phase ground fault occurs, the fault current is clamped strictly to:
+          <div style="margin: 10px 0; padding: 10px 14px; background: rgba(15,23,42,0.8); border: 1px solid var(--border); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent);">
+            I_fault = V_(L-N) / R_ner = 3,810 V / 381 Ω = 10.0 A
+          </div>
+          This prevents catastrophic iron core destruction and restriking overvoltages while allowing machinery to run safely until an orderly shutdown.
+        </li>
+        <li><strong>Neutral Point Displacement &amp; ANSI 67N:</strong> Neutral voltage shifts to full line-to-neutral potential (\(V_N = 3,810\text{ V}\)), triggering the <strong>ANSI 67N Directional Earth Fault Alarm</strong> in the PMS telemetry drawer.</li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_07_hre_earthing.png" alt="High-Resistance Earthing HRE and ANSI 67N Telemetry" />
+        <div class="shot-caption">Fig 7 — High-Resistance Earthing (HRE) drill showing 381 Ω NER active, fault current clamped to 10.0 A, neutral displacement V_N = 3,810 V, and ANSI 67N Directional Earth Fault alarm.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 09</span>
+        <h2>SOLAS Blackout Recovery 5-Stage Sequential Waterfall &amp; HUD Progress Bar</h2>
+      </div>
+      <p>
+        Under SOLAS Chapter II-1 regulations, reconnecting all electrical consumers simultaneously upon restoring switchboard busbars causes destructive inrush current spikes and generator blackout re-trips. The simulator enforces a strict 5-stage sequential restoration waterfall:
+      </p>
+      <ol>
+        <li><strong>Stage 1 (T = 0s – 10s) — Emergency DG to ESB:</strong> Emergency Diesel Generator cranks and connects within 10 seconds to restore Emergency Switchboard (ESB) loads: Steering Gear, Navigation Radios, Radar, and Escape Route Lighting.</li>
+        <li><strong>Stage 2 (T = 10s – 20s) — Main DG &amp; Stage 1 Auxiliaries:</strong> Main DG 1 synchronizes onto the 6.6 kV bus, restoring Main Engine Lube Oil and Jacket Water Circulating pumps.</li>
+        <li><strong>Stage 3 (T = 20s – 30s) — Stage 2 Auxiliaries:</strong> Sea Water Cooling and Heavy Fuel Oil (HFO) Booster supply pumps energize once lube oil pressure stabilizes.</li>
+        <li><strong>Stage 4 (T = 30s – 45s) — Essential Services:</strong> Starting Air Compressors and Auxiliary Boiler feed pumps restart to prepare for full propulsion readiness.</li>
+        <li><strong>Stage 5 (T &gt; 45s) — Non-Essential &amp; Heavy Loads:</strong> Engine Room Ventilation Fans, Air Conditioning Chillers, Deck Cargo Cranes, and Aft / Bow Propulsion Thrusters are released for operation.</li>
+      </ol>
+      <p>
+        A dynamic visual progress bar at the bottom HUD displays the active stage name, countdown timer, percentage completion, and load shedding indicators during restoration.
+      </p>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_08_solas_waterfall.png" alt="SOLAS Blackout Recovery 5-Stage Sequential Waterfall and HUD Progress Bar" />
+        <div class="shot-caption">Fig 8 — SOLAS Blackout Recovery 5-Stage Sequential Waterfall active with dynamic HUD progress bar showing stage progression from emergency steering gear up to heavy propulsion thrusters.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 10</span>
+        <h2>Interactive 6.6 kV Permit to Work (PTW) &amp; 5-Step LOTO Isolation Sequence</h2>
+      </div>
+      <p>
+        In compliance with high-voltage marine safety codes (IEC 60092-503 and High Voltage Permit to Work frameworks), opening cubicle doors or exploding 3D CAD assemblies of 6.6 kV transformers, switchboards, or propulsion motors strictly requires completion of a 5-step safety isolation protocol:
+      </p>
+      <ol>
+        <li><strong>Step 1 — Trip &amp; Open Feeder VCB:</strong> Disconnect the circuit breaker feeding the high-voltage component.</li>
+        <li><strong>Step 2 — Rack Out VCB Truck to 'Test / Isolated':</strong> Withdraw the draw-out vacuum breaker truck to physically separate primary disconnect stabs behind grounded safety shutters.</li>
+        <li><strong>Step 3 — Apply Padlock &amp; LOTO Danger Tag:</strong> Lock the racking mechanism shutter with a physical padlock and authorized safety lockout tag.</li>
+        <li><strong>Step 4 — Prove Dead with 6.6 kV Capacitive Wand:</strong> Test the conductor terminals with a rated 6.6 kV capacitive voltage detector wand (verified against an approved proving unit immediately prior).</li>
+        <li><strong>Step 5 — Close Circuit Main Earth (CME) Switch:</strong> Engage the mechanical earthing switch to bond all three high-voltage phases directly to the steel vessel hull.</li>
+      </ol>
+      <p>
+        If an ETO attempts to open or explode an un-isolated 6.6 kV assembly without completing these 5 steps, the simulator displays an active <strong>"⚡ ARC-FLASH VIOLATION WARNING"</strong> badge on the equipment card.
+      </p>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_09_hv_loto.png" alt="6.6 kV High Voltage Permit to Work PTW and 5-Step LOTO Sequence" />
+        <div class="shot-caption">Fig 9 — Interactive 6.6 kV Permit to Work (PTW) and 5-Step LOTO checklist showing VCB trip, truck racking, padlock tagout, prove-dead wand testing, and CME hull grounding.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 11</span>
         <h2>Keyboard Shortcuts &amp; Quick Controls Reference</h2>
       </div>
       <div class="kbd-grid">

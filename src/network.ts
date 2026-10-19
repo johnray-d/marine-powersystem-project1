@@ -31,6 +31,275 @@ export interface SimState {
   closed: Record<string, boolean>;
 }
 
+// ============================================================================
+// PHASE 1: PROTECTIVE RELAY ENGINE (ANSI 32, ANSI 40, ANSI 51 IDMT)
+// ============================================================================
+export interface RelayState {
+  reversePowerTimer: number;      // ANSI 32: Reverse Power timer (trips at > 3.0s when P < -0.05 * P_rated)
+  lossOfFieldTimer: number;       // ANSI 40: Loss of Excitation timer (trips at >= 1.5s when Q < -0.20 * Q_rated & V < 85% V_nom)
+  overcurrentTimer: number;       // ANSI 51: IDMT elapsed overcurrent timer (s)
+  idmtTripTimeSec: number | null; // ANSI 51: Calculated inverse trip time t = k / ((I / I_s)^alpha - 1)
+  idmtProgress: number;           // ANSI 51: Normalized thermal/IDMT trip accumulator (0..1)
+  lastTripCode: string | null;    // Last active relay trip code
+  lastTripReason: string | null;  // Human-readable trip message
+  fieldLossInjected: boolean;     // Simulates AVR / field excitation collapse for ANSI 40 testing
+}
+
+export interface FeederRelayState {
+  breakerId: string;
+  name: string;
+  currentAmps: number;
+  pickupAmps: number;
+  overcurrentTimer: number;
+  idmtTripTimeSec: number | null;
+  idmtProgress: number;
+  overcurrentInjected: boolean;
+  lastTripReason: string | null;
+}
+
+export interface GeneratorProtectionInput {
+  id: string;
+  short: string;
+  breakerId: string;
+  activePowerKW: number;
+  ratedPowerKW: number;
+  reactivePowerKVAR: number;
+  ratedVAR: number;
+  busVoltageKV: number;
+  nominalVoltageKV: number;
+  currentAmps: number;
+  pickupCurrentAmps: number;
+  isBreakerClosed: boolean;
+  relays: RelayState;
+}
+
+export function createInitialRelayState(): RelayState {
+  return {
+    reversePowerTimer: 0,
+    lossOfFieldTimer: 0,
+    overcurrentTimer: 0,
+    idmtTripTimeSec: null,
+    idmtProgress: 0,
+    lastTripCode: null,
+    lastTripReason: null,
+    fieldLossInjected: false
+  };
+}
+
+/**
+ * IEC 60255 Standard Inverse IDMT (Inverse Definite Minimum Time) Overcurrent Equation:
+ *   t = k / ((I / I_s)^alpha - 1)
+ * Standard Inverse constants: k = 0.14, alpha = 0.02, scaled by Time Multiplier Setting (tms).
+ */
+export function calculateIdmtTripTime(
+  currentAmps: number,
+  pickupCurrentAmps: number,
+  k = 0.14,
+  alpha = 0.02,
+  tms = 0.25
+): number {
+  const ratio = currentAmps / Math.max(1, pickupCurrentAmps);
+  if (ratio <= 1.0) return Infinity;
+  const denominator = Math.pow(ratio, alpha) - 1;
+  if (denominator <= 1e-9) return Infinity;
+  return (k * tms) / denominator;
+}
+
+/**
+ * Evaluates ANSI 32 (Reverse Power), ANSI 40 (Loss of Excitation / Field),
+ * and ANSI 51 (IDMT Overcurrent) for a marine generator per simulation step.
+ */
+export function updateProtectiveRelays(
+  dg: GeneratorProtectionInput,
+  deltaTime: number,
+  onTrip?: (dg: GeneratorProtectionInput, alarmMessage: string, ansiCode: string) => void
+): void {
+  if (!dg.isBreakerClosed) {
+    dg.relays.reversePowerTimer = 0;
+    dg.relays.lossOfFieldTimer = 0;
+    dg.relays.overcurrentTimer = 0;
+    dg.relays.idmtTripTimeSec = null;
+    dg.relays.idmtProgress = Math.max(0, dg.relays.idmtProgress - deltaTime * 0.25);
+    return;
+  }
+
+  // 1. ANSI 32: Reverse Power Protection (P < -0.05 * P_rated for > 3.0 seconds)
+  if (dg.activePowerKW < -0.05 * dg.ratedPowerKW) {
+    dg.relays.reversePowerTimer += deltaTime;
+    if (dg.relays.reversePowerTimer > 3.0) {
+      dg.relays.reversePowerTimer = 0;
+      dg.relays.lastTripCode = 'ANSI-32';
+      dg.relays.lastTripReason = 'ANSI 32: Reverse Power Trip';
+      onTrip?.(
+        dg,
+        `ANSI 32: Reverse Power Trip on ${dg.short} (${Math.round(dg.activePowerKW)} kW < -5% rated for >3.0s).`,
+        'ANSI-32'
+      );
+      return;
+    }
+  } else {
+    dg.relays.reversePowerTimer = Math.max(0, dg.relays.reversePowerTimer - deltaTime * 0.5);
+  }
+
+  // 2. ANSI 40: Loss of Excitation / Field (Q < -0.20 * Q_rated AND V < 85% nominal [5.61 kV on 6.6 kV bus] for >= 1.5s)
+  const voltageLimitKV = 0.85 * dg.nominalVoltageKV; // 5.61 kV for 6.6 kV system
+  if (dg.reactivePowerKVAR < -0.20 * dg.ratedVAR && dg.busVoltageKV < voltageLimitKV) {
+    dg.relays.lossOfFieldTimer += deltaTime;
+    if (dg.relays.lossOfFieldTimer >= 1.5) {
+      dg.relays.lossOfFieldTimer = 0;
+      dg.relays.lastTripCode = 'ANSI-40';
+      dg.relays.lastTripReason = 'ANSI 40: Loss of Field';
+      onTrip?.(
+        dg,
+        `ANSI 40: Loss of Field on ${dg.short} (Q = ${Math.round(dg.reactivePowerKVAR)} kVAr, V = ${dg.busVoltageKV.toFixed(2)} kV < ${voltageLimitKV.toFixed(2)} kV for 1.5s).`,
+        'ANSI-40'
+      );
+      return;
+    }
+  } else {
+    dg.relays.lossOfFieldTimer = Math.max(0, dg.relays.lossOfFieldTimer - deltaTime * 0.5);
+  }
+
+  // 3. ANSI 51: IDMT Inverse-Time Overcurrent Curve: t = k / ((I / I_s)^alpha - 1)
+  if (dg.currentAmps > dg.pickupCurrentAmps) {
+    const tripTime = calculateIdmtTripTime(dg.currentAmps, dg.pickupCurrentAmps, 0.14, 0.02, 0.25);
+    dg.relays.idmtTripTimeSec = Number.isFinite(tripTime) ? Number(tripTime.toFixed(2)) : null;
+    dg.relays.overcurrentTimer += deltaTime;
+    if (Number.isFinite(tripTime) && tripTime > 0) {
+      dg.relays.idmtProgress += deltaTime / tripTime;
+      if (dg.relays.idmtProgress >= 1.0) {
+        dg.relays.idmtProgress = 0;
+        dg.relays.overcurrentTimer = 0;
+        dg.relays.lastTripCode = 'ANSI-51';
+        dg.relays.lastTripReason = 'ANSI 51: IDMT Overcurrent Trip';
+        onTrip?.(
+          dg,
+          `ANSI 51: IDMT Overcurrent Trip on ${dg.short} (I = ${Math.round(dg.currentAmps)} A, I/Is = ${(dg.currentAmps / dg.pickupCurrentAmps).toFixed(2)}×, t_trip = ${tripTime.toFixed(2)}s).`,
+          'ANSI-51'
+        );
+        return;
+      }
+    }
+  } else {
+    dg.relays.idmtTripTimeSec = null;
+    dg.relays.overcurrentTimer = 0;
+    dg.relays.idmtProgress = Math.max(0, dg.relays.idmtProgress - deltaTime * 0.2);
+  }
+}
+
+/**
+ * Evaluates ANSI 51 IDMT Overcurrent Curve for outgoing feeder breakers.
+ */
+export function updateFeederIdmtRelay(
+  feeder: FeederRelayState,
+  isBreakerClosed: boolean,
+  deltaTime: number,
+  onTrip?: (feeder: FeederRelayState, alarmMessage: string) => void
+): void {
+  if (!isBreakerClosed) {
+    feeder.overcurrentTimer = 0;
+    feeder.idmtTripTimeSec = null;
+    feeder.idmtProgress = Math.max(0, feeder.idmtProgress - deltaTime * 0.3);
+    return;
+  }
+
+  if (feeder.currentAmps > feeder.pickupAmps) {
+    const tripTime = calculateIdmtTripTime(feeder.currentAmps, feeder.pickupAmps, 0.14, 0.02, 0.18);
+    feeder.idmtTripTimeSec = Number.isFinite(tripTime) ? Number(tripTime.toFixed(2)) : null;
+    feeder.overcurrentTimer += deltaTime;
+    if (Number.isFinite(tripTime) && tripTime > 0) {
+      feeder.idmtProgress += deltaTime / tripTime;
+      if (feeder.idmtProgress >= 1.0) {
+        feeder.idmtProgress = 0;
+        feeder.overcurrentTimer = 0;
+        feeder.overcurrentInjected = false;
+        feeder.lastTripReason = `ANSI 51: Feeder IDMT Trip (${tripTime.toFixed(2)}s)`;
+        onTrip?.(
+          feeder,
+          `ANSI 51: IDMT Overcurrent tripped ${feeder.name} (I = ${Math.round(feeder.currentAmps)} A, I/Is = ${(feeder.currentAmps / feeder.pickupAmps).toFixed(2)}×, t = ${tripTime.toFixed(2)}s).`
+        );
+      }
+    }
+  } else {
+    feeder.idmtTripTimeSec = null;
+    feeder.overcurrentTimer = 0;
+    feeder.idmtProgress = Math.max(0, feeder.idmtProgress - deltaTime * 0.25);
+  }
+}
+
+// ============================================================================
+// PHASE 2: HIGH-RESISTANCE EARTHING (HRE) & ANSI 67N DIRECTIONAL EARTH FAULT
+// ============================================================================
+export type EarthingArchitecture = 'IT' | 'HRE';
+
+export interface HvEarthingTelemetry {
+  architecture: EarthingArchitecture;
+  architectureLabel: string;
+  nerResistanceOhms: number | null; // 381 Ω in HRE mode (V_LN / 10 A = 3810 V / 10 A)
+  neutralDisplacementV: number;     // V_N = 3810 V during phase-to-earth fault
+  groundFaultCurrentAmps: number;   // 10.0 A limited by NER in HRE mode
+  ansi67nActive: boolean;           // ANSI 67N Directional Earth Fault Relay pickup
+  faultedPhase: string | null;      // e.g., 'Phase A (L1-Earth)'
+  transientOvervoltageRisk: string; // 'Damped (<= 1.73x V_ph)' in HRE vs 'High (up to 3.0x V_ph arcing)' in IT
+}
+
+/**
+ * Computes 6.6 kV bus earthing telemetry for Unearthed IT vs High-Resistance Earthed (HRE) systems.
+ * In HRE mode: V_LN = 6600 / sqrt(3) ≈ 3810 V, R_NER = 381 Ω => I_ef = 10.0 A, triggering ANSI 67N.
+ */
+export function calculateHvEarthingState(
+  architecture: EarthingArchitecture,
+  earthFaultActive: boolean,
+  busLive: boolean
+): HvEarthingTelemetry {
+  const nominalPhaseVoltageV = Math.round(6600 / Math.sqrt(3)); // 3810 V
+  const nerOhms = 381; // 3810 V / 10 A = 381 Ω Neutral Earthing Resistor
+
+  if (!earthFaultActive || !busLive) {
+    return {
+      architecture,
+      architectureLabel:
+        architecture === 'HRE'
+          ? 'High-Resistance Earthed (HRE) System'
+          : 'Unearthed IT System',
+      nerResistanceOhms: architecture === 'HRE' ? nerOhms : null,
+      neutralDisplacementV: 0,
+      groundFaultCurrentAmps: 0,
+      ansi67nActive: false,
+      faultedPhase: null,
+      transientOvervoltageRisk:
+        architecture === 'HRE'
+          ? 'NER Damped (≤ 1.73× V_ph)'
+          : 'Capacitive Arc Risk (up to 3.0× V_ph)'
+    };
+  }
+
+  if (architecture === 'HRE') {
+    const faultCurrentAmps = Number((nominalPhaseVoltageV / nerOhms).toFixed(1)); // 10.0 A
+    return {
+      architecture: 'HRE',
+      architectureLabel: 'High-Resistance Earthed (HRE) System',
+      nerResistanceOhms: nerOhms,
+      neutralDisplacementV: nominalPhaseVoltageV, // 3810 V
+      groundFaultCurrentAmps: faultCurrentAmps,   // 10.0 A
+      ansi67nActive: true,
+      faultedPhase: 'Phase L1 (Bus A Feeder)',
+      transientOvervoltageRisk: 'NER Damped (≤ 1.73× V_ph)'
+    };
+  }
+
+  return {
+    architecture: 'IT',
+    architectureLabel: 'Unearthed IT System',
+    nerResistanceOhms: null,
+    neutralDisplacementV: nominalPhaseVoltageV, // 3810 V neutral shift
+    groundFaultCurrentAmps: 0.4,                // Uncontrolled capacitive charging current
+    ansi67nActive: false,
+    faultedPhase: 'Phase L1 (Non-directional IMD)',
+    transientOvervoltageRisk: 'HIGH: Arcing Overvoltage (up to 3.0× V_ph)'
+  };
+}
+
 // Electrical topology is independent from the drawing coordinates and Three.js geometry.
 // Edit labels here when confirmed ship reference material becomes available.
 export const VOLTAGES = { hv: '6.6 kV', lv: '440 V', consumer: '220 V' };
@@ -135,8 +404,27 @@ export const scenarios = [
   {id:'main', title:'01 · Energize the main bus', instruction:`DG 1 is running with its breaker and the bus tie closed. Both ${VOLTAGES.hv} sections are live.`, apply:():SimState => initialState(), focus:'busA'},
   {id:'propulsion', title:'02 · Supply propulsion', instruction:'Trace DG 1 → bus A → propulsion feeder → drive → electric motor → propeller.', apply:():SimState => {const s=initialState();s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;return s;}, focus:'drive'},
   {id:'tie', title:'03 · Open the bus tie', instruction:'With only DG 1 running, bus B loses power when the tie opens. Start DG 3 and close its breaker to restore bus B independently.', apply:():SimState => {const s=initialState();s.closed.tie=false;return s;}, focus:'tie'},
-  {id:'emergency', title:'04 · Restore essentials', instruction:'All main generators are stopped. The separate emergency generator and board supply only their selected essential feeders.', apply:():SimState => {const s=initialState();for(const id of ['dg1','dg2','dg3','dg4'])s.running[id]=false;s.running.eg=true;s.closed.egBreaker=true;return s;}, focus:'eBus'},
+  {
+    id:'emergency',
+    title:'04 · SOLAS Blackout Waterfall',
+    instruction:'Total blackout: all main feeders shed via UVR so loads do NOT energize simultaneously. The 5-stage SOLAS sequential waterfall restores ESB (0–10s), Stage 1 Aux (10–20s), Stage 2 Cooling/Fuel (20–30s), Stage 3 Essential (30–45s), and Heavy Loads (>45s).',
+    apply:():SimState => {
+      const s=initialState();
+      for(const id of ['dg1','dg2','dg3','dg4']){
+        s.running[id]=false;
+        s.closed[`gb${id.slice(2)}`]=false;
+      }
+      for(const b of ['propFeed','bowFeed','txAFeed','txBFeed','reeferFeed','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed','galleyFeed','lightFeed','outletFeed']){
+        s.closed[b]=false;
+      }
+      s.running.eg=true;
+      s.closed.egBreaker=true;
+      return s;
+    },
+    focus:'eBus'
+  },
   {id:'parallel', title:'05 · Parallel & sync DG 2', instruction:'DG 2 is running on standby while DG 1 feeds the bus. Use the Synchroscope (Auto-Sync or manual 12 o’clock close) to parallel DG 2 and share kW load.', apply:():SimState => {const s=initialState();s.running.dg2=true;s.closed.gb2=false;s.closed.propFeed=true;s.closed.coolingFeed=true;return s;}, focus:'dg2'},
   {id:'heavyload', title:'06 · Heavy sea load & PMS', instruction:'DG 1 and DG 3 are paralleled across the bus tie supplying propulsion, pumps, reefers, and hotel loads. Adjust propulsion throttle or trip a generator to test PMS load shedding.', apply:():SimState => {const s=initialState();s.running.dg1=true;s.closed.gb1=true;s.running.dg3=true;s.closed.gb3=true;s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;s.closed.fireFeed=true;s.closed.bilgeFeed=true;s.closed.reeferFeed=true;s.closed.lightFeed=true;s.closed.galleyFeed=true;return s;}, focus:'busA'}
 ] as const;
+
 
