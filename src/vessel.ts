@@ -343,7 +343,7 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
-  if(e.id==='txA'||e.id==='txB'){
+  if(e.id==='txA'||e.id==='txB'||e.id==='txReeferA'||e.id==='txReeferB'||e.id==='txConA'||e.id==='txConB'||e.kind==='transformer'||e.model==='transformer'){
     const txGroup = transformerAssembly.createEquipmentGroup(e.id, placement.size);
     txGroup.rotation.y = placement.rotation || 0;
     root.add(txGroup);
@@ -388,7 +388,7 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
-  if(e.id==='reefer'||e.model==='reefer'){
+  if(e.id==='reefer'||e.id==='reeferA'||e.id==='reeferB'||e.model==='reefer'||e.kind==='reefer'){
     const reeferGroup = reeferAssembly.createEquipmentGroup(e.id, placement.size);
     reeferGroup.rotation.y = placement.rotation || 0;
     root.add(reeferGroup);
@@ -400,7 +400,7 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
-  if(e.kind==='pump'||e.model==='pump'||['cooling','fire','ballast','bilge','eFire'].includes(e.id)){
+  if(e.kind==='pump'||e.model==='pump'||['cooling','cooling1','cooling2','fire','fire1','fire2','ballast','bilge','eFire'].includes(e.id)){
     const pumpGroup = pumpAssembly.createEquipmentGroup(e.id, placement.size);
     pumpGroup.rotation.y = placement.rotation || 0;
     root.add(pumpGroup);

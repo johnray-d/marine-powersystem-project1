@@ -1,4 +1,4 @@
-export type NodeKind = 'generator' | 'emergency-generator' | 'bus' | 'emergency-bus' | 'transformer' | 'drive' | 'motor' | 'propeller' | 'thruster' | 'pump' | 'load' | 'future';
+export type NodeKind = 'generator' | 'emergency-generator' | 'bus' | 'emergency-bus' | 'transformer' | 'drive' | 'motor' | 'propeller' | 'thruster' | 'pump' | 'reefer' | 'load' | 'future';
 export type ModelType = 'generator' | 'breaker' | 'hv-board' | 'transformer' | 'lv-board' | 'drive' | 'motor' | 'thruster' | 'reefer' | 'pump' | 'propeller';
 export interface Equipment {
   id: string;
@@ -308,60 +308,140 @@ const n = (id: string, name: string, short: string, kind: NodeKind, voltage: str
   ({ id, name, short, kind, voltage, zone, purpose, path, normal, lesson, sx, sy, model, label3d });
 
 export const equipment: Equipment[] = [
-  n('dg1','Diesel-generator 1','DG 1','generator',VOLTAGES.hv,'Engine room','A diesel engine turns an alternator to make electrical power.','Source → generator breaker → main bus A','Running; breaker closed','The engine supplies mechanical energy; the alternator converts it to electricity. This engine does not turn the propeller shaft.',80,80,'generator',true),
-  n('dg2','Diesel-generator 2','DG 2','generator',VOLTAGES.hv,'Engine room','Second main electrical source.','Source → generator breaker → main bus A','Standby; breaker open','Any available generator can feed its bus section when its breaker is closed.',80,145,'generator',true),
-  n('dg3','Diesel-generator 3','DG 3','generator',VOLTAGES.hv,'Engine room','Third main electrical source.','Source → generator breaker → main bus B','Standby; breaker open','Bus B can be supplied independently of bus A when the tie is open.',880,80,'generator',true),
-  n('dg4','Diesel-generator 4','DG 4','generator',VOLTAGES.hv,'Engine room','Fourth main electrical source.','Source → generator breaker → main bus B','Standby; breaker open','This is a representative four-set arrangement, not a particular ship design.',880,145,'generator',true),
-  n('busA','Main switchboard · A','BUS A','bus',VOLTAGES.hv,'Engine control room','Receives main generators and distributes medium-voltage power.','DG 1/2 → bus A → propulsion and transformer A','Energized when DG 1 feeds it','A busbar is a common electrical connection inside a switchboard.',260,125,'hv-board',true),
-  n('busB','Main switchboard · B','BUS B','bus',VOLTAGES.hv,'Engine control room','Second section of the main medium-voltage switchboard.','DG 3/4 → bus B → thrusters and transformer B','Joined to bus A by closed tie','Opening the bus tie separates the two sections.',700,125,'hv-board',true),
-  n('drive','Propulsion drive / converter','DRIVE','drive',VOLTAGES.hv,'Aft machinery space','Conditions electrical supply and controls motor speed and torque.','Bus A → drive → propulsion motor','Feeder closed','The drive sits between the switchboard and motor. It is shown as a functional block; no power-electronic calculations are performed.',215,265,'drive',true),
-  n('motor','Electric propulsion motor','MOTOR','motor',VOLTAGES.hv,'Aft machinery space','Turns the propeller shaft using electrical power from the drive.','Drive → motor → propeller','Available when drive is powered','The diesel generators supply electricity; this motor drives the main propeller.',215,355,'motor',true),
-  n('prop','Main propeller','PROP','propeller','Mechanical','Stern','Converts motor shaft rotation into thrust.','Motor → propeller','Turns when propulsion motor is supplied','The propeller is mechanically linked to the electric motor only.',215,440,'propeller',true),
-  n('bow','Bow thruster','BOW','thruster',VOLTAGES.hv,'Forward tunnel','Helps maneuver the bow sideways at low speed.','Bus B → feeder → thruster drive/motor','Feeder open','A simplified thruster assembly represents its motor, shaft, and propeller.',880,265,'thruster',true),
-  n('txA','Main transformer A','TX A','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Machinery space','Steps power down for main low-voltage distribution.',`Bus A → transformer A → ${VOLTAGES.lv} board`,'Connected','Its windings transfer energy magnetically while changing the voltage level.',330,245,'transformer',true),
-  n('txB','Main transformer B','TX B','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Machinery space','Second path to low-voltage distribution.',`Bus B → transformer B → ${VOLTAGES.lv} board`,'Connected',`The two transformer inputs are shown as separate paths to the same provisional ${VOLTAGES.lv} board.`,770,245,'transformer'),
-  n('lvBus','Main LV switchboard',VOLTAGES.lv,'bus',VOLTAGES.lv,'Machinery space','Distributes provisional low-voltage power to machinery and services.',`Transformers → ${VOLTAGES.lv} board → feeders`,'Available when either transformer is supplied','This voltage and grouping are provisional teaching assumptions.',550,320,'lv-board',true),
-  n('reefer','Reefer distribution','REEFERS','load',VOLTAGES.lv,'Container bays','Feeds grouped refrigerated-container outlets.',`${VOLTAGES.lv} board → reefer feeder → container sockets`,'Feeder open','Reefer sockets are grouped to keep the first-version diagram readable.',405,450,'reefer',true),
-  n('reeferUnit','Reefer container · refrigeration unit','REEFER 1','load',VOLTAGES.lv,'Forward cargo bay, outer row','Refrigeration unit of one refrigerated container. Its compressor, condenser fan and controller keep the cargo cold.',`${VOLTAGES.lv} board → reefer feeder → container socket → refrigeration unit`,'Socket breaker closed; supplied when the reefer feeder is closed','A dry container needs no power, but a reefer must be supplied for the whole voyage or its cargo spoils. When the unit is powered its condenser fan turns and its status light turns green.',405,520,undefined,true),
-  n('crane','Cargo crane','CRANE','load',VOLTAGES.lv,'Cargo deck','Representative electrically supplied cargo crane.',`${VOLTAGES.lv} board → crane feeder`,'Feeder open','Not every container ship carries its own crane; this is a teaching example.',520,450),
-  n('fire','Fire pump','FIRE PUMP','pump',VOLTAGES.lv,'Machinery space','Main-service pump for the ship fire main.',`${VOLTAGES.lv} board → fire-pump feeder`,'Feeder open','This normal fire pump is distinct from the emergency fire pump.',635,450,'pump'),
-  n('ballast','Ballast pump','BALLAST','pump',VOLTAGES.lv,'Lower machinery space','Moves ballast water for vessel trim and stability.',`${VOLTAGES.lv} board → ballast feeder`,'Feeder open','The simulator only shows whether supply is connected, not whether a pump is commanded to run.',750,450,'pump'),
-  n('bilge','Bilge pump','BILGE','pump',VOLTAGES.lv,'Lower machinery space','Moves collected water from bilge spaces.',`${VOLTAGES.lv} board → bilge feeder`,'Feeder open','Real bilge systems have controls and safeguards beyond this connectivity model.',860,450,'pump'),
-  n('cooling','Cooling pump','COOLING','pump',VOLTAGES.lv,'Machinery space','Circulates cooling water for machinery.',`${VOLTAGES.lv} board → cooling feeder`,'Feeder open','Cooling is a representative auxiliary load.',975,450,'pump'),
-  n('steering','Steering gear','STEERING','load',VOLTAGES.lv,'Aft steering compartment','Moves the rudder for steering.',`${VOLTAGES.lv} board → steering feeder`,'Feeder open','The emergency scenario includes a separate essential steering service branch.',285,535),
-  n('tx220','Consumer transformer','TX CON','transformer',`${VOLTAGES.lv} / ${VOLTAGES.consumer}`,'Accommodation','Steps power down to the provisional consumer board.',`${VOLTAGES.lv} board → transformer → ${VOLTAGES.consumer} board`,'Connected','Voltage labels are centralized so confirmed references can replace these assumptions.',555,535,'transformer'),
-  n('consumer','Consumer distribution',VOLTAGES.consumer,'bus',VOLTAGES.consumer,'Accommodation','Distributes power to ordinary domestic and service loads.',`Consumer transformer → ${VOLTAGES.consumer} board → loads`,`Available when ${VOLTAGES.lv} board is powered`,'This is a simplified single consumer board.',555,615,'lv-board'),
-  n('galley','Galley','GALLEY','load',VOLTAGES.consumer,'Accommodation','Representative galley appliances.',`${VOLTAGES.consumer} board → galley feeder`,'Feeder open','Galley equipment is grouped as one representative load.',350,700),
-  n('lights','Cabin lights (group)','LIGHTS','load',VOLTAGES.consumer,'Accommodation','Four representative lighting circuits.',`${VOLTAGES.consumer} board → lighting feeder`,'Feeder open','This group represents cabin, corridor, deck, and machinery-space lights.',495,700),
-  n('outlets','Service outlets (group)','OUTLETS','load',VOLTAGES.consumer,'Accommodation','Three representative convenience-outlet circuits.',`${VOLTAGES.consumer} board → outlet feeder`,'Feeder open','This group represents cabin, workshop, and bridge outlets.',640,700),
-  n('eg','Emergency generator','EM GEN','emergency-generator',VOLTAGES.lv,'Upper deck, separated space','Independent source for selected essential services.','Emergency generator → emergency breaker → emergency board','Standby; breaker open','In this simplified lesson, start it and close its breaker after loss of main power.',80,585,'generator',true),
-  n('eBus','Emergency switchboard','EM BUS','emergency-bus',VOLTAGES.lv,'Protected upper-deck space','Distributes emergency-generator power to selected essentials.','Emergency generator → emergency board → essential feeders','Dead until emergency generator connects','The emergency board has no automatic backfeed from the main board in V1.',115,665,'lv-board',true),
-  n('eFire','Emergency fire pump','EM FIRE','pump',VOLTAGES.lv,'Separated emergency location','Provides a separate fire-main pumping option.','Emergency board → emergency fire-pump feeder','Feeder closed','Its separate location and supply illustrate resilience.',80,755,'pump'),
-  n('eSteer','Essential steering service','EM STEER','load',VOLTAGES.lv,'Aft steering compartment','Representative emergency steering support circuit.','Emergency board → essential steering feeder','Feeder closed','Actual steering requirements depend on vessel design and rules.',220,755),
-  n('nav','Bridge / navigation','BRIDGE','load',VOLTAGES.lv,'Bridge','Representative essential bridge and navigation supply.','Emergency board → bridge feeder','Feeder closed','Real navigation supplies can include batteries and UPS units not shown here.',360,755),
-  n('eLights','Emergency lighting','EM LIGHT','load',VOLTAGES.lv,'Escape routes','Representative essential lighting circuit.','Emergency board → lighting feeder','Feeder closed','Emergency lighting is kept separate from the ordinary lighting group.',500,755),
-  n('shore','Shore connection (Cold Ironing)','SHORE','future',VOLTAGES.hv,'Port side deck','6.6 kV port cold-ironing shore connection box with phase-sequence and generator interlock.','Shore box → shore breaker → main bus A','Disconnected at sea; interlocked with main DGs','In port, shore power can supply the main 6.6 kV bus once all ship main generator breakers are open (black transfer) or synchronized.',80,220,undefined,true)
+  // --- 6.6 kV Generation Sources (Level 1: Y = 135) ---
+  n('dg1','Diesel-generator 1 (Port)','DG 1','generator',VOLTAGES.hv,'Engine room','6.6 kV / 3.5 MW main synchronous diesel generator supplying Port Bus A.','Source → generator breaker gb1 → main bus A','Running; breaker closed','The prime mover provides mechanical energy; the 6.6 kV alternator produces medium-voltage electricity.',160,135,'generator',true),
+  n('dg2','Diesel-generator 2 (Port)','DG 2','generator',VOLTAGES.hv,'Engine room','6.6 kV / 3.5 MW second main electrical source for Port Bus A.','Source → generator breaker gb2 → main bus A','Standby; breaker open','Any available generator can feed its bus section when synchronized and closed.',310,135,'generator',true),
+  n('shore','Shore connection (Cold Ironing)','SHORE','future',VOLTAGES.hv,'Port deck','6.6 kV port cold-ironing shore connection box with phase-sequence and interlock protection.','Shore box → shore breaker → main bus A','Disconnected at sea; interlocked with DGs','In port, shore power can supply Main Bus A once generator breakers are open (black transfer) or synchronized.',460,135,undefined,true),
+  n('dg3','Diesel-generator 3 (Starboard)','DG 3','generator',VOLTAGES.hv,'Engine room','6.6 kV / 3.5 MW third main electrical source supplying Starboard Bus B.','Source → generator breaker gb3 → main bus B','Standby; breaker open','Bus B can be supplied independently of Bus A when the bus tie is open.',1190,135,'generator',true),
+  n('dg4','Diesel-generator 4 (Starboard)','DG 4','generator',VOLTAGES.hv,'Engine room','6.6 kV / 3.5 MW fourth main electrical source for Starboard Bus B.','Source → generator breaker gb4 → main bus B','Standby; breaker open','Symmetrical 4-generator dual-bus redundancy ensures high vessel availability.',1340,135,'generator',true),
+
+  // --- 6.6 kV Main High-Voltage Switchboards (Level 1 Busbars: Y = 220) ---
+  n('busA','6.6 kV Main Switchboard · Bus A (Port)','BUS A','bus',VOLTAGES.hv,'Engine control room','Receives DG 1/2 and shore supply; distributes 6.6 kV power to Port machinery.','DG 1/2 → Bus A → TX A, TX REEFER A, Propulsion Drive 1','Energized when DG 1 feeds it','Medium-voltage switchgear busbar feeding transformers and heavy propulsion.',385,220,'hv-board',true),
+  n('busB','6.6 kV Main Switchboard · Bus B (Starboard)','BUS B','bus',VOLTAGES.hv,'Engine control room','Receives DG 3/4; distributes 6.6 kV power to Starboard machinery and Bow Thruster.','DG 3/4 → Bus B → TX B, TX REEFER B, Bow Thruster','Joined to Bus A by 6.6 kV Bus Tie','Opening the 6.6 kV Bus Tie separates the grid into two isolated islands.',1115,220,'hv-board',true),
+
+  // --- 6.6 kV / 440 V Dual Main Step-Down Transformers (2.5 MVA each, Y = 360) ---
+  n('txA','Main Step-Down Transformer A (Port)','TX A','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Machinery space (Port)','2.5 MVA step-down transformer stepping 6.6 kV Bus A down to 440 V Bus A.',`Bus A → TX A VCB → TX A → 440 V Bus A`,'Connected; 2.5 MVA rated','Magnetic induction transfers power while reducing voltage from 6.6 kV to 440 V.',180,360,'transformer',true),
+  n('txB','Main Step-Down Transformer B (Starboard)','TX B','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Machinery space (Starboard)','2.5 MVA step-down transformer stepping 6.6 kV Bus B down to 440 V Bus B.',`Bus B → TX B VCB → TX B → 440 V Bus B`,'Connected; 2.5 MVA rated','Starboard redundant transformer guaranteeing 100% low-voltage power if TX A is isolated.',1320,360,'transformer',true),
+
+  // --- 6.6 kV / 440 V Dual Reefer Distribution Transformers (1.5 MVA each, Y = 360) ---
+  n('txReeferA','Reefer Transformer A (Port)','TX REEFER A','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Forward machinery space (Port)','1.5 MVA step-down transformer stepping 6.6 kV Bus A down to Reefer Distribution Board A.','Bus A → REEFER A VCB → TX REEFER A → Reefer Panel A','Connected; 1.5 MVA rated','Dedicated step-down transformer isolating cyclical refrigerated container compressor surges.',330,360,'transformer',true),
+  n('txReeferB','Reefer Transformer B (Starboard)','TX REEFER B','transformer',`${VOLTAGES.hv} / ${VOLTAGES.lv}`,'Forward machinery space (Starboard)','1.5 MVA step-down transformer stepping 6.6 kV Bus B down to Reefer Distribution Board B.','Bus B → REEFER B VCB → TX REEFER B → Reefer Panel B','Connected; 1.5 MVA rated','Starboard dedicated reefer transformer providing symmetrical cargo container cooling capacity.',1170,360,'transformer',true),
+
+  // --- 6.6 kV Drives & Heavy Consumers (Y = 345 to 418) ---
+  n('drive','Propulsion VFD Drive 1','DRIVE 1','drive',VOLTAGES.hv,'Aft machinery space','Conditions 6.6 kV supply and controls propulsion motor speed and torque via PWM inverter.','Bus A → DRIVE 1 VCB → Drive 1 → Propulsion Motor','Feeder closed','Water-cooled variable frequency converter for main electric shaft propulsion.',520,345,'drive',true),
+  n('motor','Electric Propulsion Motor','MOTOR','motor',VOLTAGES.hv,'Aft machinery space','6.6 kV synchronous electric propulsion motor driving the propeller shaft.',`Drive 1 → Propulsion Motor → Propeller shaft`,'Available when Drive 1 is powered','Directly turns the main shaft without mechanical reduction gears.',520,385,'motor',true),
+  n('prop','Main Propeller','PROP','propeller','Mechanical','Stern','Fixed-pitch bronze propeller converting motor shaft rotation into vessel thrust.','Motor → Propeller','Turns when propulsion motor is supplied','Mechanically linked to the propulsion motor shaft.',520,418,'propeller',true),
+  n('bow','Bow Thruster VFD Drive 2','BOW THRUSTER','thruster',VOLTAGES.hv,'Forward tunnel','6.6 kV variable-speed transverse thruster for harbor maneuvering.',`Bus B → THRUSTER VCB → Bow Thruster`,'Feeder open','Large motor assembly with integral right-angle bevel gear and tunnel propeller.',980,345,'thruster',true),
+
+  // --- 440 V Main Low-Voltage Switchboards (Level 2 Busbars: Y = 440) ---
+  n('lvBusA','440 V Main Switchboard · Bus A (Port)','440V BUS A','bus',VOLTAGES.lv,'Engine room (Port)','Distributes 440 V 3-phase power to Port engine room auxiliaries and Control TX A.',`TX A → 440 V Bus A → Port pumps & TX CON A`,'Live when TX A or 440 V Bus Tie is closed','Main low-voltage switchboard section with 440 V bus tie to Starboard Bus B.',385,440,'lv-board',true),
+  n('lvBusB','440 V Main Switchboard · Bus B (Starboard)','440V BUS B','bus',VOLTAGES.lv,'Engine room (Starboard)','Distributes 440 V 3-phase power to Starboard machinery, crane, and Control TX B.',`TX B → 440 V Bus B → Starboard pumps & TX CON B`,'Live when TX B or 440 V Bus Tie is closed','Starboard low-voltage switchboard section joined by the 440 V Bus Tie.',1115,440,'lv-board',true),
+
+  // --- 440 V / 220 V Dual Auxiliary / Control Transformers (500 kVA each, Y = 565) ---
+  n('txConA','Control Transformer A (Port)','TX CON A','transformer',`${VOLTAGES.lv} / ${VOLTAGES.consumer}`,'Accommodation (Port)','500 kVA transformer stepping 440 V Bus A down to 220 V Sub-Board A.','440 V Bus A → CON A ACB → TX CON A → 220 V Sub A','Connected; 500 kVA rated','Provides isolated 220 V single-phase and 3-phase power for Bridge and Port lighting.',110,565,'transformer',true),
+  n('txConB','Control Transformer B (Starboard)','TX CON B','transformer',`${VOLTAGES.lv} / ${VOLTAGES.consumer}`,'Accommodation (Starboard)','500 kVA transformer stepping 440 V Bus B down to 220 V Sub-Board B.','440 V Bus B → CON B ACB → TX CON B → 220 V Sub B','Connected; 500 kVA rated','Starboard control transformer feeding Galley and Starboard accommodation.',1390,565,'transformer',true),
+
+  // --- 440 V Port Auxiliary Machinery (Level 2 Loads: Y = 545) ---
+  n('fire1','Fire Pump 1 (Port)','FIRE PUMP 1','pump',VOLTAGES.lv,'Machinery space (Port)','Main service pump for vessel fire main from Port 440 V bus.','440 V Bus A → Fire Pump 1 feeder','Feeder open','Normal centrifugal fire pump supplying deck wash and fire hydrants.',210,545,'pump',true),
+  n('reeferA','Reefer Distribution Board A (Port)','REEFER PANEL A','reefer',VOLTAGES.lv,'Cargo bay deck (Port)','Feeds grouped refrigerated-container sockets on Port cargo bays.',`TX REEFER A → Reefer Panel A → Container sockets`,'Supplied by TX REEFER A','Dedicated 440 V container refrigeration switchboard.',330,545,'reefer',true),
+  n('cooling1','SW Cooling Pump 1 (Port)','SW COOLING 1','pump',VOLTAGES.lv,'Machinery space (Port)','Circulates seawater to central coolers for Port machinery.','440 V Bus A → SW Cooling 1 feeder','Feeder closed','Continuous duty essential auxiliary pump.',430,545,'pump',true),
+  n('ballast','Ballast Pump','BALLAST PUMP','pump',VOLTAGES.lv,'Lower machinery space','Transfers seawater between ballast tanks for vessel trim, heel, and draft.','440 V Bus A → Ballast feeder','Feeder open','High-capacity centrifugal ballast pump.',515,545,'pump',true),
+  n('steering','Main Steering Gear','STEERING GEAR','load',VOLTAGES.lv,'Aft steering compartment','Hydraulic power unit for main rudder movement during normal passage.','440 V Bus A → Steering feeder','Feeder closed','Dual-ram electro-hydraulic steering gear.',595,545,undefined,true),
+  n('bilge','Machinery Bilge Pump','BILGE PUMP','pump',VOLTAGES.lv,'Lower machinery space','Evacuates oily water from engine room bilge wells to separator.','440 V Bus A → Bilge feeder','Feeder open','Reciprocating positive-displacement pump.',665,545,'pump',true),
+
+  // --- 440 V Starboard Auxiliary Machinery (Level 2 Loads: Y = 545) ---
+  n('fire2','Fire Pump 2 (Starboard)','FIRE PUMP 2','pump',VOLTAGES.lv,'Machinery space (Starboard)','Secondary main fire pump powered from Starboard 440 V bus for full redundancy.','440 V Bus B → Fire Pump 2 feeder','Feeder open','Independent fire main pump.',870,545,'pump',true),
+  n('cooling2','SW Cooling Pump 2 (Starboard)','SW COOLING 2','pump',VOLTAGES.lv,'Machinery space (Starboard)','Circulates seawater to central coolers for Starboard machinery.','440 V Bus B → SW Cooling 2 feeder','Feeder closed','Continuous duty seawater cooling pump.',970,545,'pump',true),
+  n('reeferB','Reefer Distribution Board B (Starboard)','REEFER PANEL B','reefer',VOLTAGES.lv,'Cargo bay deck (Starboard)','Feeds grouped refrigerated-container sockets on Starboard cargo bays.',`TX REEFER B → Reefer Panel B → Container sockets`,'Supplied by TX REEFER B','Symmetrical starboard container refrigeration switchboard.',1170,545,'reefer',true),
+  n('crane','Deck Cargo Crane','DECK CRANE','load',VOLTAGES.lv,'Cargo deck','Electro-hydraulic deck crane for container handling and stores loading.','440 V Bus B → Deck Crane feeder','Feeder open','High inrush heavy machinery load.',1270,545,undefined,true),
+
+  // --- 220 V Sub-Boards (Level 3 Busbars: Y = 640) ---
+  n('consumerA','220 V Sub-Board · Bus A (Port)','220V SUB A','bus',VOLTAGES.consumer,'Accommodation (Port)','220 V distribution sub-board for Bridge navigation and Port lighting.','TX CON A → 220 V Sub A → Bridge / Lights A','Live when TX CON A or 220 V Tie closed','Low-voltage distribution board with cross-tie to Sub B.',385,640,'lv-board',true),
+  n('consumerB','220 V Sub-Board · Bus B (Starboard)','220V SUB B','bus',VOLTAGES.consumer,'Accommodation (Starboard)','220 V distribution sub-board for Ship Galley and Starboard lighting.','TX CON B → 220 V Sub B → Galley / Lights B','Live when TX CON B or 220 V Tie closed','Low-voltage distribution board with cross-tie to Sub A.',1115,640,'lv-board',true),
+
+  // --- 220 V Domestic & Service Loads (Level 3 Loads: Y = 725) ---
+  n('nav','Bridge Navigation & Power','NAV BRIDGE','load',VOLTAGES.consumer,'Navigation Bridge','Bridge control consoles, radars, ECDIS, and navigational electronics.','220 V Sub A → Bridge feeder','Feeder closed','Essential bridge navigational and automation supply.',240,725,undefined,true),
+  n('lightsA','Accommodation Lighting A (Port)','ACCOM LIGHT A','load',VOLTAGES.consumer,'Accommodation (Port)','Cabin, corridor, and machinery space lighting circuits on Port side.','220 V Sub A → Lighting A feeder','Feeder closed','Domestic and service lighting branch.',460,725,undefined,true),
+  n('galley','Ship Galley & Outlets','GALLEY / OUTLETS','load',VOLTAGES.consumer,'Accommodation (Starboard)','Cooking ranges, galley refrigeration, and domestic 220 V convenience outlets.','220 V Sub B → Galley feeder','Feeder open','High-demand domestic hotel load shed during heavy sea state.',1040,725,undefined,true),
+  n('lightsB','Accommodation Lighting B (Starboard)','ACCOM LIGHT B','load',VOLTAGES.consumer,'Accommodation (Starboard)','Cabin, corridor, and deck lighting circuits on Starboard side.','220 V Sub B → Lighting B feeder','Feeder closed','Domestic and service lighting branch.',1260,725,undefined,true),
+
+  // --- 440 V SOLAS Emergency Switchboard (ESB) & Loads (Level 4: Y = 730 to 840) ---
+  n('eBus','440 V Emergency Switchboard (ESB)','440V ESB','emergency-bus',VOLTAGES.lv,'Upper deck (Protected space)','Distributes emergency generator power to SOLAS essential circuits during blackout.','Emergency DG → EDG CB → ESB → Essential feeders','Standby; energized during blackout','Physically separated above the waterline for flood and fire survivability.',750,730,'lv-board',true),
+  n('eg','Emergency Diesel Generator (440 V)','EMERGENCY DG','emergency-generator',VOLTAGES.lv,'Upper deck emergency compartment','440 V / 600 kW autonomous diesel generator auto-starting within 10s of blackout.','Emergency generator → EDG CB → ESB','Standby; breaker open','Autonomous starting via dual air/hydraulic starters with dedicated fuel supply.',750,840,'generator',true),
+  n('eFire','Emergency Fire Pump','EM FIRE PUMP','pump',VOLTAGES.lv,'Forward separated compartment','Independent fire pump capable of operating during complete machinery space flooding.','ESB → Emergency Fire Pump feeder','Feeder closed','Complies with SOLAS II-2 fire safety regulations.',570,840,'pump',true),
+  n('eSteer','Steering Gear (Emergency Supply)','STEERING EM\'CY','load',VOLTAGES.lv,'Aft steering compartment','Alternative auxiliary electrical supply for rudder operation during main power failure.','ESB → Emergency Steering feeder','Feeder closed','Mandatory SOLAS Chapter II-1 redundancy requirement.',660,840,undefined,true),
+  n('eLights','Emergency Lighting (SOLAS)','EM LIGHTING','load',VOLTAGES.lv,'Escape routes & Bridge','Illuminates escape trunks, boat decks, lifeboats, and command centers.','ESB → Emergency Lighting feeder','Feeder closed','Essential emergency escape illumination.',840,840,undefined,true),
+  n('eRadio','GMDSS Radio & Nav/Com','RADIO & NAV/COM','load',VOLTAGES.lv,'Navigation Bridge','GMDSS satellite communication, VHF distress radios, and emergency GPS.','ESB → Radio feeder','Feeder closed','Emergency radio communications and distress alerting.',930,840,undefined,true)
 ];
 
-const edge = (id: string, from: string, to: string, name: string, breaker = false, normalClosed = true, model?: ModelType, purpose?: string, lesson?: string): Connection => ({id,from,to,name,breaker,normalClosed,model,purpose,lesson});
+const edge = (id: string, from: string, to: string, name: string, breaker = false, normalClosed = true, model?: ModelType, purpose?: string, lesson?: string): Connection =>
+  ({ id, from, to, name, breaker, normalClosed, model, purpose, lesson });
+
 export const connections: Connection[] = [
-  edge('gb1','dg1','busA','DG 1 breaker',true,true,'breaker'), edge('gb2','dg2','busA','DG 2 breaker',true,false,'breaker'),
-  edge('gb3','dg3','busB','DG 3 breaker',true,false,'breaker'), edge('gb4','dg4','busB','DG 4 breaker',true,false,'breaker'),
+  // --- 6.6 kV Generation Circuit Breakers ---
+  edge('gb1','dg1','busA','DG 1 breaker',true,true,'breaker'),
+  edge('gb2','dg2','busA','DG 2 breaker',true,false,'breaker'),
   edge('shoreBreaker','shore','busA','Shore-connection breaker',true,false,'breaker','Connects 6.6 kV port cold-ironing supply to Main Bus A when main generators are isolated.','Interlocked with main generator breakers so ship generators and shore supply are not inadvertently cross-connected out of phase.'),
-  edge('tie','busA','busB','Bus-tie vacuum breaker',true,true,'breaker','Joins or separates the two main bus sections.','A closed tie can energize both sections from one running generator. Open it to isolate the sections.'),
-  edge('propFeed','busA','drive','Propulsion feeder breaker',true,false,'breaker'), edge('driveMotor','drive','motor','Drive output'), edge('shaft','motor','prop','Propeller shaft'),
-  edge('bowFeed','busB','bow','Bow-thruster feeder breaker',true,false,'breaker'),
-  edge('txAFeed','busA','txA','Transformer A feeder breaker',true,true,'breaker'), edge('txBFeed','busB','txB','Transformer B feeder breaker',true,true,'breaker'),
-  edge('txAOut','txA','lvBus','Transformer A output'), edge('txBOut','txB','lvBus','Transformer B output'),
-  edge('reeferFeed','lvBus','reefer','Reefer feeder breaker',true,false,'breaker'), edge('reeferPlug','reefer','reeferUnit','Reefer container socket breaker',true,true,'breaker','Switches the supply to one reefer container through its socket and plug.','Opening this breaker isolates only this container. The reefer feeder and the other sockets are unaffected.'), edge('craneFeed','lvBus','crane','Cargo-crane feeder breaker',true,false,'breaker'),
-  edge('fireFeed','lvBus','fire','Fire-pump feeder breaker',true,false,'breaker'), edge('ballastFeed','lvBus','ballast','Ballast-pump feeder breaker',true,false,'breaker'),
-  edge('bilgeFeed','lvBus','bilge','Bilge-pump feeder breaker',true,false,'breaker'), edge('coolingFeed','lvBus','cooling','Cooling-pump feeder breaker',true,false,'breaker'),
-  edge('steerFeed','lvBus','steering','Steering-gear feeder breaker',true,false,'breaker'),
-  edge('tx220Feed','lvBus','tx220','Consumer-transformer feeder breaker',true,true,'breaker'), edge('tx220Out','tx220','consumer','Consumer transformer output'),
-  edge('galleyFeed','consumer','galley','Galley feeder breaker',true,false,'breaker'), edge('lightFeed','consumer','lights','Ordinary-lighting feeder breaker',true,false,'breaker'), edge('outletFeed','consumer','outlets','Service-outlet feeder breaker',true,false,'breaker'),
-  edge('egBreaker','eg','eBus','Emergency generator breaker',true,false,'breaker'),
-  edge('eFireFeed','eBus','eFire','Emergency fire-pump feeder',true,true,'breaker'), edge('eSteerFeed','eBus','eSteer','Essential steering feeder',true,true,'breaker'),
-  edge('navFeed','eBus','nav','Bridge / navigation feeder',true,true,'breaker'), edge('eLightFeed','eBus','eLights','Emergency-lighting feeder',true,true,'breaker')
+  edge('gb3','dg3','busB','DG 3 breaker',true,false,'breaker'),
+  edge('gb4','dg4','busB','DG 4 breaker',true,false,'breaker'),
+
+  // --- 6.6 kV Bus Tie ---
+  edge('tie','busA','busB','6.6 kV Bus-Tie vacuum breaker',true,true,'breaker','Joins or separates the two main 6.6 kV bus sections.','A closed tie can energize both sections from one running generator. Open it to isolate the sections in split-bus mode.'),
+
+  // --- 6.6 kV Feeders (Drives & Transformers) ---
+  edge('propFeed','busA','drive','DRIVE 1 VCB',true,true,'breaker'),
+  edge('driveMotor','drive','motor','Drive 1 output'),
+  edge('shaft','motor','prop','Propeller shaft'),
+  edge('bowFeed','busB','bow','THRUSTER VCB',true,false,'breaker'),
+
+  // Dual Main Step-Down Transformers (6.6 kV / 440 V, 2.5 MVA)
+  edge('txAFeed','busA','txA','TX A VCB',true,true,'breaker'),
+  edge('txAOut','txA','lvBusA','TX A 440 V output'),
+  edge('txBFeed','busB','txB','TX B VCB',true,true,'breaker'),
+  edge('txBOut','txB','lvBusB','TX B 440 V output'),
+
+  // Dual Reefer Distribution Transformers (6.6 kV / 440 V, 1.5 MVA)
+  edge('reeferAFeed','busA','txReeferA','REEFER A VCB',true,true,'breaker'),
+  edge('txReeferAOut','txReeferA','reeferA','TX REEFER A output'),
+  edge('reeferBFeed','busB','txReeferB','REEFER B VCB',true,true,'breaker'),
+  edge('txReeferBOut','txReeferB','reeferB','TX REEFER B output'),
+
+  // --- 440 V Bus Tie ---
+  edge('lvTie','lvBusA','lvBusB','440 V Bus-Tie circuit breaker',true,true,'breaker','Joins Port 440 V Bus A and Starboard 440 V Bus B.','Allows low-voltage power to cross-feed across sides if one main transformer trips.'),
+
+  // --- 440 V Bus A Feeders & Control Transformer A ---
+  edge('conAAcb','lvBusA','txConA','CON A ACB',true,true,'breaker'),
+  edge('txConAOut','txConA','consumerA','TX CON A 220 V output'),
+  edge('fire1Feed','lvBusA','fire1','Fire Pump 1 feeder',true,false,'breaker'),
+  edge('cooling1Feed','lvBusA','cooling1','SW Cooling 1 feeder',true,true,'breaker'),
+  edge('ballastFeed','lvBusA','ballast','Ballast Pump feeder',true,false,'breaker'),
+  edge('steerFeed','lvBusA','steering','Steering Gear feeder',true,true,'breaker'),
+  edge('bilgeFeed','lvBusA','bilge','Bilge Pump feeder',true,false,'breaker'),
+
+  // --- 440 V Bus B Feeders & Control Transformer B ---
+  edge('conBAcb','lvBusB','txConB','CON B ACB',true,true,'breaker'),
+  edge('txConBOut','txConB','consumerB','TX CON B 220 V output'),
+  edge('fire2Feed','lvBusB','fire2','Fire Pump 2 feeder',true,false,'breaker'),
+  edge('cooling2Feed','lvBusB','cooling2','SW Cooling 2 feeder',true,true,'breaker'),
+  edge('craneFeed','lvBusB','crane','Deck Crane feeder',true,false,'breaker'),
+
+  // --- 220 V Bus Tie ---
+  edge('consumerTie','consumerA','consumerB','220 V Bus-Tie circuit breaker',true,true,'breaker','Joins 220 V Sub-Board A and 220 V Sub-Board B.','Provides domestic and bridge lighting cross-feed redundancy.'),
+
+  // --- 220 V Feeders ---
+  edge('navFeed','consumerA','nav','Bridge Nav feeder',true,true,'breaker'),
+  edge('lightAFeed','consumerA','lightsA','Lighting A feeder',true,true,'breaker'),
+  edge('galleyFeed','consumerB','galley','Galley feeder',true,true,'breaker'),
+  edge('lightBFeed','consumerB','lightsB','Lighting B feeder',true,true,'breaker'),
+
+  // --- 440 V Emergency Switchboard (ESB) Connections ---
+  edge('egBreaker','eg','eBus','Emergency DG breaker (EDG CB)',true,false,'breaker'),
+  edge('eFireFeed','eBus','eFire','Emergency Fire Pump feeder',true,true,'breaker'),
+  edge('eSteerFeed','eBus','eSteer','Emergency Steering feeder',true,true,'breaker'),
+  edge('eLightFeed','eBus','eLights','Emergency Lighting feeder',true,true,'breaker'),
+  edge('eRadioFeed','eBus','eRadio','Radio & Nav/Com feeder',true,true,'breaker'),
+  edge('esbTieFeed','lvBusA','eBus','Normal ESB Supply breaker',true,true,'breaker','Feeds Emergency Switchboard from 440 V Bus A during normal navigation.','Opens automatically on blackout via undervoltage release before EDG starts.'),
+  edge('txConAEsbTie','eBus','consumerA','TX CON A ESB Tie CB (Norm. Open)',true,false,'breaker','Emergency cross-feed from ESB to 220 V Sub-Board A.','Normally open; can be closed in emergency to supply essential bridge power.')
 ];
 
 export const byId = Object.fromEntries(equipment.map(item => [item.id, item])) as Record<string, Equipment>;
@@ -385,8 +465,9 @@ export function powered(state: SimState): Set<string> {
     for (const c of connections) {
       if (c.breaker && !state.closed[c.id]) continue;
       // Flow is directional through converters, transformers, and loads.
-      // Only the bus tie is bidirectional in this introductory model.
-      const next = c.from === here ? c.to : c.id === 'tie' && c.to === here ? c.from : null;
+      // Bus ties (6.6 kV tie, 440 V lvTie, 220 V consumerTie) are bidirectional.
+      const isTie = c.id === 'tie' || c.id === 'lvTie' || c.id === 'consumerTie';
+      const next = c.from === here ? c.to : (isTie && c.to === here ? c.from : null);
       if (!next || live.has(next) || (allSupplyIds.includes(next) && !state.running[next])) continue;
       live.add(next);
       queue.push(next);
@@ -401,30 +482,105 @@ export function connectionState(c: Connection, state: SimState, live: Set<string
 }
 
 export const scenarios = [
-  {id:'main', title:'01 · Energize the main bus', instruction:`DG 1 is running with its breaker and the bus tie closed. Both ${VOLTAGES.hv} sections are live.`, apply:():SimState => initialState(), focus:'busA'},
-  {id:'propulsion', title:'02 · Supply propulsion', instruction:'Trace DG 1 → bus A → propulsion feeder → drive → electric motor → propeller.', apply:():SimState => {const s=initialState();s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;return s;}, focus:'drive'},
-  {id:'tie', title:'03 · Open the bus tie', instruction:'With only DG 1 running, bus B loses power when the tie opens. Start DG 3 and close its breaker to restore bus B independently.', apply:():SimState => {const s=initialState();s.closed.tie=false;return s;}, focus:'tie'},
   {
-    id:'emergency',
-    title:'04 · SOLAS Blackout Waterfall',
-    instruction:'Total blackout: all main feeders shed via UVR so loads do NOT energize simultaneously. The 5-stage SOLAS sequential waterfall restores ESB (0–10s), Stage 1 Aux (10–20s), Stage 2 Cooling/Fuel (20–30s), Stage 3 Essential (30–45s), and Heavy Loads (>45s).',
-    apply:():SimState => {
-      const s=initialState();
-      for(const id of ['dg1','dg2','dg3','dg4']){
-        s.running[id]=false;
-        s.closed[`gb${id.slice(2)}`]=false;
-      }
-      for(const b of ['propFeed','bowFeed','txAFeed','txBFeed','reeferFeed','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed','galleyFeed','lightFeed','outletFeed']){
-        s.closed[b]=false;
-      }
-      s.running.eg=true;
-      s.closed.egBreaker=true;
+    id: 'main',
+    title: '01 · Symmetrical Dual-Bus Energization',
+    instruction: 'DG 1 is online with 6.6 kV Bus Tie closed, energizing both 6.6 kV Bus A & B. TX A & TX B step power down to 440 V Bus A & B, with dual reefer and control transformers active.',
+    apply: (): SimState => initialState(),
+    focus: 'busA'
+  },
+  {
+    id: 'propulsion',
+    title: '02 · Propulsion & Sea Running',
+    instruction: 'Trace DG 1 → 6.6 kV Bus A → DRIVE 1 VCB → Drive 1 → Propulsion Motor → Propeller, supported by SW Cooling 1 and Steering Gear.',
+    apply: (): SimState => {
+      const s = initialState();
+      s.closed.propFeed = true;
+      s.closed.cooling1Feed = true;
+      s.closed.cooling2Feed = true;
+      s.closed.steerFeed = true;
       return s;
     },
-    focus:'eBus'
+    focus: 'drive'
   },
-  {id:'parallel', title:'05 · Parallel & sync DG 2', instruction:'DG 2 is running on standby while DG 1 feeds the bus. Use the Synchroscope (Auto-Sync or manual 12 o’clock close) to parallel DG 2 and share kW load.', apply:():SimState => {const s=initialState();s.running.dg2=true;s.closed.gb2=false;s.closed.propFeed=true;s.closed.coolingFeed=true;return s;}, focus:'dg2'},
-  {id:'heavyload', title:'06 · Heavy sea load & PMS', instruction:'DG 1 and DG 3 are paralleled across the bus tie supplying propulsion, pumps, reefers, and hotel loads. Adjust propulsion throttle or trip a generator to test PMS load shedding.', apply:():SimState => {const s=initialState();s.running.dg1=true;s.closed.gb1=true;s.running.dg3=true;s.closed.gb3=true;s.closed.propFeed=true;s.closed.coolingFeed=true;s.closed.steerFeed=true;s.closed.fireFeed=true;s.closed.bilgeFeed=true;s.closed.reeferFeed=true;s.closed.lightFeed=true;s.closed.galleyFeed=true;return s;}, focus:'busA'}
+  {
+    id: 'tie',
+    title: '03 · Split-Bus Operation (Open Bus Ties)',
+    instruction: 'Opening the 6.6 kV Bus Tie isolates Port and Starboard grids. Start DG 3 on Bus B to maintain independent dual-bus operation (DP Class 2/3 requirement).',
+    apply: (): SimState => {
+      const s = initialState();
+      s.closed.tie = false;
+      s.closed.lvTie = false;
+      s.closed.consumerTie = false;
+      return s;
+    },
+    focus: 'tie'
+  },
+  {
+    id: 'emergency',
+    title: '04 · SOLAS Blackout Waterfall',
+    instruction: 'Total blackout: all main feeders shed via UVR so loads do NOT energize simultaneously. The 5-stage SOLAS sequential waterfall restores ESB (0–10s), Main DG & Aux 1 (10–20s), Aux 2 (20–30s), Essential (30–45s), and Heavy Loads (>45s).',
+    apply: (): SimState => {
+      const s = initialState();
+      for (const id of ['dg1', 'dg2', 'dg3', 'dg4']) {
+        s.running[id] = false;
+        s.closed[`gb${id.slice(2)}`] = false;
+      }
+      for (const b of [
+        'propFeed', 'bowFeed', 'txAFeed', 'txBFeed', 'reeferAFeed', 'reeferBFeed',
+        'conAAcb', 'conBAcb', 'fire1Feed', 'fire2Feed', 'cooling1Feed', 'cooling2Feed',
+        'ballastFeed', 'bilgeFeed', 'steerFeed', 'craneFeed', 'navFeed',
+        'lightAFeed', 'lightBFeed', 'galleyFeed'
+      ]) {
+        s.closed[b] = false;
+      }
+      s.running.eg = true;
+      s.closed.egBreaker = true;
+      return s;
+    },
+    focus: 'eBus'
+  },
+  {
+    id: 'parallel',
+    title: '05 · Parallel & Sync DG 2',
+    instruction: 'DG 2 is running on standby while DG 1 feeds Bus A. Use the Synchroscope (Auto-Sync or manual 12 o’clock close) to parallel DG 2 and share kW load.',
+    apply: (): SimState => {
+      const s = initialState();
+      s.running.dg2 = true;
+      s.closed.gb2 = false;
+      s.closed.propFeed = true;
+      s.closed.cooling1Feed = true;
+      return s;
+    },
+    focus: 'dg2'
+  },
+  {
+    id: 'heavyload',
+    title: '06 · Heavy Sea Load & Symmetrical Redundancy',
+    instruction: 'DG 1 and DG 3 are paralleled across the bus tie supplying both Port and Starboard propulsion, reefers, pumps, and accommodation loads. Test PMS load shedding.',
+    apply: (): SimState => {
+      const s = initialState();
+      s.running.dg1 = true;
+      s.closed.gb1 = true;
+      s.running.dg3 = true;
+      s.closed.gb3 = true;
+      s.closed.propFeed = true;
+      s.closed.cooling1Feed = true;
+      s.closed.cooling2Feed = true;
+      s.closed.steerFeed = true;
+      s.closed.fire1Feed = true;
+      s.closed.ballastFeed = true;
+      s.closed.reeferAFeed = true;
+      s.closed.reeferBFeed = true;
+      s.closed.conAAcb = true;
+      s.closed.conBAcb = true;
+      s.closed.lightAFeed = true;
+      s.closed.lightBFeed = true;
+      s.closed.galleyFeed = true;
+      return s;
+    },
+    focus: 'busA'
+  }
 ] as const;
 
 

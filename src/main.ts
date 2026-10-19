@@ -115,11 +115,10 @@ app.innerHTML=`
           <button id="toggleLabels" type="button">T Labels on</button>
         </div>
         <div class="view-tools hidden" id="schematicTools">
-          <button id="schematicFit" type="button" title="Fit Single-Line Diagram to screen">⤢ Fit to screen</button>
+          <button id="schematicFit" type="button" title="Fit Single-Line Diagram to screen">⤢ Fit</button>
           <button id="schematicZoomIn" type="button" title="Zoom In">＋</button>
           <button id="schematicZoomOut" type="button" title="Zoom Out">－</button>
           <button id="schematicReset" type="button" title="Reset Zoom">100%</button>
-          <span class="schematic-nav-hint">Scroll to zoom · Drag to pan</span>
         </div>
       </div>
       <div class="bottom-hud">
@@ -415,12 +414,53 @@ function renderControls(){
       </div>
     </div>`;
 
-  document.querySelector('#tieControl')!.innerHTML=`<div class="tie-row"><button class="item-name" data-select="tie" type="button">Main bus A ↔ B</button><button class="switch ${state.closed.tie?'on':''}" id="tieSwitch" type="button" role="switch" aria-checked="${state.closed.tie}" aria-label="Bus tie breaker"><span></span></button><strong>${state.closed.tie?'CLOSED':'OPEN'}</strong></div>`;
-  const groups=[[VOLTAGES.hv,'propFeed','bowFeed','txAFeed','txBFeed'],[VOLTAGES.lv,'reeferFeed','reeferPlug','craneFeed','fireFeed','ballastFeed','bilgeFeed','coolingFeed','steerFeed','tx220Feed'],[VOLTAGES.consumer,'galleyFeed','lightFeed','outletFeed']];
+  document.querySelector('#tieControl')!.innerHTML=`
+    <div class="tie-control-group">
+      <div class="tie-row">
+        <button class="item-name" data-select="tie" type="button">6.6 kV Bus Tie (A ↔ B)</button>
+        <button class="switch ${state.closed.tie?'on':''}" id="tieSwitch" type="button" role="switch" aria-checked="${state.closed.tie}" aria-label="6.6 kV Bus tie breaker"><span></span></button>
+        <strong>${state.closed.tie?'CLOSED':'OPEN'}</strong>
+      </div>
+      <div class="tie-row" style="margin-top:6px;">
+        <button class="item-name" data-select="lvTie" type="button">440 V Bus Tie (A ↔ B)</button>
+        <button class="switch ${state.closed.lvTie?'on':''}" id="lvTieSwitch" type="button" role="switch" aria-checked="${state.closed.lvTie}" aria-label="440 V Bus tie breaker"><span></span></button>
+        <strong>${state.closed.lvTie?'CLOSED':'OPEN'}</strong>
+      </div>
+      <div class="tie-row" style="margin-top:6px;">
+        <button class="item-name" data-select="consumerTie" type="button">220 V Bus Tie (A ↔ B)</button>
+        <button class="switch ${state.closed.consumerTie?'on':''}" id="consumerTieSwitch" type="button" role="switch" aria-checked="${state.closed.consumerTie}" aria-label="220 V Bus tie breaker"><span></span></button>
+        <strong>${state.closed.consumerTie?'CLOSED':'OPEN'}</strong>
+      </div>
+    </div>`;
+
+  const groups = [
+    [
+      `${VOLTAGES.hv} Feeders (Port & Starboard)`,
+      'propFeed', 'bowFeed', 'txAFeed', 'txBFeed', 'reeferAFeed', 'reeferBFeed'
+    ],
+    [
+      `${VOLTAGES.lv} Port Bus A Feeders`,
+      'conAAcb', 'cooling1Feed', 'steerFeed', 'fire1Feed', 'ballastFeed', 'bilgeFeed', 'esbTieFeed'
+    ],
+    [
+      `${VOLTAGES.lv} Starboard Bus B Feeders`,
+      'conBAcb', 'cooling2Feed', 'craneFeed', 'fire2Feed'
+    ],
+    [
+      `${VOLTAGES.consumer} Accommodation & Hotel`,
+      'navFeed', 'lightAFeed', 'galleyFeed', 'lightBFeed', 'txConAEsbTie'
+    ],
+    [
+      '440 V SOLAS Emergency Feeders',
+      'eFireFeed', 'eSteerFeed', 'eLightFeed', 'eRadioFeed'
+    ]
+  ];
   document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>{const closedCount=ids.filter(id=>state.closed[id]).length;return `<div class="feeder-group"><div class="feeder-label"><span>${title}</span><span class="feeder-count">${closedCount}/${ids.length} CLOSED</span></div>${ids.map(id=>{const c=edgeById[id];const spec=Object.values(LOAD_SPECS).find(ls=>ls.breakerId===id);return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}${spec?` <small class="feeder-kw-tag">${spec.ratedKw}kW</small>`:''}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`;}).join('');
   document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">SOLAS automatic standby: Starts & closes onto 440 V Emergency Bus automatically on main switchboard blackout.</p>`;
 
   document.querySelector('#tieSwitch')!.addEventListener('click',()=>toggleBreaker('tie'));
+  document.querySelector('#lvTieSwitch')?.addEventListener('click',()=>toggleBreaker('lvTie'));
+  document.querySelector('#consumerTieSwitch')?.addEventListener('click',()=>toggleBreaker('consumerTie'));
   document.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(b=>b.onclick=()=>toggleSource(b.dataset.source!));
   document.querySelectorAll<HTMLButtonElement>('[data-breaker]').forEach(b=>b.onclick=()=>toggleBreaker(b.dataset.breaker!));
   document.querySelectorAll<HTMLButtonElement>('[data-select]').forEach(b=>b.onclick=()=>select(b.dataset.select!));
@@ -511,129 +551,196 @@ interface RouteDef {
   breaker?: { pos: [number, number]; orientation: 'h' | 'v' };
 }
 
+const SVG_BASE_WIDTH = 1500;
+const SVG_BASE_HEIGHT = 960;
+
 const ORTHOGONAL_ROUTES: Record<string, RouteDef> = {
+  // --- 6.6 kV Generation Sources (Straight vertical lines down from circles to 6.6 kV bus) ---
   gb1: {
-    points: [[80, 80], [230, 80], [230, 104]],
-    breaker: { pos: [155, 80], orientation: 'h' }
+    points: [[160, 159], [160, 220]],
+    breaker: { pos: [160, 185], orientation: 'v' }
   },
   gb2: {
-    points: [[80, 145], [145, 145], [145, 125], [199, 125]],
-    breaker: { pos: [112, 145], orientation: 'h' }
+    points: [[310, 159], [310, 220]],
+    breaker: { pos: [310, 185], orientation: 'v' }
   },
   shoreBreaker: {
-    points: [[128, 215], [168, 215], [168, 136], [199, 136]],
-    breaker: { pos: [148, 215], orientation: 'h' }
+    points: [[460, 159], [460, 220]],
+    breaker: { pos: [460, 185], orientation: 'v' }
   },
   gb3: {
-    points: [[880, 80], [730, 80], [730, 104]],
-    breaker: { pos: [805, 80], orientation: 'h' }
+    points: [[1190, 159], [1190, 220]],
+    breaker: { pos: [1190, 185], orientation: 'v' }
   },
   gb4: {
-    points: [[880, 145], [815, 145], [815, 125], [761, 125]],
-    breaker: { pos: [848, 145], orientation: 'h' }
+    points: [[1340, 159], [1340, 220]],
+    breaker: { pos: [1340, 185], orientation: 'v' }
   },
+
+  // --- 6.6 kV Bus Tie ---
   tie: {
-    points: [[321, 125], [639, 125]],
-    breaker: { pos: [480, 125], orientation: 'h' }
+    points: [[660, 220], [840, 220]],
+    breaker: { pos: [750, 220], orientation: 'h' }
   },
+
+  // --- 6.6 kV Feeders & Heavy Machinery ---
   propFeed: {
-    points: [[215, 147], [215, 244]],
-    breaker: { pos: [215, 195], orientation: 'v' }
+    points: [[520, 220], [520, 321]],
+    breaker: { pos: [520, 270], orientation: 'v' }
   },
   driveMotor: {
-    points: [[215, 287], [215, 334]]
+    points: [[520, 368], [520, 374]]
   },
   shaft: {
-    points: [[215, 377], [215, 419]]
+    points: [[520, 396], [520, 407]]
   },
   bowFeed: {
-    points: [[745, 147], [745, 195], [880, 195], [880, 244]],
-    breaker: { pos: [812, 195], orientation: 'h' }
+    points: [[980, 220], [980, 321]],
+    breaker: { pos: [980, 270], orientation: 'v' }
   },
+
+  // Main Step-Down Transformers A & B (6.6 kV / 440 V, 2.5 MVA)
+  // Clean, single vertical path passing through the breaker and transformer circles
   txAFeed: {
-    points: [[285, 147], [285, 185], [330, 185], [330, 224]],
-    breaker: { pos: [285, 166], orientation: 'v' }
-  },
-  txBFeed: {
-    points: [[705, 147], [705, 185], [770, 185], [770, 224]],
-    breaker: { pos: [705, 166], orientation: 'v' }
+    points: [[180, 220], [180, 345]],
+    breaker: { pos: [180, 275], orientation: 'v' }
   },
   txAOut: {
-    points: [[330, 267], [330, 282], [520, 282], [520, 299]]
+    points: [[180, 375], [180, 440]]
+  },
+  txBFeed: {
+    points: [[1320, 220], [1320, 345]],
+    breaker: { pos: [1320, 275], orientation: 'v' }
   },
   txBOut: {
-    points: [[770, 267], [770, 282], [580, 282], [580, 299]]
+    points: [[1320, 375], [1320, 440]]
   },
-  reeferFeed: {
-    points: [[550, 342], [550, 380], [405, 380], [405, 429]],
-    breaker: { pos: [405, 404], orientation: 'v' }
+
+  // Reefer Distribution Transformers A & B (6.6 kV / 440 V, 1.5 MVA)
+  // Single vertical path from 6.6 kV bus straight to Reefer Panels
+  reeferAFeed: {
+    points: [[330, 220], [330, 345]],
+    breaker: { pos: [330, 275], orientation: 'v' }
   },
-  reeferPlug: {
-    points: [[405, 472], [405, 499]],
-    breaker: { pos: [405, 485], orientation: 'v' }
+  txReeferAOut: {
+    points: [[330, 375], [330, 530]]
   },
-  craneFeed: {
-    points: [[550, 342], [550, 380], [520, 380], [520, 429]],
-    breaker: { pos: [520, 404], orientation: 'v' }
+  reeferBFeed: {
+    points: [[1170, 220], [1170, 345]],
+    breaker: { pos: [1170, 275], orientation: 'v' }
   },
-  fireFeed: {
-    points: [[550, 342], [550, 380], [635, 380], [635, 429]],
-    breaker: { pos: [635, 404], orientation: 'v' }
+  txReeferBOut: {
+    points: [[1170, 375], [1170, 530]]
+  },
+
+  // --- 440 V Bus Tie ---
+  lvTie: {
+    points: [[660, 440], [840, 440]],
+    breaker: { pos: [750, 440], orientation: 'h' }
+  },
+
+  // --- 440 V Bus A Feeders & Control TX A ---
+  conAAcb: {
+    points: [[110, 440], [110, 550]],
+    breaker: { pos: [110, 495], orientation: 'v' }
+  },
+  txConAOut: {
+    points: [[110, 580], [110, 640]]
+  },
+  fire1Feed: {
+    points: [[210, 440], [210, 530]],
+    breaker: { pos: [210, 495], orientation: 'v' }
+  },
+  cooling1Feed: {
+    points: [[430, 440], [430, 530]],
+    breaker: { pos: [430, 495], orientation: 'v' }
   },
   ballastFeed: {
-    points: [[550, 342], [550, 380], [750, 380], [750, 429]],
-    breaker: { pos: [750, 404], orientation: 'v' }
-  },
-  bilgeFeed: {
-    points: [[550, 342], [550, 380], [860, 380], [860, 429]],
-    breaker: { pos: [860, 404], orientation: 'v' }
-  },
-  coolingFeed: {
-    points: [[550, 342], [550, 380], [975, 380], [975, 429]],
-    breaker: { pos: [975, 404], orientation: 'v' }
+    points: [[515, 440], [515, 530]],
+    breaker: { pos: [515, 495], orientation: 'v' }
   },
   steerFeed: {
-    points: [[550, 342], [550, 380], [285, 380], [285, 514]],
-    breaker: { pos: [285, 447], orientation: 'v' }
+    points: [[595, 440], [595, 530]],
+    breaker: { pos: [595, 495], orientation: 'v' }
   },
-  tx220Feed: {
-    points: [[550, 342], [555, 342], [555, 514]],
-    breaker: { pos: [555, 435], orientation: 'v' }
+  bilgeFeed: {
+    points: [[665, 440], [665, 530]],
+    breaker: { pos: [665, 495], orientation: 'v' }
   },
-  tx220Out: {
-    points: [[555, 557], [555, 594]]
+
+  // --- 440 V Bus B Feeders & Control TX B ---
+  conBAcb: {
+    points: [[1390, 440], [1390, 550]],
+    breaker: { pos: [1390, 495], orientation: 'v' }
+  },
+  txConBOut: {
+    points: [[1390, 580], [1390, 640]]
+  },
+  fire2Feed: {
+    points: [[870, 440], [870, 530]],
+    breaker: { pos: [870, 495], orientation: 'v' }
+  },
+  cooling2Feed: {
+    points: [[970, 440], [970, 530]],
+    breaker: { pos: [970, 495], orientation: 'v' }
+  },
+  craneFeed: {
+    points: [[1270, 440], [1270, 530]],
+    breaker: { pos: [1270, 495], orientation: 'v' }
+  },
+
+  // --- 220 V Bus Tie ---
+  consumerTie: {
+    points: [[660, 640], [840, 640]],
+    breaker: { pos: [750, 640], orientation: 'h' }
+  },
+
+  // --- 220 V Sub-Board Feeders ---
+  navFeed: {
+    points: [[240, 640], [240, 710]],
+    breaker: { pos: [240, 678], orientation: 'v' }
+  },
+  lightAFeed: {
+    points: [[460, 640], [460, 710]],
+    breaker: { pos: [460, 678], orientation: 'v' }
   },
   galleyFeed: {
-    points: [[555, 637], [555, 655], [350, 655], [350, 679]],
-    breaker: { pos: [350, 667], orientation: 'v' }
+    points: [[1040, 640], [1040, 710]],
+    breaker: { pos: [1040, 678], orientation: 'v' }
   },
-  lightFeed: {
-    points: [[555, 637], [555, 655], [495, 655], [495, 679]],
-    breaker: { pos: [495, 667], orientation: 'v' }
+  lightBFeed: {
+    points: [[1260, 640], [1260, 710]],
+    breaker: { pos: [1260, 678], orientation: 'v' }
   },
-  outletFeed: {
-    points: [[555, 637], [555, 655], [640, 655], [640, 679]],
-    breaker: { pos: [640, 667], orientation: 'v' }
-  },
+
+  // --- 440 V SOLAS Emergency Switchboard (ESB) Connections ---
   egBreaker: {
-    points: [[80, 607], [80, 625], [115, 625], [115, 644]],
-    breaker: { pos: [97.5, 625], orientation: 'h' }
+    points: [[750, 816], [750, 730]],
+    breaker: { pos: [750, 775], orientation: 'v' }
   },
   eFireFeed: {
-    points: [[115, 687], [115, 710], [80, 710], [80, 734]],
-    breaker: { pos: [80, 722], orientation: 'v' }
+    points: [[570, 730], [570, 825]],
+    breaker: { pos: [570, 785], orientation: 'v' }
   },
   eSteerFeed: {
-    points: [[115, 687], [115, 710], [220, 710], [220, 734]],
-    breaker: { pos: [220, 722], orientation: 'v' }
-  },
-  navFeed: {
-    points: [[115, 687], [115, 710], [360, 710], [360, 734]],
-    breaker: { pos: [360, 722], orientation: 'v' }
+    points: [[660, 730], [660, 825]],
+    breaker: { pos: [660, 785], orientation: 'v' }
   },
   eLightFeed: {
-    points: [[115, 687], [115, 710], [500, 710], [500, 734]],
-    breaker: { pos: [500, 722], orientation: 'v' }
+    points: [[840, 730], [840, 825]],
+    breaker: { pos: [840, 785], orientation: 'v' }
+  },
+  eRadioFeed: {
+    points: [[930, 730], [930, 825]],
+    breaker: { pos: [930, 785], orientation: 'v' }
+  },
+  esbTieFeed: {
+    points: [[530, 440], [530, 730]],
+    breaker: { pos: [530, 585], orientation: 'v' }
+  },
+  txConAEsbTie: {
+    points: [[530, 730], [50, 730], [50, 640], [95, 640]],
+    breaker: { pos: [50, 685], orientation: 'v' }
   }
 };
 
@@ -656,8 +763,8 @@ const schematicState = {
 function updateSchematicViewBox() {
   const svg = document.querySelector<SVGSVGElement>('#schematicHost svg');
   if (!svg) return;
-  const w = 1100 / schematicState.zoom;
-  const h = 830 / schematicState.zoom;
+  const w = SVG_BASE_WIDTH / schematicState.zoom;
+  const h = SVG_BASE_HEIGHT / schematicState.zoom;
   svg.setAttribute('viewBox', `${schematicState.panX} ${schematicState.panY} ${w} ${h}`);
   const resetBtn = document.querySelector<HTMLButtonElement>('#schematicReset');
   if (resetBtn) resetBtn.textContent = `${Math.round(schematicState.zoom * 100)}%`;
@@ -679,10 +786,10 @@ function zoomSchematic(factor: number) {
   const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * factor));
   if (Math.abs(newZoom - oldZoom) < 0.001) return;
   
-  const oldW = 1100 / oldZoom;
-  const oldH = 830 / oldZoom;
-  const newW = 1100 / newZoom;
-  const newH = 830 / newZoom;
+  const oldW = SVG_BASE_WIDTH / oldZoom;
+  const oldH = SVG_BASE_HEIGHT / oldZoom;
+  const newW = SVG_BASE_WIDTH / newZoom;
+  const newH = SVG_BASE_HEIGHT / newZoom;
   
   const cursorSvgX = schematicState.panX + mx * oldW;
   const cursorSvgY = schematicState.panY + my * oldH;
@@ -721,7 +828,7 @@ function initSchematicInteractions() {
       host.classList.add('is-panning');
     }
     if (hasMoved) {
-      const scale = (1100 / schematicState.zoom) / host.clientWidth;
+      const scale = (SVG_BASE_WIDTH / schematicState.zoom) / host.clientWidth;
       schematicState.panX = startPanX - dx * scale;
       schematicState.panY = startPanY - dy * scale;
       updateSchematicViewBox();
@@ -746,10 +853,10 @@ function initSchematicInteractions() {
     const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * zoomFactor));
     if (Math.abs(newZoom - oldZoom) < 0.001) return;
 
-    const oldW = 1100 / oldZoom;
-    const oldH = 830 / oldZoom;
-    const newW = 1100 / newZoom;
-    const newH = 830 / newZoom;
+    const oldW = SVG_BASE_WIDTH / oldZoom;
+    const oldH = SVG_BASE_HEIGHT / oldZoom;
+    const newW = SVG_BASE_WIDTH / newZoom;
+    const newH = SVG_BASE_HEIGHT / newZoom;
 
     const cursorSvgX = schematicState.panX + mx * oldW;
     const cursorSvgY = schematicState.panY + my * oldH;
@@ -766,59 +873,310 @@ function initSchematicInteractions() {
   document.querySelector('#schematicReset')?.addEventListener('click', fitSchematicToScreen);
 }
 
+interface BusbarDef {
+  id: string;
+  x1: number;
+  x2: number;
+  y: number;
+  label: string;
+  voltageType: 'hv' | 'lv' | 'consumer' | 'emergency';
+}
+
+const BUSBARS: BusbarDef[] = [
+  { id: 'busA', x1: 110, x2: 660, y: 220, label: '6.6 kV MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'hv' },
+  { id: 'busB', x1: 840, x2: 1390, y: 220, label: '6.6 kV MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'hv' },
+  { id: 'lvBusA', x1: 95, x2: 660, y: 440, label: '440 V MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'lv' },
+  { id: 'lvBusB', x1: 840, x2: 1405, y: 440, label: '440 V MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'lv' },
+  { id: 'consumerA', x1: 95, x2: 660, y: 640, label: '220 V SUB-BOARD - BUS A (PORT)', voltageType: 'consumer' },
+  { id: 'consumerB', x1: 840, x2: 1405, y: 640, label: '220 V SUB-BOARD - BUS B (STARBOARD)', voltageType: 'consumer' },
+  { id: 'eBus', x1: 530, x2: 970, y: 730, label: '440 V EMERGENCY SWITCHBOARD (ESB)', voltageType: 'emergency' }
+];
+
+const GENERATOR_IDS = ['dg1', 'dg2', 'dg3', 'dg4', 'eg'];
+
+interface TxDef {
+  id: string;
+  name: string;
+  ratio: string;
+  rating: string;
+  labelSide: 'left' | 'right';
+}
+
+const TRANSFORMERS: TxDef[] = [
+  { id: 'txA', name: 'TX A', ratio: '(6.6kV/440V)', rating: '2.5 MVA', labelSide: 'left' },
+  { id: 'txB', name: 'TX B', ratio: '(6.6kV/440V)', rating: '2.5 MVA', labelSide: 'left' },
+  { id: 'txReeferA', name: 'TX REEFER A', ratio: '(6.6kV/440V)', rating: '1.5 MVA', labelSide: 'left' },
+  { id: 'txReeferB', name: 'TX REEFER B', ratio: '(6.6kV/440V)', rating: '1.5 MVA', labelSide: 'left' },
+  { id: 'txConA', name: 'TX CON A', ratio: '(440V/220V)', rating: '500 kVA', labelSide: 'left' },
+  { id: 'txConB', name: 'TX CON B', ratio: '(440V/220V)', rating: '500 kVA', labelSide: 'right' }
+];
+
+const BREAKER_LABELS: Record<string, { label: string; offset: [number, number]; anchor: 'start' | 'end' | 'middle' }> = {
+  tie: { label: '6.6kV BUS TIE', offset: [0, -16], anchor: 'middle' },
+  lvTie: { label: '440V BUS TIE', offset: [0, -16], anchor: 'middle' },
+  consumerTie: { label: '220V BUS TIE', offset: [0, -16], anchor: 'middle' },
+  txAFeed: { label: 'TX A VCB', offset: [16, 4], anchor: 'start' },
+  txBFeed: { label: 'TX B VCB', offset: [16, 4], anchor: 'start' },
+  reeferAFeed: { label: 'REEFER A VCB', offset: [16, 4], anchor: 'start' },
+  reeferBFeed: { label: 'REEFER B VCB', offset: [16, 4], anchor: 'start' },
+  propFeed: { label: 'DRIVE 1 VCB', offset: [16, 4], anchor: 'start' },
+  bowFeed: { label: 'THRUSTER VCB', offset: [16, 4], anchor: 'start' },
+  conAAcb: { label: 'CON A ACB', offset: [16, 4], anchor: 'start' },
+  conBAcb: { label: 'CON B ACB', offset: [16, 4], anchor: 'start' },
+  egBreaker: { label: 'EDG CB', offset: [16, 4], anchor: 'start' },
+  txConAEsbTie: { label: 'TX CON A ESB TIE CB (Norm. Open)', offset: [16, 4], anchor: 'start' }
+};
+
 function renderSchematic(){
   const host=document.querySelector('#schematicHost')!;
-  const paths=connections.map(c=>{
-    const a=byId[c.from], b=byId[c.to];
-    const status=connectionState(c,state,live);
+
+  // 1. Busbars (Bold horizontal lines matching blue image)
+  const busbarSvg = BUSBARS.map(b => {
+    const isLive = live.has(b.id);
+    const isSel = selected === b.id;
+    const eq = byId[b.id];
+    const midX = (b.x1 + b.x2) / 2;
+    return `
+      <g class="diagram-busbar ${b.voltageType} ${isLive ? 'live' : 'dead'} ${isSel ? 'selected' : ''}" data-select="${b.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(eq?.name || b.label)}">
+        <line class="busbar-hit" x1="${b.x1}" y1="${b.y}" x2="${b.x2}" y2="${b.y}" stroke="transparent" stroke-width="26" />
+        <line class="busbar-line" x1="${b.x1}" y1="${b.y}" x2="${b.x2}" y2="${b.y}" />
+        <text class="busbar-label ${b.voltageType}" x="${midX}" y="${b.y - 12}" text-anchor="middle">${svgEsc(b.label)}</text>
+        <title>${svgEsc(eq?.name || b.label)} · ${isLive ? 'POWERED' : 'DEAD'}</title>
+      </g>
+    `;
+  }).join('');
+
+  // 2. Generators (Circular symbols with sine waves matching blue image)
+  const genSvg = GENERATOR_IDS.map(gid => {
+    const e = byId[gid];
+    if (!e) return '';
+    const isLive = live.has(gid);
+    const isRunning = !!state.running[gid];
+    const isSel = selected === gid;
+    const isEg = gid === 'eg';
+    const subText = isEg ? '440V / 600kW' : '6.6kV / 3.5MW';
+    const r = 24;
+    return `
+      <g class="gen-symbol ${isEg ? 'emergency' : 'hv'} ${isLive ? 'live' : isRunning ? 'running' : 'dead'} ${isSel ? 'selected' : ''}" data-select="${gid}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
+        <text class="gen-sub" x="${e.sx}" y="${e.sy - 36}">${subText}</text>
+        <text class="gen-title" x="${e.sx}" y="${e.sy - 26}">${svgEsc(e.short)}</text>
+        <circle cx="${e.sx}" cy="${e.sy}" r="${r}" />
+        <path class="gen-sine" d="M ${e.sx - 12} ${e.sy} Q ${e.sx - 6} ${e.sy - 8} ${e.sx} ${e.sy} T ${e.sx + 12} ${e.sy}" />
+        <title>${svgEsc(e.name)} · ${isRunning ? 'RUNNING' : 'STOPPED'} · ${isLive ? 'POWERED' : 'NOT POWERED'}</title>
+      </g>
+    `;
+  }).join('');
+
+  // 3. Shore Connection (Purple header & symbol matching blue image)
+  const shoreEq = byId['shore'];
+  const isShoreLive = live.has('shore');
+  const isShoreRunning = !!state.running['shore'];
+  const isShoreSel = selected === 'shore';
+  const shoreSvg = `
+    <g class="shore-symbol ${isShoreLive ? 'live' : 'dead'} ${isShoreSel ? 'selected' : ''}" data-select="shore" tabindex="0" role="button" aria-label="Inspect ${svgEsc(shoreEq?.name || 'Shore Connection')}">
+      <text class="shore-title" x="${shoreEq.sx}" y="${shoreEq.sy - 24}">SHORE POWER</text>
+      <text class="shore-sub" x="${shoreEq.sx}" y="${shoreEq.sy - 12}">(6.6kV Cold Ironing)</text>
+      <title>${svgEsc(shoreEq?.name || 'Shore Connection')} · ${isShoreRunning ? 'CONNECTED' : 'DISCONNECTED'}</title>
+    </g>
+  `;
+
+  // 4. Transformers (Dual interlocking circles with amber ratings matching blue image)
+  const txSvg = TRANSFORMERS.map(t => {
+    const e = byId[t.id];
+    if (!e) return '';
+    const isLive = live.has(t.id);
+    const isSel = selected === t.id;
+    const r = 14;
+    const y1 = e.sy - 8;
+    const y2 = e.sy + 8;
+    const isLeft = t.labelSide === 'left';
+    const lx = isLeft ? e.sx - 24 : e.sx + 24;
+    const rx = isLeft ? e.sx + 24 : e.sx - 24;
+    const anchor = isLeft ? 'end' : 'start';
+    const ratingAnchor = isLeft ? 'start' : 'end';
+    return `
+      <g class="tx-symbol ${isLive ? 'live' : 'dead'} ${isSel ? 'selected' : ''}" data-select="${t.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
+        <circle class="tx-coil" cx="${e.sx}" cy="${y1}" r="${r}" />
+        <circle class="tx-coil" cx="${e.sx}" cy="${y2}" r="${r}" />
+        <text class="tx-tag" x="${lx}" y="${e.sy - 6}" text-anchor="${anchor}">${t.name}</text>
+        <text class="tx-ratio" x="${lx}" y="${e.sy + 6}" text-anchor="${anchor}">${t.ratio}</text>
+        <text class="tx-rating" x="${rx}" y="${e.sy}" text-anchor="${ratingAnchor}">${t.rating}</text>
+        <title>${svgEsc(e.name)} · ${t.rating} · ${isLive ? 'ENERGIZED' : 'DE-ENERGIZED'}</title>
+      </g>
+    `;
+  }).join('');
+
+  // 5. Equipment Nodes (Boxes matching blue image)
+  const skipEquipmentIds = new Set([
+    ...BUSBARS.map(b => b.id),
+    ...GENERATOR_IDS,
+    'shore',
+    ...TRANSFORMERS.map(t => t.id)
+  ]);
+
+  const equipmentSvg = equipment.filter(e => !skipEquipmentIds.has(e.id)).map(e => {
+    const isLive = live.has(e.id);
+    const isSel = selected === e.id;
+    const isDriveOrBow = e.id === 'drive' || e.id === 'bow';
+    const isMotorOrProp = e.id === 'motor' || e.id === 'prop';
+    const w = isDriveOrBow ? 116 : isMotorOrProp ? 84 : 76;
+    const h = isDriveOrBow ? 48 : isMotorOrProp ? 22 : 28;
+    const rx = 4;
+    const x = e.sx - w / 2;
+    const y = e.sy - h / 2;
+
+    let content = '';
+    if (e.id === 'drive') {
+      content = `
+        <text class="drive-title" x="${e.sx}" y="${e.sy - 4}" text-anchor="middle">PROPULSION</text>
+        <text class="drive-sub" x="${e.sx}" y="${e.sy + 12}" text-anchor="middle">VFD DRIVE 1</text>
+      `;
+    } else if (e.id === 'bow') {
+      content = `
+        <text class="drive-title" x="${e.sx}" y="${e.sy - 4}" text-anchor="middle">BOW THRUSTER</text>
+        <text class="drive-sub" x="${e.sx}" y="${e.sy + 12}" text-anchor="middle">VFD DRIVE 2</text>
+      `;
+    } else if (e.id === 'motor') {
+      content = `<text class="node-single-label" x="${e.sx}" y="${e.sy + 4}" text-anchor="middle">MOTOR 6.6kV</text>`;
+    } else if (e.id === 'prop') {
+      content = `<text class="node-single-label" x="${e.sx}" y="${e.sy + 4}" text-anchor="middle">PROP SHAFT</text>`;
+    } else {
+      const nameParts = e.short.split(' ');
+      let line1 = e.short;
+      let line2 = '';
+      if (nameParts.length > 2) {
+        line1 = nameParts.slice(0, 2).join(' ');
+        line2 = nameParts.slice(2).join(' ');
+      } else if (nameParts.length === 2 && e.short.length > 10) {
+        line1 = nameParts[0];
+        line2 = nameParts[1];
+      }
+
+      if (line2) {
+        content = `
+          <text class="node-line1" x="${e.sx}" y="${e.sy - 2}" text-anchor="middle">${svgEsc(line1)}</text>
+          <text class="node-line2" x="${e.sx}" y="${e.sy + 9}" text-anchor="middle">${svgEsc(line2)}</text>
+        `;
+      } else {
+        content = `
+          <text class="node-single-label" x="${e.sx}" y="${e.sy + 4}" text-anchor="middle">${svgEsc(line1)}</text>
+        `;
+      }
+    }
+
+    return `
+      <g class="diagram-node ${nodeClass(e)} ${isLive ? 'live' : 'dead'} ${isSel ? 'selected' : ''}" data-select="${e.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
+        <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" />
+        ${content}
+        <title>${svgEsc(e.name)} · ${isLive ? 'POWERED' : 'NOT POWERED'}</title>
+      </g>
+    `;
+  }).join('');
+
+  // 6. Power Paths and Breakers (Single clean line per equipment)
+  const paths = connections.map(c => {
+    const a = byId[c.from], b = byId[c.to];
+    const status = connectionState(c, state, live);
     const route = getRoute(c, a, b);
     const d = 'M ' + route.points.map(p => `${p[0]} ${p[1]}`).join(' L ');
-    
+    const isDashed = c.id === 'esbTieFeed' || c.id === 'txConAEsbTie';
+
     let breaker = '';
     if (c.breaker && route.breaker) {
       const { pos: [bx, by], orientation } = route.breaker;
       const isClosed = !!state.closed[c.id];
-      let blade = '';
-      if (orientation === 'h') {
-        blade = isClosed ? `M${bx-6} ${by} H${bx+6}` : `M${bx-6} ${by} L${bx+5} ${by-7}`;
-      } else {
-        blade = isClosed ? `M${bx} ${by-6} V${by+6}` : `M${bx} ${by+6} L${bx+7} ${by-5}`;
+      const bInfo = BREAKER_LABELS[c.id];
+      let labelSvg = '';
+      if (bInfo) {
+        labelSvg = `<text class="breaker-label" x="${bx + bInfo.offset[0]}" y="${by + bInfo.offset[1]}" text-anchor="${bInfo.anchor}">${bInfo.label}</text>`;
       }
-      breaker = `<g class="breaker-symbol ${status} orientation-${orientation}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
-        <rect x="${bx-10}" y="${by-10}" width="20" height="20" rx="3"/>
-        <path class="contact-blade" d="${blade}"/>
-        <title>${svgEsc(c.name)} · ${isClosed ? 'closed' : 'open'}</title>
-      </g>`;
+
+      let symbolContent = '';
+      if (isClosed) {
+        symbolContent = `
+          <line class="breaker-cross" x1="${bx - 6}" y1="${by - 6}" x2="${bx + 6}" y2="${by + 6}" />
+          <line class="breaker-cross" x1="${bx + 6}" y1="${by - 6}" x2="${bx - 6}" y2="${by + 6}" />
+        `;
+      } else {
+        symbolContent = `
+          <line class="breaker-open-blade" x1="${bx - 5}" y1="${by + 6}" x2="${bx + 6}" y2="${by - 6}" />
+        `;
+      }
+
+      breaker = `
+        <g class="breaker-symbol ${status} ${isClosed ? 'closed' : 'open'} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+          <rect x="${bx - 10}" y="${by - 10}" width="20" height="20" rx="3" />
+          ${symbolContent}
+          ${labelSvg}
+          <title>${svgEsc(c.name)} · ${isClosed ? 'CLOSED' : 'OPEN'} · ${status}</title>
+        </g>
+      `;
     }
 
-    return `<g class="diagram-path ${status} ${selected===c.id?'selected':''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
-      <path class="power-line-base" d="${d}"/>
-      ${status==='live'?`<path class="power-flow-anim" d="${d}"/>`:''}
-      <title>${svgEsc(c.name)} · ${status}</title>
-    </g>${breaker}`;
+    return `
+      <g class="diagram-path ${status} ${isDashed ? 'dashed-tie' : ''} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+        <path class="power-line-base" d="${d}" />
+        ${status === 'live' && !isDashed ? `<path class="power-flow-anim" d="${d}" />` : ''}
+        <title>${svgEsc(c.name)} · ${status}</title>
+      </g>
+      ${breaker}
+    `;
   }).join('');
 
-  const nodes=equipment.map(e=>{
-    const s=e.kind==='bus'||e.kind==='emergency-bus'?122:96, h=43;
-    const cls=nodeClass(e);
-    return `<g class="diagram-node ${cls} ${live.has(e.id)?'live':'dead'} ${selected===e.id?'selected':''}" transform="translate(${e.sx-s/2} ${e.sy-h/2})" data-select="${e.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
-      <rect width="${s}" height="${h}" rx="8"/>
-      <text x="${s/2}" y="17" text-anchor="middle" class="node-label">${svgEsc(e.short)}</text>
-      <text x="${s/2}" y="32" text-anchor="middle" class="node-voltage">${svgEsc(e.voltage)}</text>
-      <title>${svgEsc(e.name)} · ${live.has(e.id)?'powered':'not powered'}</title>
-    </g>`;
-  }).join('');
+  // 7. Header and Legend
+  const headerSvg = `
+    <g class="diagram-header">
+      <text class="diagram-main-title" x="750" y="44" text-anchor="middle">DUAL-BUS REDUNDANT MARINE POWER SYSTEM (SINGLE LINE DIAGRAM)</text>
+      <text class="diagram-subtitle" x="750" y="66" text-anchor="middle">Symmetrical Dual-Transformer Topology (Left Bus A / Right Bus B Redundancy)</text>
+    </g>
+  `;
 
-  const vbW = 1100 / schematicState.zoom;
-  const vbH = 830 / schematicState.zoom;
-  host.innerHTML=`<div class="diagram-wrap"><svg viewBox="${schematicState.panX} ${schematicState.panY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Single-line diagram of ship electrical connections"><text class="diagram-heading" x="32" y="34">NORMAL DISTRIBUTION</text><text class="diagram-heading" x="32" y="550">SEPARATE EMERGENCY DISTRIBUTION</text><path class="section-rule" d="M30 560 H1070"/>${paths}${nodes}</svg></div>`;
+  const legendSvg = `
+    <g class="diagram-legend-box" transform="translate(40 890)">
+      <rect width="1420" height="52" rx="6" />
+      <text class="legend-header" x="25" y="22">SYSTEM VOLTAGE RATINGS &amp; REDUNDANCY LEGEND:</text>
+      
+      <line x1="420" y1="18" x2="465" y2="18" class="legend-sample-line hv" />
+      <text class="legend-text" x="475" y="22">6.6 kV HV Main Grid</text>
 
-  host.querySelectorAll<SVGGElement>('[data-select]').forEach(g=>{
-    g.addEventListener('click',()=>select(g.dataset.select!));
-    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(g.dataset.select!);}});
+      <line x1="710" y1="18" x2="755" y2="18" class="legend-sample-line lv" />
+      <text class="legend-text" x="765" y="22">440 V LV Distribution</text>
+
+      <line x1="1000" y1="18" x2="1045" y2="18" class="legend-sample-line consumer" />
+      <text class="legend-text" x="1055" y="22">220 V Control/Lighting</text>
+
+      <text class="legend-subtext" x="420" y="42">✓ 2x Main Step-Down Transformers (TX A &amp; TX B) | 2x Reefer Transformers (TX REEFER A &amp; B) | 2x Control Transformers (TX CON A &amp; B)</text>
+    </g>
+  `;
+
+  const vbW = SVG_BASE_WIDTH / schematicState.zoom;
+  const vbH = SVG_BASE_HEIGHT / schematicState.zoom;
+  host.innerHTML = `
+    <div class="diagram-wrap">
+      <svg viewBox="${schematicState.panX} ${schematicState.panY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dual-Bus Redundant Marine Power System Single Line Diagram">
+        <rect width="${SVG_BASE_WIDTH}" height="${SVG_BASE_HEIGHT}" fill="#071220" />
+        ${headerSvg}
+        ${paths}
+        ${busbarSvg}
+        ${txSvg}
+        ${genSvg}
+        ${shoreSvg}
+        ${equipmentSvg}
+        ${legendSvg}
+      </svg>
+    </div>
+  `;
+
+  host.querySelectorAll<SVGGElement>('[data-select]').forEach(g => {
+    g.addEventListener('click', () => select(g.dataset.select!));
+    g.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        select(g.dataset.select!);
+      }
+    });
   });
 
-  initSchematicInteractions();
 }
 function relatedControls(id:string){const related=connections.filter(c=>c.from===id||c.to===id).filter(c=>c.breaker);if(!related.length)return '';return `<div class="inspector-related"><h4>Connected breakers</h4>${related.map(c=>`<div class="related-row"><button data-select="${c.id}" type="button">${c.name}</button><button class="feeder-state ${state.closed[c.id]?'closed':''}" data-breaker="${c.id}" type="button">${state.closed[c.id]?'CLOSED':'OPEN'}</button></div>`).join('')}</div>`;}
 interface AssemblyPageInfo {
@@ -855,10 +1213,10 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'PROPULSION CAD ASSEMBLY & SPECS'
     };
   }
-  if (selectedId === 'txA' || selectedId === 'txB') {
+  if (['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selectedId) || model === 'transformer') {
     return {
       url: resolveAssemblyUrl('3d_marine_transformer_assembly.html'),
-      title: '6.6 kV / 440 V Marine Transformer — 3D Explodable CAD Assembly',
+      title: 'Marine Distribution Transformer — 3D Explodable CAD Assembly',
       subtitle: '3-Phase Laminated Core · Concentric Primary & Secondary Windings · Class H Nomex Insulation · Porcelain Bushings · Forced Air Cooling',
       tag: 'TRANSFORMER CAD ASSEMBLY & SPECS'
     };
@@ -887,7 +1245,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'STEERING GEAR CAD ASSEMBLY & SPECS'
     };
   }
-  if (selectedId === 'reefer' || selectedId === 'reeferFeed' || model === 'reefer') {
+  if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selectedId) || model === 'reefer') {
     return {
       url: resolveAssemblyUrl('3d_marine_reefer_distribution_assembly.html'),
       title: 'Reefer Distribution Panel — 3D Explodable CAD Assembly',
@@ -895,8 +1253,8 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'REEFER DISTRIBUTION CAD ASSEMBLY & SPECS'
     };
   }
-  if (['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
-    const pumpVariant = (selectedId === 'fire' || selectedId === 'eFire') ? 'fire' : selectedId === 'ballast' ? 'ballast' : selectedId === 'bilge' ? 'bilge' : 'cooling';
+  if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
+    const pumpVariant = (['fire', 'fire1', 'fire2', 'eFire'].includes(selectedId)) ? 'fire' : selectedId === 'ballast' ? 'ballast' : selectedId === 'bilge' ? 'bilge' : 'cooling';
     return {
       url: resolveAssemblyUrl(`3d_marine_pump_assembly.html?pump=${pumpVariant}`),
       title: 'Marine Centrifugal Pump Set — 3D Explodable CAD Assembly',
@@ -1171,7 +1529,7 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
-    ${selected === 'txA' || selected === 'txB' ? `
+    ${['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selected) || e?.kind === 'transformer' || model === 'transformer' ? `
       <div class="transformer-controls-card">
         <div class="card-header">
           <div>
@@ -1275,7 +1633,7 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
-    ${selected === 'reefer' || selected === 'reeferFeed' || e?.id === 'reefer' || model === 'reefer' ? `
+    ${['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selected) || e?.id === 'reefer' || model === 'reefer' ? `
       <div class="reefer-controls-card">
         <div class="card-header">
           <div>
@@ -1301,7 +1659,7 @@ function renderInspector(){
         </div>
       </div>
     ` : ''}
-    ${['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump' ? `
+    ${['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump' ? `
       <div class="pump-controls-card">
         <div class="card-header">
           <div>
@@ -1371,7 +1729,7 @@ function renderInspector(){
   pane.querySelector<HTMLButtonElement>('#btnResetLoto')?.addEventListener('click',()=>{
     const msg=hvLotoManager.resetEquipmentLoto(selected);
     document.querySelector('#arcFlashBanner')?.classList.add('hidden');
-    if(selected==='txA'||selected==='txB')transformerAssembly.setExplosionFactor(0);
+    if(['txA','txB','txReeferA','txReeferB','txConA','txConB'].includes(selected)||model==='transformer')transformerAssembly.setExplosionFactor(0);
     if(selected==='drive'||model==='drive')driveAssembly.setExplosionFactor(0);
     if(selected==='motor'||model==='motor')motorAssembly.setExplosionFactor(0);
     if(exploded.isExploded())exploded.setExploded(false);
@@ -1406,7 +1764,7 @@ function renderInspector(){
     });
   }
 
-  if (selected === 'txA' || selected === 'txB') {
+  if (['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selected) || e?.kind === 'transformer' || model === 'transformer') {
     const txSlider = document.getElementById('transformer-explosion-slider') as HTMLInputElement;
     txSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
@@ -1516,7 +1874,7 @@ function renderInspector(){
     });
   }
 
-  if (selected === 'reefer' || selected === 'reeferFeed' || e?.id === 'reefer' || model === 'reefer') {
+  if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selected) || e?.id === 'reefer' || model === 'reefer') {
     const reeferSlider = document.getElementById('reefer-explosion-slider') as HTMLInputElement;
     reeferSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
@@ -1536,7 +1894,7 @@ function renderInspector(){
     });
   }
 
-  if (['cooling', 'fire', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump') {
+  if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump') {
     const pumpSlider = document.getElementById('pump-explosion-slider') as HTMLInputElement;
     pumpSlider?.addEventListener('input', (ev) => {
       const factor = parseFloat((ev.target as HTMLInputElement).value);
@@ -1800,31 +2158,40 @@ function updateLiveTelemetryDOM(){
   // 4. Update Bottom HUD Bus Telemetry Strip
   const strip=document.getElementById('busTelemetryStrip');
   if(strip){
-    const bA=simEngine.buses.busA, bB=simEngine.buses.busB, bLv=simEngine.buses.lvBus, bCon=simEngine.buses.consumer, bEm=simEngine.buses.eBus;
+    const bA=simEngine.buses.busA, bB=simEngine.buses.busB;
+    const lvA=simEngine.buses.lvBusA, lvB=simEngine.buses.lvBusB;
+    const conA=simEngine.buses.consumerA, conB=simEngine.buses.consumerB;
+    const bEm=simEngine.buses.eBus;
     const txA=simEngine.transformerLoading.txA, txB=simEngine.transformerLoading.txB;
+    const txReeferA=simEngine.transformerLoading.txReeferA, txReeferB=simEngine.transformerLoading.txReeferB;
     strip.innerHTML=`
       <button type="button" class="bus-tele-card ${bA.live?'live':'dead'}" data-bus-jump="busA">
         <span class="bus-tele-title">6.6 kV BUS A (${simEngine.earthingArchitecture})</span>
         <strong>${bA.live?`${(bA.voltageV/1000).toFixed(2)} kV · ${bA.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
-        <span>${bA.kw} kW · ${bA.kvar} kVAr · PF ${bA.powerFactor} · THD ${bA.thdPercent}%</span>
+        <span>${bA.kw} kW · PF ${bA.powerFactor} · THD ${bA.thdPercent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${bB.live?'live':'dead'}" data-bus-jump="busB">
         <span class="bus-tele-title">6.6 kV BUS B (${simEngine.earthingArchitecture})</span>
         <strong>${bB.live?`${(bB.voltageV/1000).toFixed(2)} kV · ${bB.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
-        <span>${bB.kw} kW · ${bB.kvar} kVAr · PF ${bB.powerFactor} · THD ${bB.thdPercent}%</span>
+        <span>${bB.kw} kW · PF ${bB.powerFactor} · THD ${bB.thdPercent}%</span>
       </button>
-      <button type="button" class="bus-tele-card ${bLv.live?'live':'dead'}" data-bus-jump="lvBus">
-        <span class="bus-tele-title">440 V MAIN LV</span>
-        <strong>${bLv.live?`${Math.round(bLv.voltageV)} V · ${bLv.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
-        <span>${bLv.kw} kW · TxA ${txA.percent}% / TxB ${txB.percent}%</span>
+      <button type="button" class="bus-tele-card ${lvA.live?'live':'dead'}" data-bus-jump="lvBusA">
+        <span class="bus-tele-title">440 V BUS A (PORT)</span>
+        <strong>${lvA.live?`${Math.round(lvA.voltageV)} V · ${lvA.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
+        <span>${lvA.kw} kW · TxA ${txA.percent}% · RefA ${txReeferA.percent}%</span>
       </button>
-      <button type="button" class="bus-tele-card ${bCon.live?'live':'dead'}" data-bus-jump="consumer">
-        <span class="bus-tele-title">220 V HOTEL</span>
-        <strong>${bCon.live?`${Math.round(bCon.voltageV)} V · ${bCon.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
-        <span>${bCon.kw} kW · ${bCon.currentAmps} A · Galley/Accom</span>
+      <button type="button" class="bus-tele-card ${lvB.live?'live':'dead'}" data-bus-jump="lvBusB">
+        <span class="bus-tele-title">440 V BUS B (STBD)</span>
+        <strong>${lvB.live?`${Math.round(lvB.voltageV)} V · ${lvB.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
+        <span>${lvB.kw} kW · TxB ${txB.percent}% · RefB ${txReeferB.percent}%</span>
+      </button>
+      <button type="button" class="bus-tele-card ${conA.live||conB.live?'live':'dead'}" data-bus-jump="consumerA">
+        <span class="bus-tele-title">220 V SUB A &amp; B</span>
+        <strong>${conA.live||conB.live?`${Math.round(conA.live?conA.voltageV:conB.voltageV)} V · 60 Hz`:'DEAD BUS'}</strong>
+        <span>Sub A: ${conA.kw} kW · Sub B: ${conB.kw} kW</span>
       </button>
       <button type="button" class="bus-tele-card ${bEm.live?'live':'dead'}" data-bus-jump="eBus">
-        <span class="bus-tele-title">440 V EMERG</span>
+        <span class="bus-tele-title">440 V ESB (SOLAS)</span>
         <strong>${bEm.live?`${Math.round(bEm.voltageV)} V · ${bEm.frequencyHz.toFixed(1)} Hz`:'STANDBY'}</strong>
         <span>${bEm.kw} kW · SOLAS Essential</span>
       </button>`;

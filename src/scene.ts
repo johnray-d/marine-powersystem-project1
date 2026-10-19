@@ -313,8 +313,8 @@ export class VesselView {
     // Update explosion lerp interpolation smoothly every frame
     propellerAssembly.updateExplosion(dt);
     // Update transformer cooling fans when energized, or during inspection
-    const isTxActive = this.live.has('txA') || this.live.has('txB');
-    const isInspectingTx = this.selection === 'txA' || this.selection === 'txB';
+    const isTxActive = ['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].some(id => this.live.has(id));
+    const isInspectingTx = ['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(this.selection);
     if (isTxActive || isInspectingTx) {
       transformerAssembly.updateRotation(dt, isTxActive ? 1200 : 600);
     }

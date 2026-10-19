@@ -246,15 +246,16 @@
         <h2>Interactive Single-Line Diagram (SLD) &amp; Bus Telemetry</h2>
       </div>
       <p>
-        Switch to the <strong>Single-Line Diagram</strong> tab in the top bar (or press <kbd>2</kbd>) to inspect the radial electrical hierarchy from 6.6 kV Main HV Bus down to the 440 V Distribution Bus, 440 V Emergency Bus, and 220 V Lighting/Galley Bus:
+        Switch to the <strong>Single-Line Diagram</strong> tab in the top bar (or press <kbd>2</kbd>) to inspect the symmetrical dual-bus architecture (Port Bus A / Starboard Bus B) with standard IEC 60092 CAD single-line topology:
       </p>
       <ul>
-        <li><strong>Glowing Red + Animated Yellow Stream:</strong> Energized feeders glow red while a bright yellow dashed stream animates along the circuit path to show real-time power flow.</li>
-        <li><strong>Direct Breaker Switching:</strong> Double-click any generator, transformer, or consumer node on the Single-Line Diagram to trip or close its circuit breaker immediately.</li>
+        <li><strong>Symmetrical Redundancy:</strong> Dual main 2.5 MVA transformers (TX A &amp; TX B), dual 1.5 MVA reefer transformers (TX REEFER A &amp; B), and dual 500 kVA control transformers (TX CON A &amp; B).</li>
+        <li><strong>Single Clean Line Per Equipment:</strong> Every feeder drops directly from its busbar through its square <code>[X]</code> circuit breaker and transformer to its equipment box.</li>
+        <li><strong>Dynamic Voltage &amp; Power Flow:</strong> High-contrast voltage coding (6.6 kV Cyan, 440 V Gold, 220 V Green, 440 V ESB Coral Red) with real-time power flow animations.</li>
       </ul>
       <div class="shot-frame">
-        <img src="../tutorial/tut_03_single_line_flow.png" alt="Single-Line Diagram with Glowing Red Lines and Yellow Power Flow Animation" />
-        <div class="shot-caption">Fig 3 — Interactive Single-Line Diagram showing glowing red energized buses/feeders with animated yellow power flow dashes and live 4-bus voltage/frequency cards.</div>
+        <img src="../tutorial/tut_03_single_line_flow.png" alt="Symmetrical Dual-Bus Redundant Single-Line Diagram with IEC 60092 CAD Layout" />
+        <div class="shot-caption">Fig 3 — Symmetrical Dual-Bus Redundant Single-Line Diagram (IEC 60092 CAD standard) featuring continuous horizontal busbars, single clean feeders per equipment, interlocking circle transformers, and square [X] circuit breakers.</div>
       </div>
     </section>
 
@@ -300,6 +301,32 @@
 
     <section class="step-card">
       <div class="step-header">
+        <span class="step-num">SECTION 06</span>
+        <h2>Symmetrical Dual-Transformer Architecture &amp; 3-Tier Split-Bus Ties</h2>
+      </div>
+      <p>
+        The electrical architecture has been fully upgraded to a redundant <strong>Symmetrical Dual-Transformer Topology</strong> reflecting modern marine class rules (DNV-GL / Lloyd's Register DP-2 classification):
+      </p>
+      <ul>
+        <li><strong>Dual 6.6 kV / 440 V Main Step-Down Transformers (2.5 MVA each):</strong> <em>TX A (Port)</em> feeds 440 V Bus A; <em>TX B (Starboard)</em> feeds 440 V Bus B. If one transformer trips, the 440 V Bus Tie automatically allows the surviving transformer to carry all critical hotel and auxiliary loads.</li>
+        <li><strong>Dual 6.6 kV / 440 V Dedicated Reefer Transformers (1.5 MVA each):</strong> <em>TX REEFER A &amp; B</em> feed refrigerated container boards directly from 6.6 kV, isolating heavy compressor motor inrushes from sensitive engine room auxiliaries.</li>
+        <li><strong>Dual 440 V / 220 V Control &amp; Hotel Transformers (500 kVA each):</strong> <em>TX CON A &amp; B</em> provide galvanized isolation and voltage step-down for Navigation Bridge electronics, Galley, and Accommodation lighting.</li>
+        <li><strong>Three Symmetrical Bus Ties:</strong>
+          <ul>
+            <li><strong>6.6 kV Bus Tie:</strong> Operates between Bus A and Bus B for synchronized parallel generation or split-bus islanding.</li>
+            <li><strong>440 V Bus Tie:</strong> Links Port 440 V Bus A and Starboard 440 V Bus B.</li>
+            <li><strong>220 V Bus Tie:</strong> Links 220 V Sub-Board A and Sub-Board B for complete domestic lighting redundancy.</li>
+          </ul>
+        </li>
+      </ul>
+      <div class="shot-frame">
+        <img src="../tutorial/tut_03_single_line_flow.png" alt="Symmetrical Dual-Transformer Topology and 3-Tier Bus Ties" />
+        <div class="shot-caption">Fig 6 — Symmetrical Dual-Transformer Architecture showing mirrored Port and Starboard distribution tiers (6.6 kV, 440 V, and 220 V) with independent cross-tie breakers.</div>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
         <span class="step-num">SECTION 07</span>
         <h2>ANSI Protective Relay Engine (ANSI 32, ANSI 40 &amp; ANSI 51 IDMT Curves)</h2>
       </div>
@@ -318,7 +345,7 @@
       </ul>
       <div class="shot-frame">
         <img src="../tutorial/tut_06_protective_relays.png" alt="ANSI Protective Relay Engine Telemetry and AVR Trip Control" />
-        <div class="shot-caption">Fig 6 — Protective Relay Engine showing live ANSI 32 Reverse Power, ANSI 40 Loss of Field status with AVR Trip simulator, and IEC Standard Inverse (ANSI 51) IDMT time-overcurrent curve readout.</div>
+        <div class="shot-caption">Fig 7 — Protective Relay Engine showing live ANSI 32 Reverse Power, ANSI 40 Loss of Field status with AVR Trip simulator, and IEC Standard Inverse (ANSI 51) IDMT time-overcurrent curve readout.</div>
       </div>
     </section>
 
@@ -343,7 +370,7 @@
       </ul>
       <div class="shot-frame">
         <img src="../tutorial/tut_07_hre_earthing.png" alt="High-Resistance Earthing HRE and ANSI 67N Telemetry" />
-        <div class="shot-caption">Fig 7 — High-Resistance Earthing (HRE) drill showing 381 Ω NER active, fault current clamped to 10.0 A, neutral displacement V_N = 3,810 V, and ANSI 67N Directional Earth Fault alarm.</div>
+        <div class="shot-caption">Fig 8 — High-Resistance Earthing (HRE) drill showing 381 Ω NER active, fault current clamped to 10.0 A, neutral displacement V_N = 3,810 V, and ANSI 67N Directional Earth Fault alarm.</div>
       </div>
     </section>
 
@@ -367,7 +394,7 @@
       </p>
       <div class="shot-frame">
         <img src="../tutorial/tut_08_solas_waterfall.png" alt="SOLAS Blackout Recovery 5-Stage Sequential Waterfall and HUD Progress Bar" />
-        <div class="shot-caption">Fig 8 — SOLAS Blackout Recovery 5-Stage Sequential Waterfall active with dynamic HUD progress bar showing stage progression from emergency steering gear up to heavy propulsion thrusters.</div>
+        <div class="shot-caption">Fig 9 — SOLAS Blackout Recovery 5-Stage Sequential Waterfall active with dynamic HUD progress bar showing stage progression from emergency steering gear up to heavy propulsion thrusters.</div>
       </div>
     </section>
 
@@ -391,7 +418,7 @@
       </p>
       <div class="shot-frame">
         <img src="../tutorial/tut_09_hv_loto.png" alt="6.6 kV High Voltage Permit to Work PTW and 5-Step LOTO Sequence" />
-        <div class="shot-caption">Fig 9 — Interactive 6.6 kV Permit to Work (PTW) and 5-Step LOTO checklist showing VCB trip, truck racking, padlock tagout, prove-dead wand testing, and CME hull grounding.</div>
+        <div class="shot-caption">Fig 10 — Interactive 6.6 kV Permit to Work (PTW) and 5-Step LOTO checklist showing VCB trip, truck racking, padlock tagout, prove-dead wand testing, and CME hull grounding.</div>
       </div>
     </section>
 

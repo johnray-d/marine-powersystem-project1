@@ -23,10 +23,12 @@ import {
 export type LoadPriority = 'essential' | 'non-essential' | 'emergency';
 export type StartingMethod = 'VFD' | 'Soft-Starter' | 'Star-Delta' | 'DOL' | 'Feeder' | 'Transformer';
 
+export type BusKey = 'busA' | 'busB' | 'lvBusA' | 'lvBusB' | 'consumerA' | 'consumerB' | 'reeferA' | 'reeferB' | 'eBus';
+
 export interface LoadSpec {
   id: string;
   name: string;
-  busId: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus';
+  busId: BusKey | 'lvBus' | 'consumer';
   breakerId: string;
   nominalVoltageV: number;
   ratedKw: number;
@@ -40,7 +42,7 @@ export interface LoadSpec {
 export const LOAD_SPECS: Record<string, LoadSpec> = {
   drive: {
     id: 'drive',
-    name: 'Propulsion VFD & Motor',
+    name: 'Propulsion VFD Drive 1',
     busId: 'busA',
     breakerId: 'propFeed',
     nominalVoltageV: 6600,
@@ -52,7 +54,7 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
   },
   bow: {
     id: 'bow',
-    name: 'Bow Thruster',
+    name: 'Bow Thruster VFD Drive 2',
     busId: 'busB',
     breakerId: 'bowFeed',
     nominalVoltageV: 6600,
@@ -63,50 +65,37 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     inrushMultiplier: 2.4,
     preferentialTripStage: 2
   },
-  reefer: {
-    id: 'reefer',
-    name: 'Reefer Distribution Bay',
-    busId: 'lvBus',
-    breakerId: 'reeferFeed',
+  reeferA: {
+    id: 'reeferA',
+    name: 'Reefer Distribution Board A (Port)',
+    busId: 'reeferA',
+    breakerId: 'reeferAFeed',
     nominalVoltageV: 440,
-    ratedKw: 380,
+    ratedKw: 420,
     powerFactor: 0.84,
     priority: 'non-essential',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.4,
     preferentialTripStage: 1
   },
-  reeferUnit: {
-    id: 'reeferUnit',
-    name: 'Reefer Container #1',
-    busId: 'lvBus',
-    breakerId: 'reeferPlug',
+  reeferB: {
+    id: 'reeferB',
+    name: 'Reefer Distribution Board B (Starboard)',
+    busId: 'reeferB',
+    breakerId: 'reeferBFeed',
     nominalVoltageV: 440,
-    ratedKw: 18,
-    powerFactor: 0.82,
+    ratedKw: 420,
+    powerFactor: 0.84,
     priority: 'non-essential',
-    startingMethod: 'DOL',
-    inrushMultiplier: 3.5,
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.4,
     preferentialTripStage: 1
   },
-  crane: {
-    id: 'crane',
-    name: 'Deck Cargo Crane',
-    busId: 'lvBus',
-    breakerId: 'craneFeed',
-    nominalVoltageV: 440,
-    ratedKw: 240,
-    powerFactor: 0.79,
-    priority: 'non-essential',
-    startingMethod: 'VFD',
-    inrushMultiplier: 1.5,
-    preferentialTripStage: 1
-  },
-  fire: {
-    id: 'fire',
-    name: 'Main Fire Pump',
-    busId: 'lvBus',
-    breakerId: 'fireFeed',
+  fire1: {
+    id: 'fire1',
+    name: 'Fire Pump 1 (Port)',
+    busId: 'lvBusA',
+    breakerId: 'fire1Feed',
     nominalVoltageV: 440,
     ratedKw: 95,
     powerFactor: 0.85,
@@ -114,10 +103,46 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     startingMethod: 'DOL',
     inrushMultiplier: 5.5
   },
+  fire2: {
+    id: 'fire2',
+    name: 'Fire Pump 2 (Starboard)',
+    busId: 'lvBusB',
+    breakerId: 'fire2Feed',
+    nominalVoltageV: 440,
+    ratedKw: 95,
+    powerFactor: 0.85,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.5
+  },
+  cooling1: {
+    id: 'cooling1',
+    name: 'SW Cooling Pump 1 (Port)',
+    busId: 'lvBusA',
+    breakerId: 'cooling1Feed',
+    nominalVoltageV: 440,
+    ratedKw: 135,
+    powerFactor: 0.86,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.0
+  },
+  cooling2: {
+    id: 'cooling2',
+    name: 'SW Cooling Pump 2 (Starboard)',
+    busId: 'lvBusB',
+    breakerId: 'cooling2Feed',
+    nominalVoltageV: 440,
+    ratedKw: 135,
+    powerFactor: 0.86,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 5.0
+  },
   ballast: {
     id: 'ballast',
-    name: 'Ballast Pump',
-    busId: 'lvBus',
+    name: 'Ballast Pump (Port)',
+    busId: 'lvBusA',
     breakerId: 'ballastFeed',
     nominalVoltageV: 440,
     ratedKw: 110,
@@ -130,7 +155,7 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
   bilge: {
     id: 'bilge',
     name: 'Machinery Bilge Pump',
-    busId: 'lvBus',
+    busId: 'lvBusA',
     breakerId: 'bilgeFeed',
     nominalVoltageV: 440,
     ratedKw: 38,
@@ -139,22 +164,10 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     startingMethod: 'DOL',
     inrushMultiplier: 4.5
   },
-  cooling: {
-    id: 'cooling',
-    name: 'Seawater Cooling Pump',
-    busId: 'lvBus',
-    breakerId: 'coolingFeed',
-    nominalVoltageV: 440,
-    ratedKw: 135,
-    powerFactor: 0.86,
-    priority: 'essential',
-    startingMethod: 'DOL',
-    inrushMultiplier: 5.0
-  },
   steering: {
     id: 'steering',
     name: 'Main Steering Gear',
-    busId: 'lvBus',
+    busId: 'lvBusA',
     breakerId: 'steerFeed',
     nominalVoltageV: 440,
     ratedKw: 75,
@@ -163,10 +176,47 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     startingMethod: 'DOL',
     inrushMultiplier: 4.0
   },
+  crane: {
+    id: 'crane',
+    name: 'Deck Cargo Crane (Starboard)',
+    busId: 'lvBusB',
+    breakerId: 'craneFeed',
+    nominalVoltageV: 440,
+    ratedKw: 240,
+    powerFactor: 0.79,
+    priority: 'non-essential',
+    startingMethod: 'VFD',
+    inrushMultiplier: 1.5,
+    preferentialTripStage: 1
+  },
+  nav: {
+    id: 'nav',
+    name: 'Bridge Navigation Power',
+    busId: 'consumerA',
+    breakerId: 'navFeed',
+    nominalVoltageV: 220,
+    ratedKw: 25,
+    powerFactor: 0.94,
+    priority: 'essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.2
+  },
+  lightsA: {
+    id: 'lightsA',
+    name: 'Accommodation Lighting A (Port)',
+    busId: 'consumerA',
+    breakerId: 'lightAFeed',
+    nominalVoltageV: 220,
+    ratedKw: 45,
+    powerFactor: 0.95,
+    priority: 'essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.2
+  },
   galley: {
     id: 'galley',
-    name: 'Ship Galley',
-    busId: 'consumer',
+    name: 'Ship Galley & Outlets (Starboard)',
+    busId: 'consumerB',
     breakerId: 'galleyFeed',
     nominalVoltageV: 220,
     ratedKw: 145,
@@ -176,30 +226,17 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     inrushMultiplier: 1.1,
     preferentialTripStage: 1
   },
-  lights: {
-    id: 'lights',
-    name: 'Accommodation Lighting',
-    busId: 'consumer',
-    breakerId: 'lightFeed',
+  lightsB: {
+    id: 'lightsB',
+    name: 'Accommodation Lighting B (Starboard)',
+    busId: 'consumerB',
+    breakerId: 'lightBFeed',
     nominalVoltageV: 220,
-    ratedKw: 65,
+    ratedKw: 45,
     powerFactor: 0.95,
     priority: 'essential',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.2
-  },
-  outlets: {
-    id: 'outlets',
-    name: '220 V Service Outlets',
-    busId: 'consumer',
-    breakerId: 'outletFeed',
-    nominalVoltageV: 220,
-    ratedKw: 42,
-    powerFactor: 0.90,
-    priority: 'non-essential',
-    startingMethod: 'Feeder',
-    inrushMultiplier: 1.1,
-    preferentialTripStage: 2
   },
   eFire: {
     id: 'eFire',
@@ -225,18 +262,6 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     startingMethod: 'DOL',
     inrushMultiplier: 4.0
   },
-  nav: {
-    id: 'nav',
-    name: 'Bridge Navigation & Console',
-    busId: 'eBus',
-    breakerId: 'navFeed',
-    nominalVoltageV: 440,
-    ratedKw: 22,
-    powerFactor: 0.94,
-    priority: 'emergency',
-    startingMethod: 'Feeder',
-    inrushMultiplier: 1.2
-  },
   eLights: {
     id: 'eLights',
     name: 'SOLAS Emergency Lighting',
@@ -245,6 +270,18 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     nominalVoltageV: 440,
     ratedKw: 18,
     powerFactor: 0.96,
+    priority: 'emergency',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.1
+  },
+  eRadio: {
+    id: 'eRadio',
+    name: 'GMDSS Radio & Nav/Com',
+    busId: 'eBus',
+    breakerId: 'eRadioFeed',
+    nominalVoltageV: 440,
+    ratedKw: 22,
+    powerFactor: 0.94,
     priority: 'emergency',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.1
@@ -280,7 +317,7 @@ export interface GeneratorTelemetry {
 }
 
 export interface BusTelemetry {
-  id: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus';
+  id: BusKey;
   label: string;
   nominalVoltageV: number;
   live: boolean;
@@ -342,14 +379,31 @@ export class MarinePowerSimEngine {
 
   public generators: Record<string, GeneratorTelemetry> = {};
   public feederRelays: Record<string, FeederRelayState> = {};
-  public buses: Record<'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus', BusTelemetry>;
+  public buses: Record<BusKey, BusTelemetry>;
   public sync: SyncTelemetry;
   public alarms: SimAlarm[] = [];
-  public transformerLoading: Record<'txA' | 'txB' | 'tx220', { kva: number; ratedKva: number; percent: number }> = {
-    txA: { kva: 0, ratedKva: 1250, percent: 0 },
-    txB: { kva: 0, ratedKva: 1250, percent: 0 },
-    tx220: { kva: 0, ratedKva: 350, percent: 0 }
+
+  // Dual redundant transformers at every voltage transformation tier
+  public transformerLoading: Record<
+    'txA' | 'txB' | 'txReeferA' | 'txReeferB' | 'txConA' | 'txConB' | 'tx220',
+    { kva: number; ratedKva: number; percent: number }
+  > = {
+    txA: { kva: 0, ratedKva: 2500, percent: 0 },
+    txB: { kva: 0, ratedKva: 2500, percent: 0 },
+    txReeferA: { kva: 0, ratedKva: 1500, percent: 0 },
+    txReeferB: { kva: 0, ratedKva: 1500, percent: 0 },
+    txConA: { kva: 0, ratedKva: 500, percent: 0 },
+    txConB: { kva: 0, ratedKva: 500, percent: 0 },
+    tx220: { kva: 0, ratedKva: 500, percent: 0 } // alias for txConA
   };
+
+  // Backward-compatibility getters
+  public get lvBus(): BusTelemetry {
+    return this.buses.lvBusA;
+  }
+  public get consumer(): BusTelemetry {
+    return this.buses.consumerA;
+  }
 
   private inrushTimers: Record<string, { extraKw: number; extraKvar: number; decay: number }> = {};
   private standbyStartCooldown = 0;
@@ -400,12 +454,13 @@ export class MarinePowerSimEngine {
       };
     };
 
+    // 4x 3.5 MW Generators + 1x 600 kW Emergency Generator per single-line diagram
     this.generators = {
-      dg1: initGen('dg1', 'DG 1', 'gb1', 'busA', 6600, 2200, true),
-      dg2: initGen('dg2', 'DG 2', 'gb2', 'busA', 6600, 2200, false),
-      dg3: initGen('dg3', 'DG 3', 'gb3', 'busB', 6600, 2200, false),
-      dg4: initGen('dg4', 'DG 4', 'gb4', 'busB', 6600, 2200, false),
-      eg: initGen('eg', 'EM GEN', 'egBreaker', 'eBus', 440, 350, false)
+      dg1: initGen('dg1', 'DG 1', 'gb1', 'busA', 6600, 3500, true),
+      dg2: initGen('dg2', 'DG 2', 'gb2', 'busA', 6600, 3500, false),
+      dg3: initGen('dg3', 'DG 3', 'gb3', 'busB', 6600, 3500, false),
+      dg4: initGen('dg4', 'DG 4', 'gb4', 'busB', 6600, 3500, false),
+      eg: initGen('eg', 'EM GEN', 'egBreaker', 'eBus', 440, 600, false)
     };
 
     for (const spec of Object.values(LOAD_SPECS)) {
@@ -425,7 +480,7 @@ export class MarinePowerSimEngine {
     }
 
     const initBus = (
-      id: 'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus',
+      id: BusKey,
       label: string,
       nominalVoltageV: number
     ): BusTelemetry => ({
@@ -448,11 +503,15 @@ export class MarinePowerSimEngine {
     });
 
     this.buses = {
-      busA: initBus('busA', '6.6 kV Main Bus A', 6600),
-      busB: initBus('busB', '6.6 kV Main Bus B', 6600),
-      lvBus: initBus('lvBus', '440 V Main LV Bus', 440),
-      consumer: initBus('consumer', '220 V Hotel Bus', 220),
-      eBus: initBus('eBus', '440 V Emergency Bus', 440)
+      busA: initBus('busA', '6.6 kV Main Bus A (Port)', 6600),
+      busB: initBus('busB', '6.6 kV Main Bus B (Starboard)', 6600),
+      lvBusA: initBus('lvBusA', '440 V Main Bus A (Port)', 440),
+      lvBusB: initBus('lvBusB', '440 V Main Bus B (Starboard)', 440),
+      reeferA: initBus('reeferA', '440 V Reefer Board A (Port)', 440),
+      reeferB: initBus('reeferB', '440 V Reefer Board B (Starboard)', 440),
+      consumerA: initBus('consumerA', '220 V Sub-Board A (Port)', 220),
+      consumerB: initBus('consumerB', '220 V Sub-Board B (Starboard)', 220),
+      eBus: initBus('eBus', '440 V Emergency Bus (ESB)', 440)
     };
 
     this.sync = {
@@ -898,11 +957,15 @@ export class MarinePowerSimEngine {
     }
 
     // 3. Calculate active & reactive load on each bus from connected & powered equipment
-    const busLoads: Record<'busA' | 'busB' | 'lvBus' | 'consumer' | 'eBus', { kw: number; kvar: number; essKw: number; nonEssKw: number }> = {
+    const busLoads: Record<BusKey, { kw: number; kvar: number; essKw: number; nonEssKw: number }> = {
       busA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
       busB: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
-      lvBus: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
-      consumer: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      lvBusA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      lvBusB: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      reeferA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      reeferB: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      consumerA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
+      consumerB: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
       eBus: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 }
     };
 
@@ -927,62 +990,127 @@ export class MarinePowerSimEngine {
         const kva = Math.hypot(kw, kvar);
         fr.currentAmps = (kva * 1000) / (Math.sqrt(3) * spec.nominalVoltageV);
       }
-      const bucket = busLoads[spec.busId];
-      bucket.kw += kw;
-      bucket.kvar += kvar;
-      if (spec.priority === 'non-essential') bucket.nonEssKw += kw;
-      else bucket.essKw += kw;
+      const targetBus = spec.busId === 'lvBus' ? 'lvBusA' : spec.busId === 'consumer' ? 'consumerA' : spec.busId as BusKey;
+      const bucket = busLoads[targetBus];
+      if (bucket) {
+        bucket.kw += kw;
+        bucket.kvar += kvar;
+        if (spec.priority === 'non-essential') bucket.nonEssKw += kw;
+        else bucket.essKw += kw;
+      }
     }
 
-    // 4. Propagate downstream bus loads upstream through transformers (Consumer 220V -> LV 440V -> HV 6.6kV Bus A / B)
-    if (live.has('consumer') && state.closed.tx220Feed && live.has('lvBus')) {
-      const tx220LossKw = busLoads.consumer.kw * 0.018;
-      const tx220LossKvar = busLoads.consumer.kvar * 0.04;
-      busLoads.lvBus.kw += busLoads.consumer.kw + tx220LossKw;
-      busLoads.lvBus.kvar += busLoads.consumer.kvar + tx220LossKvar;
-      busLoads.lvBus.essKw += busLoads.consumer.essKw;
-      busLoads.lvBus.nonEssKw += busLoads.consumer.nonEssKw;
-      const tx220Kva = Math.hypot(busLoads.consumer.kw, busLoads.consumer.kvar);
-      this.transformerLoading.tx220.kva = tx220Kva;
-      this.transformerLoading.tx220.percent = Math.round((tx220Kva / this.transformerLoading.tx220.ratedKva) * 100);
+    // 4. Propagate downstream bus loads upstream through dual transformers
+    // 4a. 220 V Sub-Boards -> 440 V Buses through Control Transformers TX CON A & B
+    const txConAFeeding = live.has('consumerA') && state.closed.conAAcb && live.has('lvBusA');
+    if (txConAFeeding) {
+      const lossKw = busLoads.consumerA.kw * 0.018;
+      const lossKvar = busLoads.consumerA.kvar * 0.04;
+      busLoads.lvBusA.kw += busLoads.consumerA.kw + lossKw;
+      busLoads.lvBusA.kvar += busLoads.consumerA.kvar + lossKvar;
+      busLoads.lvBusA.essKw += busLoads.consumerA.essKw;
+      busLoads.lvBusA.nonEssKw += busLoads.consumerA.nonEssKw;
+      const kva = Math.hypot(busLoads.consumerA.kw, busLoads.consumerA.kvar);
+      this.transformerLoading.txConA = { kva, ratedKva: 500, percent: Math.round((kva / 500) * 100) };
     } else {
-      this.transformerLoading.tx220.kva = 0;
-      this.transformerLoading.tx220.percent = 0;
+      this.transformerLoading.txConA = { kva: 0, ratedKva: 500, percent: 0 };
+    }
+    this.transformerLoading.tx220 = this.transformerLoading.txConA;
+
+    const txConBFeeding = live.has('consumerB') && state.closed.conBAcb && live.has('lvBusB');
+    if (txConBFeeding) {
+      const lossKw = busLoads.consumerB.kw * 0.018;
+      const lossKvar = busLoads.consumerB.kvar * 0.04;
+      busLoads.lvBusB.kw += busLoads.consumerB.kw + lossKw;
+      busLoads.lvBusB.kvar += busLoads.consumerB.kvar + lossKvar;
+      busLoads.lvBusB.essKw += busLoads.consumerB.essKw;
+      busLoads.lvBusB.nonEssKw += busLoads.consumerB.nonEssKw;
+      const kva = Math.hypot(busLoads.consumerB.kw, busLoads.consumerB.kvar);
+      this.transformerLoading.txConB = { kva, ratedKva: 500, percent: Math.round((kva / 500) * 100) };
+    } else {
+      this.transformerLoading.txConB = { kva: 0, ratedKva: 500, percent: 0 };
     }
 
-    const txAFeeding = live.has('busA') && state.closed.txAFeed && live.has('lvBus');
-    const txBFeeding = live.has('busB') && state.closed.txBFeed && live.has('lvBus');
-    const activeTxCount = (txAFeeding ? 1 : 0) + (txBFeeding ? 1 : 0);
+    // 4b. Reefer Panels -> 6.6 kV Buses through Reefer Transformers TX REEFER A & B
+    const txReeferAFeeding = live.has('reeferA') && state.closed.reeferAFeed && live.has('busA');
+    if (txReeferAFeeding) {
+      const lossKw = busLoads.reeferA.kw * 0.015;
+      const lossKvar = busLoads.reeferA.kvar * 0.035;
+      busLoads.busA.kw += busLoads.reeferA.kw + lossKw;
+      busLoads.busA.kvar += busLoads.reeferA.kvar + lossKvar;
+      busLoads.busA.nonEssKw += busLoads.reeferA.nonEssKw;
+      const kva = Math.hypot(busLoads.reeferA.kw, busLoads.reeferA.kvar);
+      this.transformerLoading.txReeferA = { kva, ratedKva: 1500, percent: Math.round((kva / 1500) * 100) };
+    } else {
+      this.transformerLoading.txReeferA = { kva: 0, ratedKva: 1500, percent: 0 };
+    }
 
-    if (activeTxCount > 0) {
-      const shareKw = (busLoads.lvBus.kw * 1.015) / activeTxCount;
-      const shareKvar = (busLoads.lvBus.kvar * 1.04) / activeTxCount;
+    const txReeferBFeeding = live.has('reeferB') && state.closed.reeferBFeed && live.has('busB');
+    if (txReeferBFeeding) {
+      const lossKw = busLoads.reeferB.kw * 0.015;
+      const lossKvar = busLoads.reeferB.kvar * 0.035;
+      busLoads.busB.kw += busLoads.reeferB.kw + lossKw;
+      busLoads.busB.kvar += busLoads.reeferB.kvar + lossKvar;
+      busLoads.busB.nonEssKw += busLoads.reeferB.nonEssKw;
+      const kva = Math.hypot(busLoads.reeferB.kw, busLoads.reeferB.kvar);
+      this.transformerLoading.txReeferB = { kva, ratedKva: 1500, percent: Math.round((kva / 1500) * 100) };
+    } else {
+      this.transformerLoading.txReeferB = { kva: 0, ratedKva: 1500, percent: 0 };
+    }
+
+    // 4c. Main 440 V Buses -> 6.6 kV Buses through Main Transformers TX A & TX B (2.5 MVA each)
+    const txAFeeding = live.has('busA') && state.closed.txAFeed && live.has('lvBusA');
+    const txBFeeding = live.has('busB') && state.closed.txBFeed && live.has('lvBusB');
+
+    if (state.closed.lvTie && (txAFeeding || txBFeeding)) {
+      const totalLvKw = busLoads.lvBusA.kw + busLoads.lvBusB.kw;
+      const totalLvKvar = busLoads.lvBusA.kvar + busLoads.lvBusB.kvar;
+      const activeTxCount = (txAFeeding ? 1 : 0) + (txBFeeding ? 1 : 0);
+      const shareKw = (totalLvKw * 1.015) / activeTxCount;
+      const shareKvar = (totalLvKvar * 1.04) / activeTxCount;
       const shareKva = Math.hypot(shareKw, shareKvar);
+
       if (txAFeeding) {
         busLoads.busA.kw += shareKw;
         busLoads.busA.kvar += shareKvar;
-        busLoads.busA.essKw += busLoads.lvBus.essKw / activeTxCount;
-        busLoads.busA.nonEssKw += busLoads.lvBus.nonEssKw / activeTxCount;
-        this.transformerLoading.txA.kva = shareKva;
-        this.transformerLoading.txA.percent = Math.round((shareKva / this.transformerLoading.txA.ratedKva) * 100);
+        busLoads.busA.essKw += (busLoads.lvBusA.essKw + busLoads.lvBusB.essKw) / activeTxCount;
+        busLoads.busA.nonEssKw += (busLoads.lvBusA.nonEssKw + busLoads.lvBusB.nonEssKw) / activeTxCount;
+        this.transformerLoading.txA = { kva: shareKva, ratedKva: 2500, percent: Math.round((shareKva / 2500) * 100) };
       } else {
-        this.transformerLoading.txA.kva = 0;
-        this.transformerLoading.txA.percent = 0;
+        this.transformerLoading.txA = { kva: 0, ratedKva: 2500, percent: 0 };
       }
+
       if (txBFeeding) {
         busLoads.busB.kw += shareKw;
         busLoads.busB.kvar += shareKvar;
-        busLoads.busB.essKw += busLoads.lvBus.essKw / activeTxCount;
-        busLoads.busB.nonEssKw += busLoads.lvBus.nonEssKw / activeTxCount;
-        this.transformerLoading.txB.kva = shareKva;
-        this.transformerLoading.txB.percent = Math.round((shareKva / this.transformerLoading.txB.ratedKva) * 100);
+        busLoads.busB.essKw += (busLoads.lvBusA.essKw + busLoads.lvBusB.essKw) / activeTxCount;
+        busLoads.busB.nonEssKw += (busLoads.lvBusA.nonEssKw + busLoads.lvBusB.nonEssKw) / activeTxCount;
+        this.transformerLoading.txB = { kva: shareKva, ratedKva: 2500, percent: Math.round((shareKva / 2500) * 100) };
       } else {
-        this.transformerLoading.txB.kva = 0;
-        this.transformerLoading.txB.percent = 0;
+        this.transformerLoading.txB = { kva: 0, ratedKva: 2500, percent: 0 };
       }
     } else {
-      this.transformerLoading.txA = { ...this.transformerLoading.txA, kva: 0, percent: 0 };
-      this.transformerLoading.txB = { ...this.transformerLoading.txB, kva: 0, percent: 0 };
+      if (txAFeeding) {
+        const kvaA = Math.hypot(busLoads.lvBusA.kw * 1.015, busLoads.lvBusA.kvar * 1.04);
+        busLoads.busA.kw += busLoads.lvBusA.kw * 1.015;
+        busLoads.busA.kvar += busLoads.lvBusA.kvar * 1.04;
+        busLoads.busA.essKw += busLoads.lvBusA.essKw;
+        busLoads.busA.nonEssKw += busLoads.lvBusA.nonEssKw;
+        this.transformerLoading.txA = { kva: kvaA, ratedKva: 2500, percent: Math.round((kvaA / 2500) * 100) };
+      } else {
+        this.transformerLoading.txA = { kva: 0, ratedKva: 2500, percent: 0 };
+      }
+
+      if (txBFeeding) {
+        const kvaB = Math.hypot(busLoads.lvBusB.kw * 1.015, busLoads.lvBusB.kvar * 1.04);
+        busLoads.busB.kw += busLoads.lvBusB.kw * 1.015;
+        busLoads.busB.kvar += busLoads.lvBusB.kvar * 1.04;
+        busLoads.busB.essKw += busLoads.lvBusB.essKw;
+        busLoads.busB.nonEssKw += busLoads.lvBusB.nonEssKw;
+        this.transformerLoading.txB = { kva: kvaB, ratedKva: 2500, percent: Math.round((kvaB / 2500) * 100) };
+      } else {
+        this.transformerLoading.txB = { kva: 0, ratedKva: 2500, percent: 0 };
+      }
     }
 
     // 5. Solve Generator Governor Droop (Frequency) & AVR Droop (Voltage) per electrical island
@@ -1114,6 +1242,11 @@ export class MarinePowerSimEngine {
       this.buses.eBus.live = true;
       this.buses.eBus.frequencyHz = eg.frequencyHz;
       this.buses.eBus.voltageV = eg.voltageV;
+    } else if (state.closed.esbTieFeed && live.has('lvBusA')) {
+      // Normal ESB supply from 440 V Bus A
+      this.buses.eBus.live = true;
+      this.buses.eBus.frequencyHz = this.buses.lvBusA.frequencyHz;
+      this.buses.eBus.voltageV = this.buses.lvBusA.voltageV;
     } else {
       if (eg.running && !eg.breakerClosed) {
         eg.frequencyHz = 60.5 * eg.runupProgress;
@@ -1125,34 +1258,98 @@ export class MarinePowerSimEngine {
       this.buses.eBus.voltageV = 0;
     }
 
-    // 6. Populate downstream LV (440 V) and Consumer (220 V) bus voltage & frequency
-    const upstreamHvBus = txAFeeding ? this.buses.busA : txBFeeding ? this.buses.busB : null;
-    if (upstreamHvBus && live.has('lvBus')) {
-      const lvInrushDip = Math.min(0.06, totalInrushKvarLv / 1500 * 0.04);
-      const txDrop = (Math.max(this.transformerLoading.txA.percent, this.transformerLoading.txB.percent) / 100) * 0.018;
-      this.buses.lvBus.live = true;
-      this.buses.lvBus.frequencyHz = upstreamHvBus.frequencyHz;
-      this.buses.lvBus.voltageV = 440 * (upstreamHvBus.voltageV / 6600) * (1 - txDrop - lvInrushDip);
-      this.buses.lvBus.voltageDipPercent = Number(((1.0 - this.buses.lvBus.voltageV / 440) * 100).toFixed(1));
+    // 6. Populate downstream LV (440 V), Reefer (440 V), and 220 V Sub-Board voltages
+    const lvInrushDip = Math.min(0.06, totalInrushKvarLv / 1500 * 0.04);
+
+    // 6a. 440 V Bus A (Port)
+    if (live.has('lvBusA')) {
+      const upBus = this.buses.busA.live ? this.buses.busA : (state.closed.lvTie && this.buses.busB.live ? this.buses.busB : null);
+      if (upBus && upBus.live) {
+        const txDrop = (this.transformerLoading.txA.percent / 100) * 0.018;
+        this.buses.lvBusA.live = true;
+        this.buses.lvBusA.frequencyHz = upBus.frequencyHz;
+        this.buses.lvBusA.voltageV = 440 * (upBus.voltageV / 6600) * (1 - txDrop - lvInrushDip);
+        this.buses.lvBusA.voltageDipPercent = Number(((1.0 - this.buses.lvBusA.voltageV / 440) * 100).toFixed(1));
+      }
     } else {
-      this.buses.lvBus.live = false;
-      this.buses.lvBus.frequencyHz = 0;
-      this.buses.lvBus.voltageV = 0;
-      this.buses.lvBus.voltageDipPercent = 0;
+      this.buses.lvBusA.live = false;
+      this.buses.lvBusA.frequencyHz = 0;
+      this.buses.lvBusA.voltageV = 0;
+      this.buses.lvBusA.voltageDipPercent = 0;
     }
 
-    if (this.buses.lvBus.live && state.closed.tx220Feed && live.has('consumer')) {
-      this.buses.consumer.live = true;
-      this.buses.consumer.frequencyHz = this.buses.lvBus.frequencyHz;
-      this.buses.consumer.voltageV = 220 * (this.buses.lvBus.voltageV / 440) * (1 - (this.transformerLoading.tx220.percent / 100) * 0.015);
+    // 6b. 440 V Bus B (Starboard)
+    if (live.has('lvBusB')) {
+      const upBus = this.buses.busB.live ? this.buses.busB : (state.closed.lvTie && this.buses.busA.live ? this.buses.busA : null);
+      if (upBus && upBus.live) {
+        const txDrop = (this.transformerLoading.txB.percent / 100) * 0.018;
+        this.buses.lvBusB.live = true;
+        this.buses.lvBusB.frequencyHz = upBus.frequencyHz;
+        this.buses.lvBusB.voltageV = 440 * (upBus.voltageV / 6600) * (1 - txDrop - lvInrushDip);
+        this.buses.lvBusB.voltageDipPercent = Number(((1.0 - this.buses.lvBusB.voltageV / 440) * 100).toFixed(1));
+      }
     } else {
-      this.buses.consumer.live = false;
-      this.buses.consumer.frequencyHz = 0;
-      this.buses.consumer.voltageV = 0;
+      this.buses.lvBusB.live = false;
+      this.buses.lvBusB.frequencyHz = 0;
+      this.buses.lvBusB.voltageV = 0;
+      this.buses.lvBusB.voltageDipPercent = 0;
     }
 
-    // Finalize bus power & THD metrics
-    for (const bId of ['busA', 'busB', 'lvBus', 'consumer', 'eBus'] as const) {
+    // 6c. Reefer Distribution Boards (440 V)
+    if (live.has('reeferA') && this.buses.busA.live) {
+      this.buses.reeferA.live = true;
+      this.buses.reeferA.frequencyHz = this.buses.busA.frequencyHz;
+      this.buses.reeferA.voltageV = 440 * (this.buses.busA.voltageV / 6600) * (1 - (this.transformerLoading.txReeferA.percent / 100) * 0.018);
+    } else {
+      this.buses.reeferA.live = false;
+      this.buses.reeferA.frequencyHz = 0;
+      this.buses.reeferA.voltageV = 0;
+    }
+
+    if (live.has('reeferB') && this.buses.busB.live) {
+      this.buses.reeferB.live = true;
+      this.buses.reeferB.frequencyHz = this.buses.busB.frequencyHz;
+      this.buses.reeferB.voltageV = 440 * (this.buses.busB.voltageV / 6600) * (1 - (this.transformerLoading.txReeferB.percent / 100) * 0.018);
+    } else {
+      this.buses.reeferB.live = false;
+      this.buses.reeferB.frequencyHz = 0;
+      this.buses.reeferB.voltageV = 0;
+    }
+
+    // 6d. 220 V Sub-Boards (Port Sub A & Starboard Sub B)
+    if (live.has('consumerA')) {
+      const upLv = this.buses.lvBusA.live ? this.buses.lvBusA : (state.closed.consumerTie && this.buses.lvBusB.live ? this.buses.lvBusB : null);
+      if (upLv && upLv.live) {
+        this.buses.consumerA.live = true;
+        this.buses.consumerA.frequencyHz = upLv.frequencyHz;
+        this.buses.consumerA.voltageV = 220 * (upLv.voltageV / 440) * (1 - (this.transformerLoading.txConA.percent / 100) * 0.015);
+      } else if (state.closed.txConAEsbTie && this.buses.eBus.live) {
+        this.buses.consumerA.live = true;
+        this.buses.consumerA.frequencyHz = this.buses.eBus.frequencyHz;
+        this.buses.consumerA.voltageV = 220;
+      }
+    } else {
+      this.buses.consumerA.live = false;
+      this.buses.consumerA.frequencyHz = 0;
+      this.buses.consumerA.voltageV = 0;
+    }
+
+    if (live.has('consumerB')) {
+      const upLv = this.buses.lvBusB.live ? this.buses.lvBusB : (state.closed.consumerTie && this.buses.lvBusA.live ? this.buses.lvBusA : null);
+      if (upLv && upLv.live) {
+        this.buses.consumerB.live = true;
+        this.buses.consumerB.frequencyHz = upLv.frequencyHz;
+        this.buses.consumerB.voltageV = 220 * (upLv.voltageV / 440) * (1 - (this.transformerLoading.txConB.percent / 100) * 0.015);
+      }
+    } else {
+      this.buses.consumerB.live = false;
+      this.buses.consumerB.frequencyHz = 0;
+      this.buses.consumerB.voltageV = 0;
+    }
+
+    // Finalize bus power & THD metrics across all 9 buses
+    const allBusKeys: BusKey[] = ['busA', 'busB', 'lvBusA', 'lvBusB', 'reeferA', 'reeferB', 'consumerA', 'consumerB', 'eBus'];
+    for (const bId of allBusKeys) {
       const b = this.buses[bId];
       const ld = busLoads[bId];
       b.kw = b.live ? Math.round(ld.kw) : 0;

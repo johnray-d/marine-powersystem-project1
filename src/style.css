@@ -868,6 +868,24 @@ h1, h2, h3, h4, p {
   color: #0369a1;
 }
 
+#schematicTools.view-tools {
+  background: rgba(7, 18, 32, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+#schematicTools.view-tools button {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+#schematicTools.view-tools button:hover {
+  background: rgba(2, 132, 199, 0.28);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
 /* Bottom HUD Dock below Visual Stage */
 .bottom-hud {
   padding: 8px 14px 10px;
@@ -1365,12 +1383,12 @@ h1, h2, h3, h4, p {
   cursor: grab;
   user-select: none;
   touch-action: none;
-  background-color: #e3eff8;
+  background-color: #071220;
   background-image:
-    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.65), transparent 70%),
-    linear-gradient(rgba(148, 180, 204, 0.22) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 180, 204, 0.22) 1px, transparent 1px);
-  background-size: 100% 100%, 28px 28px, 28px 28px;
+    radial-gradient(circle at 50% 35%, rgba(14, 116, 144, 0.12), transparent 75%),
+    linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  background-size: 100% 100%, 30px 30px, 30px 30px;
 }
 
 .schematic-host.is-panning {
@@ -1394,177 +1412,408 @@ h1, h2, h3, h4, p {
   display: block;
 }
 
-.diagram-heading {
-  font: 700 11px var(--font-display);
-  letter-spacing: 0.18em;
-  fill: #0f766e;
+/* Header */
+.diagram-main-title {
+  font: 800 15px/1 var(--font-display);
+  fill: #ffffff;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.section-rule {
-  stroke: #94b8d0;
-  stroke-width: 1.5;
-  stroke-dasharray: 6 6;
+.diagram-subtitle {
+  font: 600 11px/1 var(--font-display);
+  fill: #38bdf8;
+  letter-spacing: 0.06em;
 }
 
+/* Busbars */
+.diagram-busbar {
+  cursor: pointer;
+}
+
+.diagram-busbar .busbar-line {
+  stroke-linecap: round;
+  transition: stroke 0.2s, filter 0.2s;
+}
+
+.diagram-busbar.hv .busbar-line {
+  stroke: #00d4ff;
+  stroke-width: 5.5;
+  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.7));
+}
+
+.diagram-busbar.lv .busbar-line {
+  stroke: #facc15;
+  stroke-width: 5.5;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.7));
+}
+
+.diagram-busbar.consumer .busbar-line {
+  stroke: #22c55e;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.7));
+}
+
+.diagram-busbar.emergency .busbar-line {
+  stroke: #f43f5e;
+  stroke-width: 5.5;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.7));
+}
+
+.diagram-busbar.dead .busbar-line {
+  stroke: #475569 !important;
+  filter: none !important;
+  opacity: 0.45;
+}
+
+.diagram-busbar.selected .busbar-line {
+  stroke: #ffffff !important;
+  filter: drop-shadow(0 0 12px #38bdf8) !important;
+}
+
+.busbar-label {
+  font: 800 10.5px/1 var(--font-display);
+  letter-spacing: 0.08em;
+  fill: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  paint-order: stroke fill;
+  stroke: #071220;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.busbar-label.hv { fill: #00d4ff; }
+.busbar-label.lv { fill: #facc15; }
+.busbar-label.consumer { fill: #22c55e; }
+.busbar-label.emergency { fill: #f43f5e; }
+
+/* Generators */
+.gen-symbol {
+  cursor: pointer;
+}
+
+.gen-symbol circle {
+  fill: #08172b;
+  stroke: #475569;
+  stroke-width: 2.2;
+  transition: stroke 0.2s, filter 0.2s;
+}
+
+.gen-symbol.live.hv circle {
+  stroke: #00d4ff;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.8));
+}
+
+.gen-symbol.live.emergency circle {
+  stroke: #f43f5e;
+  filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.8));
+}
+
+.gen-symbol.selected circle {
+  stroke: #ffffff !important;
+  filter: drop-shadow(0 0 10px #38bdf8) !important;
+}
+
+.gen-sine {
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.gen-symbol.live .gen-sine {
+  stroke: #ffffff;
+}
+
+.gen-title {
+  font: 700 11.5px/1 var(--font-display);
+  fill: #ffffff;
+  text-anchor: middle;
+}
+
+.gen-sub {
+  font: 600 8.5px/1 var(--font-mono);
+  fill: #94a3b8;
+  text-anchor: middle;
+}
+
+/* Shore Connection */
+.shore-symbol {
+  cursor: pointer;
+}
+
+.shore-title {
+  font: 700 11px/1 var(--font-display);
+  fill: #c084fc;
+  text-anchor: middle;
+}
+
+.shore-sub {
+  font: 600 8.5px/1 var(--font-mono);
+  fill: #a855f7;
+  text-anchor: middle;
+}
+
+/* Transformers */
+.tx-symbol {
+  cursor: pointer;
+}
+
+.tx-coil {
+  fill: #08172b;
+  stroke: #f59e0b;
+  stroke-width: 2.2;
+  transition: stroke 0.2s, filter 0.2s;
+}
+
+.tx-symbol.live .tx-coil {
+  stroke: #f59e0b;
+  filter: drop-shadow(0 0 7px rgba(245, 158, 11, 0.7));
+}
+
+.tx-symbol.dead .tx-coil {
+  stroke: #475569;
+  opacity: 0.5;
+}
+
+.tx-symbol.selected .tx-coil {
+  stroke: #ffffff !important;
+  filter: drop-shadow(0 0 10px #38bdf8) !important;
+}
+
+.tx-tag {
+  font: 700 10px/1 var(--font-display);
+  fill: #ffffff;
+  paint-order: stroke fill;
+  stroke: #071220;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.tx-ratio {
+  font: 600 8px/1 var(--font-mono);
+  fill: #94a3b8;
+  paint-order: stroke fill;
+  stroke: #071220;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.tx-rating {
+  font: 700 8.5px/1 var(--font-mono);
+  fill: #f59e0b;
+  paint-order: stroke fill;
+  stroke: #071220;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* Power Paths */
 .diagram-path {
   cursor: pointer;
 }
 
-.diagram-path path {
-  stroke: #64748b;
-  stroke-width: 3.5;
+.diagram-path path.power-line-base {
+  stroke: #334155;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-  opacity: 0.72;
-  transition: stroke 0.18s, stroke-width 0.18s;
+  opacity: 0.8;
+  transition: stroke 0.18s;
 }
 
 .diagram-path.live path.power-line-base {
-  stroke: #ef4444;
-  stroke-width: 4.8;
-  opacity: 1;
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.92));
-}
-
-.diagram-path.live path.power-flow-anim {
-  stroke: #fde047;
-  stroke-width: 2.8;
-  stroke-dasharray: 9 15;
-  stroke-dashoffset: 0;
-  opacity: 1;
-  filter: drop-shadow(0 0 5px #facc15);
-  animation: powerFlowYellow 0.72s linear infinite;
-}
-
-@keyframes powerFlowYellow {
-  from {
-    stroke-dashoffset: 24;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.diagram-path.open path {
-  stroke: #d97706;
-  stroke-dasharray: 6 6;
+  stroke: #00d4ff;
   stroke-width: 3.5;
-  opacity: 0.85;
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(0, 212, 255, 0.7));
+}
+
+.diagram-path.dashed-tie path.power-line-base {
+  stroke: #f97316;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.5));
+}
+
+.diagram-path path.power-flow-anim {
+  stroke: #ffffff;
+  stroke-width: 2.2;
+  stroke-dasharray: 6 12;
+  animation: powerFlow 0.8s linear infinite;
+  fill: none;
+}
+
+@keyframes powerFlow {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
 }
 
 .diagram-path.selected path.power-line-base {
-  stroke: #0284c7;
-  stroke-width: 6;
-  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.85));
+  stroke: #ffffff !important;
+  stroke-width: 4.5;
+  filter: drop-shadow(0 0 8px #38bdf8) !important;
 }
 
+/* Breakers */
 .breaker-symbol {
   cursor: pointer;
 }
 
 .breaker-symbol rect {
-  fill: #f1f5f9;
-  stroke: #64748b;
-  stroke-width: 2;
+  fill: #08172b;
+  stroke: #475569;
+  stroke-width: 1.8;
+  rx: 3;
   transition: fill 0.18s, stroke 0.18s;
 }
 
 .breaker-symbol.live rect {
-  fill: #dcfce7;
-  stroke: #16a34a;
+  stroke: #00d4ff;
+  fill: #0b2546;
+  filter: drop-shadow(0 0 5px rgba(0, 212, 255, 0.6));
 }
 
 .breaker-symbol.open rect {
-  fill: #fef3c7;
   stroke: #d97706;
+  fill: #1c1917;
 }
 
 .breaker-symbol.selected rect {
-  stroke: #0284c7;
-  stroke-width: 3;
-  filter: drop-shadow(0 0 5px rgba(2, 132, 199, 0.45));
+  stroke: #ffffff !important;
+  filter: drop-shadow(0 0 8px #38bdf8) !important;
 }
 
-.breaker-symbol path.contact-blade {
-  stroke: #0f172a;
-  stroke-width: 2.5;
+.breaker-cross {
+  stroke: #00d4ff;
+  stroke-width: 2;
   stroke-linecap: round;
-  transition: d 0.18s;
 }
 
-.breaker-symbol.live path.contact-blade {
-  stroke: #15803d;
+.breaker-symbol.open .breaker-cross {
+  stroke: #d97706;
 }
 
-.breaker-symbol.open path.contact-blade {
-  stroke: #b45309;
+.breaker-open-blade {
+  stroke: #f59e0b;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.breaker-label {
+  font: 700 8.5px/1 var(--font-mono);
+  fill: #cbd5e1;
+  letter-spacing: 0.05em;
+  user-select: none;
+  paint-order: stroke fill;
+  stroke: #071220;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* Equipment Nodes */
+.diagram-node {
+  cursor: pointer;
+}
+
+.diagram-node rect {
+  fill: #08172b;
+  stroke: #334155;
+  stroke-width: 1.5;
+  rx: 3;
+  transition: all 0.2s;
+}
+
+.diagram-node.live rect {
+  stroke: #38bdf8;
+  fill: #0b223d;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+}
+
+.diagram-node.dead rect {
+  opacity: 0.55;
+}
+
+.diagram-node.selected rect {
+  stroke: #ffffff !important;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 10px #38bdf8) !important;
+}
+
+.node-line1 {
+  font: 700 9.5px/1 var(--font-display);
+  fill: #ffffff;
+}
+
+.node-line2 {
+  font: 700 8.5px/1 var(--font-display);
+  fill: #94a3b8;
+}
+
+.node-single-label {
+  font: 700 9.5px/1 var(--font-display);
+  fill: #ffffff;
+}
+
+.drive-title {
+  font: 800 10.5px/1 var(--font-display);
+  fill: #00d4ff;
+  letter-spacing: 0.06em;
+}
+
+.drive-sub {
+  font: 700 9px/1 var(--font-mono);
+  fill: #e2e8f0;
+}
+
+/* Legend Box */
+.diagram-legend-box rect {
+  fill: #060f1b;
+  stroke: rgba(56, 189, 248, 0.25);
+  stroke-width: 1.2;
+}
+
+.legend-header {
+  font: 800 10px/1 var(--font-display);
+  fill: #ffffff;
+  letter-spacing: 0.08em;
+}
+
+.legend-sample-line.hv {
+  stroke: #00d4ff;
+  stroke-width: 4;
+}
+
+.legend-sample-line.lv {
+  stroke: #facc15;
+  stroke-width: 4;
+}
+
+.legend-sample-line.consumer {
+  stroke: #22c55e;
+  stroke-width: 4;
+}
+
+.legend-text {
+  font: 600 9.5px/1 var(--font-display);
+  fill: #cbd5e1;
+}
+
+.legend-subtext {
+  font: 600 9.5px/1 var(--font-display);
+  fill: #38bdf8;
 }
 
 .schematic-nav-hint {
   display: inline-flex;
   align-items: center;
   font-size: 10px;
-  color: #475569;
+  color: #94a3b8;
   font-weight: 600;
   padding: 0 8px;
   user-select: none;
-}
-
-.diagram-node {
-  cursor: pointer;
-}
-
-.diagram-node rect {
-  fill: #ffffff;
-  stroke: #94a3b8;
-  stroke-width: 2;
-}
-
-.diagram-node.live rect {
-  fill: #ecfdf5;
-  stroke: #10b981;
-}
-
-.diagram-node.source rect {
-  fill: #f0f9ff;
-  stroke: #64748b;
-}
-
-.diagram-node.source.live rect {
-  fill: #d1fae5;
-  stroke: #059669;
-}
-
-.diagram-node.bus rect {
-  fill: #e0f2fe;
-  stroke: #0284c7;
-}
-
-.diagram-node.bus.live rect {
-  fill: #ccfbf1;
-  stroke: #0d9488;
-}
-
-.diagram-node.future rect {
-  fill: #f1f5f9;
-  stroke-dasharray: 5 4;
-}
-
-.diagram-node.selected rect {
-  stroke: #0284c7;
-  stroke-width: 3;
-  filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.45));
-}
-
-.node-label {
-  font: 700 11.5px var(--font-display);
-  fill: #0f172a;
-}
-
-.node-voltage {
-  font: 600 9px var(--font-mono);
-  fill: #475569;
 }
 
 /* ==========================================================================

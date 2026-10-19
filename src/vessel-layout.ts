@@ -69,34 +69,59 @@ export const vesselLayout: Record<string, VesselPlacement> = {
   dg3: { position: [-8.8, -1.72, 1.25], size: [2.05, 1.12, 0.98], space: 'hull' },
   dg4: { position: [-5.9, -1.72, 1.25], size: [2.05, 1.12, 0.98], space: 'hull' },
   busA: { position: [-8.7, -0.3, -0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
-  busB: { position: [-6.8, -0.3, -0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
-  drive: { position: [-11.3, -1.7, 1.25], size: [1.4, 1.15, 0.65], rotation: Math.PI, space: 'hull' },
+  busB: { position: [-6.8, -0.3, 0.7], size: [1.35, 0.92, 0.62], space: 'hull' },
+  drive: { position: [-11.3, -1.7, -1.25], size: [1.4, 1.15, 0.65], rotation: Math.PI, space: 'hull' },
   motor: { position: [-13.5, -2.599, 0], size: [1.55, 0.85, 0.80], rotation: Math.PI, space: 'hull' },
   prop: { position: [-17.38, -2.22, 0], size: [0.65, 1.0, 1.0], space: 'external' },
   bow: { position: [14.1, -2.55, 0], size: [0.95, 1.72, 2.55], rotation: Math.PI / 2, space: 'hull' },
+
+  // Dual Main Step-Down Transformers (6.6 kV / 440 V, 2.5 MVA)
   txA: { position: [-4.0, -1.72, -1.12], size: [1.08, 1.0, 0.85], space: 'hull' },
   txB: { position: [-4.0, -1.72, 1.12], size: [1.08, 1.0, 0.85], space: 'hull' },
-  lvBus: { position: [-4.25, -0.30, 0], size: [1.45, 0.82, 0.56], space: 'hull' },
-  reefer: { position: [7.75, 0.94, 2.3], size: [0.62, 0.67, 0.39], rotation: Math.PI, space: 'deck' },
-  // One container of the forward bay (outer row, bottom tier) is a real reefer. Its refrigeration end faces aft, towards the cabinet.
-  reeferUnit: { position: [9.9, 1.025, 2.31], size: [3.04, 0.65, 0.61], rotation: Math.PI, space: 'cargo' },
-  crane: { position: [6.6, 0.96, 0], size: [3.2, 3.0, 0.9], space: 'deck' },
-  fire: { position: [-1.85, -1.72, -1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
-  ballast: { position: [0.15, -1.72, -1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
-  bilge: { position: [2.15, -1.72, -1.8], size: [0.61, 0.42, 0.4], space: 'hull' },
-  cooling: { position: [-1.85, -1.72, 1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+
+  // Dual Reefer Distribution Transformers (6.6 kV / 440 V, 1.5 MVA)
+  txReeferA: { position: [3.5, -0.30, -1.15], size: [1.0, 0.95, 0.8], space: 'hull' },
+  txReeferB: { position: [3.5, -0.30, 1.15], size: [1.0, 0.95, 0.8], space: 'hull' },
+
+  // Dual 440 V Main Switchboards
+  lvBusA: { position: [-4.25, -0.30, -0.9], size: [1.35, 0.82, 0.56], space: 'hull' },
+  lvBusB: { position: [-4.25, -0.30, 0.9], size: [1.35, 0.82, 0.56], space: 'hull' },
+
+  // Dual Reefer Distribution Boards
+  reeferA: { position: [7.75, 0.94, -2.3], size: [0.62, 0.67, 0.39], rotation: Math.PI, space: 'deck' },
+  reeferB: { position: [7.75, 0.94, 2.3], size: [0.62, 0.67, 0.39], rotation: Math.PI, space: 'deck' },
+
+  // Dual Auxiliary / Control Transformers (440 V / 220 V, 500 kVA)
+  txConA: { position: [-10.5, 1.02, -1.45], size: [0.56, 0.55, 0.4], space: 'house' },
+  txConB: { position: [-10.5, 1.02, 1.45], size: [0.56, 0.55, 0.4], space: 'house' },
+
+  // Dual 220 V Sub-Boards
+  consumerA: { position: [-9.4, 1.02, -1.45], size: [0.72, 0.63, 0.34], space: 'house' },
+  consumerB: { position: [-9.4, 1.02, 1.45], size: [0.72, 0.63, 0.34], space: 'house' },
+
+  // 440 V Machinery Loads
+  fire1: { position: [-1.85, -1.72, -1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+  fire2: { position: [-1.85, -1.72, 1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+  cooling1: { position: [-0.15, -1.72, -1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+  cooling2: { position: [-0.15, -1.72, 1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+  ballast: { position: [1.85, -1.72, -1.8], size: [0.7, 0.48, 0.45], space: 'hull' },
+  bilge: { position: [2.15, -1.72, 1.8], size: [0.61, 0.42, 0.4], space: 'hull' },
   steering: { position: [-14.65, -0.35, 1.15], size: [0.95, 0.51, 0.61], space: 'hull' },
-  eSteer: { position: [-14.65, -0.35, -1.15], size: [0.56, 0.57, 0.37], space: 'hull' },
-  tx220: { position: [-11.5, 1.02, -1.45], size: [0.56, 0.55, 0.4], space: 'house' },
-  consumer: { position: [-9.4, 1.02, -1.45], size: [0.72, 0.63, 0.34], space: 'house' },
+  crane: { position: [6.6, 0.96, 0], size: [3.2, 3.0, 0.9], space: 'deck' },
+
+  // 220 V Domestic & Service Loads
+  nav: { position: [-8.5, 3.45, 0], size: [1.02, 0.5, 1.7], space: 'house' },
+  lightsA: { position: [-11.4, 3.15, -1.0], size: [1.6, 0.16, 0.18], space: 'house' },
+  lightsB: { position: [-11.4, 3.15, 1.0], size: [1.6, 0.16, 0.18], space: 'house' },
   galley: { position: [-12.2, 1.02, 1.25], size: [0.85, 0.45, 0.5], space: 'house' },
-  lights: { position: [-11.4, 3.15, 1.0], size: [1.6, 0.16, 0.18], space: 'house' },
-  outlets: { position: [-9.5, 2.17, 1.1], size: [0.9, 0.23, 0.11], space: 'house' },
+
+  // 440 V Emergency Switchboard & Emergency Loads
   eg: { position: [-12.0, 2.20, -1.3], size: [1.34, 0.68, 0.65], space: 'house' },
   eBus: { position: [-9.7, 2.20, -1.3], size: [0.78, 0.66, 0.35], space: 'house' },
   eFire: { position: [11.75, -1.72, 0.95], size: [0.67, 0.48, 0.43], space: 'hull' },
-  nav: { position: [-8.5, 3.45, 0], size: [1.02, 0.5, 1.7], space: 'house' },
+  eSteer: { position: [-14.65, -0.35, -1.15], size: [0.56, 0.57, 0.37], space: 'hull' },
   eLights: { position: [-12.7, 3.2, -0.05], size: [0.58, 0.13, 0.16], space: 'house' },
+  eRadio: { position: [-8.8, 3.45, 1.25], size: [0.85, 0.45, 0.6], space: 'house' },
   shore: { position: [6.7, 0.94, -2.55], size: [0.6, 0.67, 0.38], space: 'deck' }
 };
 
@@ -135,17 +160,22 @@ export const MAIN_BLACKOUT_SHED_BREAKERS: string[] = [
   'bowFeed',
   'txAFeed',
   'txBFeed',
-  'reeferFeed',
-  'craneFeed',
-  'fireFeed',
+  'reeferAFeed',
+  'reeferBFeed',
+  'conAAcb',
+  'conBAcb',
+  'fire1Feed',
+  'fire2Feed',
+  'cooling1Feed',
+  'cooling2Feed',
   'ballastFeed',
   'bilgeFeed',
-  'coolingFeed',
   'steerFeed',
-  'tx220Feed',
-  'galleyFeed',
-  'lightFeed',
-  'outletFeed'
+  'craneFeed',
+  'navFeed',
+  'lightAFeed',
+  'lightBFeed',
+  'galleyFeed'
 ];
 
 export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
@@ -156,9 +186,9 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     startSec: 0,
     endSec: 10,
     shortTitle: 'ESB & Emergency DG',
-    description: 'T = 0s–10s: Emergency DG start → ESB supply (Steering Gear, Emergency Lighting, Nav)',
+    description: 'T = 0s–10s: Emergency DG auto-start → ESB supply (Steering Gear, Emergency Lighting, Nav, Radio)',
     sourcesToStart: ['eg'],
-    breakersToClose: ['egBreaker', 'eSteerFeed', 'eLightFeed', 'navFeed', 'eFireFeed']
+    breakersToClose: ['egBreaker', 'eSteerFeed', 'eLightFeed', 'eRadioFeed', 'eFireFeed']
   },
   {
     stageNumber: 2,
@@ -167,9 +197,9 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     startSec: 10,
     endSec: 20,
     shortTitle: 'Main DG & Stage 1 Aux',
-    description: 'T = 10s–20s: Main DG start → Stage 1 Auxiliaries (Lube Oil & Jacket Water pumps, 6.6kV/440V Bus)',
+    description: 'T = 10s–20s: Primary DG start → 6.6 kV Bus A & B → TX A & TX B → Stage 1 Aux (SW Cooling & Steering Gear)',
     sourcesToStart: ['dg1'],
-    breakersToClose: ['gb1', 'tie', 'txAFeed', 'txBFeed']
+    breakersToClose: ['gb1', 'tie', 'txAFeed', 'txBFeed', 'cooling1Feed', 'cooling2Feed', 'steerFeed']
   },
   {
     stageNumber: 3,
@@ -177,10 +207,10 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     timeWindowLabel: 'T = 20s – 30s',
     startSec: 20,
     endSec: 30,
-    shortTitle: 'Stage 2 Cooling & Fuel',
-    description: 'T = 20s–30s: Stage 2 Auxiliaries (Sea Water Cooling & Fuel Booster pumps)',
+    shortTitle: 'Stage 2 Control & Nav',
+    description: 'T = 20s–30s: Stage 2 Auxiliaries: Close Control Transformers (TX CON A & B), 220 V Bus Tie, Nav Bridge & Lighting',
     sourcesToStart: [],
-    breakersToClose: ['coolingFeed', 'steerFeed']
+    breakersToClose: ['conAAcb', 'conBAcb', 'consumerTie', 'navFeed', 'lightAFeed', 'lightBFeed']
   },
   {
     stageNumber: 4,
@@ -189,9 +219,9 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     startSec: 30,
     endSec: 45,
     shortTitle: 'Stage 3 Essential Loads',
-    description: 'T = 30s–45s: Stage 3 Essential Loads (Air Compressors & Boiler Auxiliaries / Fire & Bilge)',
+    description: 'T = 30s–45s: Stage 3 Essential Service Loads (Fire Pumps, Ballast & Bilge Pumps)',
     sourcesToStart: [],
-    breakersToClose: ['fireFeed', 'bilgeFeed', 'tx220Feed', 'lightFeed']
+    breakersToClose: ['fire1Feed', 'fire2Feed', 'ballastFeed', 'bilgeFeed']
   },
   {
     stageNumber: 5,
@@ -200,9 +230,9 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     startSec: 45,
     endSec: 55,
     shortTitle: 'Heavy & Non-Essential',
-    description: 'T > 45s: Non-Essential & Heavy Loads (Engine Room Ventilation, Thrusters, Air Conditioning, Propulsion)',
+    description: 'T > 45s: Non-Essential & Heavy Motors (Dual Reefer Transformers A & B, Deck Crane, Propulsion VFD & Bow Thruster)',
     sourcesToStart: [],
-    breakersToClose: ['propFeed', 'reeferFeed', 'galleyFeed', 'outletFeed']
+    breakersToClose: ['reeferAFeed', 'reeferBFeed', 'craneFeed', 'bowFeed', 'propFeed', 'galleyFeed']
   }
 ];
 

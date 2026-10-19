@@ -377,8 +377,10 @@ export const HV_LOTO_STEPS: LotoStepSpec[] = [
  * to the feeder/incomer VCBs that must be opened in Step 1 of the HV LOTO isolation sequence.
  */
 export const HV_EQUIPMENT_VCB_MAP: Record<string, { label: string; vcbIds: string[] }> = {
-  txA: { label: '6.6 kV / 440 V Main Transformer A', vcbIds: ['txAFeed'] },
-  txB: { label: '6.6 kV / 440 V Main Transformer B', vcbIds: ['txBFeed'] },
+  txA: { label: '6.6 kV / 440 V Main Transformer A (2.5 MVA)', vcbIds: ['txAFeed'] },
+  txB: { label: '6.6 kV / 440 V Main Transformer B (2.5 MVA)', vcbIds: ['txBFeed'] },
+  txReeferA: { label: '6.6 kV / 440 V Reefer Transformer A (1.5 MVA)', vcbIds: ['reeferAFeed'] },
+  txReeferB: { label: '6.6 kV / 440 V Reefer Transformer B (1.5 MVA)', vcbIds: ['reeferBFeed'] },
   busA: { label: '6.6 kV Main Switchboard · Bus A', vcbIds: ['gb1', 'gb2', 'tie', 'shoreBreaker'] },
   busB: { label: '6.6 kV Main Switchboard · Bus B', vcbIds: ['gb3', 'gb4', 'tie'] },
   motor: { label: '6.6 kV Electric Propulsion Motor', vcbIds: ['propFeed'] },
@@ -392,6 +394,8 @@ export const HV_EQUIPMENT_VCB_MAP: Record<string, { label: string; vcbIds: strin
   bowFeed: { label: '6.6 kV Bow-Thruster Feeder VCB', vcbIds: ['bowFeed'] },
   txAFeed: { label: '6.6 kV Transformer A Feeder VCB', vcbIds: ['txAFeed'] },
   txBFeed: { label: '6.6 kV Transformer B Feeder VCB', vcbIds: ['txBFeed'] },
+  reeferAFeed: { label: '6.6 kV Reefer Transformer A Feeder VCB', vcbIds: ['reeferAFeed'] },
+  reeferBFeed: { label: '6.6 kV Reefer Transformer B Feeder VCB', vcbIds: ['reeferBFeed'] },
   tie: { label: '6.6 kV Bus-Tie Vacuum Circuit Breaker', vcbIds: ['tie'] },
   gb1: { label: '6.6 kV DG 1 Generator VCB', vcbIds: ['gb1'] },
   gb2: { label: '6.6 kV DG 2 Generator VCB', vcbIds: ['gb2'] },
