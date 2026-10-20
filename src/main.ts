@@ -505,11 +505,25 @@ function renderControls(){
     ],
     [
       '440 V emergency switchboard',
-      'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed'
+      'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed', 'navEmFeed'
     ]
   ];
   document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>{const closedCount=ids.filter(id=>state.closed[id]).length;return `<div class="feeder-group"><div class="feeder-label"><span>${title}</span><span class="feeder-count">${closedCount}/${ids.length} closed</span></div>${ids.map(id=>{const c=edgeById[id];const spec=Object.values(LOAD_SPECS).find(ls=>ls.breakerId===id);return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}${spec?` <small class="feeder-kw-tag">${spec.ratedKw} kW</small>`:''}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`;}).join('');
-  document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">Starts and closes onto the 440 V emergency bus automatically if the main switchboard blacks out.</p>`;
+  document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`
+    <div class="ups-test-box">
+      <div class="ups-test-info">
+        <span class="eyebrow">SOLAS II-1/43 TRANSITIONAL POWER</span>
+        <strong>24 V DC UPS: ${simEngine.upsBatterySoc.toFixed(1)}% (${simEngine.upsMode === 'DISCHARGING_BATTERY' ? '0ms ACTIVE' : 'FLOAT'})</strong>
+      </div>
+      <button type="button" class="button button-secondary" id="btnTestUpsSwitchover">Test UPS 0ms transfer</button>
+    </div>
+    <p class="micro-copy">Starts and closes onto the 440 V emergency bus automatically if the main switchboard blacks out. Vital bridge electronics & GMDSS bridged by 24V UPS battery (0 ms break).</p>`;
+
+  document.querySelector<HTMLButtonElement>('#btnTestUpsSwitchover')?.addEventListener('click',()=>{
+    setMessage(simEngine.testUpsSwitchover(state));
+    renderControls();
+    renderInspector();
+  });
 
   document.querySelector('#tieSwitch')!.addEventListener('click',()=>toggleBreaker('tie'));
   document.querySelector('#lvTieSwitch')?.addEventListener('click',()=>toggleBreaker('lvTie'));
@@ -801,6 +815,10 @@ const ORTHOGONAL_ROUTES: Record<string, RouteDef> = {
   eRadioFeed: {
     points: [[680, 840], [680, 901]],
     breaker: { pos: [680, 870], orientation: 'v' }
+  },
+  navEmFeed: {
+    points: [[900, 840], [900, 736]],
+    breaker: { pos: [900, 788], orientation: 'v' }
   }
 };
 
@@ -949,7 +967,7 @@ const BUSBARS: BusbarDef[] = [
   { id: 'lvBusB', x1: 790, x2: 1420, y: 440, label: '440 V MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'lv' },
   { id: 'consumerA', x1: 480, x2: 710, y: 650, label: '220 V SUB-BOARD - BUS A (PORT)', voltageType: 'consumer' },
   { id: 'consumerB', x1: 790, x2: 1020, y: 650, label: '220 V SUB-BOARD - BUS B (STARBOARD)', voltageType: 'consumer' },
-  { id: 'eBus', x1: 80, x2: 800, y: 840, label: '440 V EMERGENCY SWITCHBOARD (ESB)', voltageType: 'emergency' }
+  { id: 'eBus', x1: 80, x2: 920, y: 840, label: '440 V EMERGENCY SWITCHBOARD (ESB)', voltageType: 'emergency' }
 ];
 
 const GENERATOR_IDS = ['dg1', 'dg2', 'dg3', 'dg4', 'eg'];
@@ -987,11 +1005,12 @@ const BREAKER_LABELS: Record<string, { label: string; offset: [number, number]; 
   conAAcb: { label: 'CON A ACB', offset: [-14, 4], anchor: 'end' },
   conBAcb: { label: 'CON B ACB', offset: [16, 4], anchor: 'start' },
   esbTieFeed: { label: 'ESB TIE ACB (Norm. Closed)', offset: [16, 4], anchor: 'start' },
-  egBreaker: { label: 'EDG CB', offset: [16, 4], anchor: 'start' }
+  egBreaker: { label: 'EDG CB', offset: [16, 4], anchor: 'start' },
+  navEmFeed: { label: 'NAV ABT (ESB FEED)', offset: [16, 4], anchor: 'start' }
 };
 
 function connectionVoltageType(c: Connection): 'hv' | 'lv' | 'consumer' | 'emergency' {
-  if (['esbTieFeed', 'egBreaker', 'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed'].includes(c.id)) {
+  if (['esbTieFeed', 'egBreaker', 'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed', 'navEmFeed'].includes(c.id)) {
     return 'emergency';
   }
   if (['txConAOut', 'txConBOut', 'consumerTie', 'lightAFeed', 'galleySmallFeed', 'navFeed'].includes(c.id)) {
@@ -1913,12 +1932,48 @@ function renderInspector(){
       </div>`;
   }
 
+  // SOLAS Navigation & 24 V DC UPS Telemetry Card
+  let upsBridgeCard = '';
+  if (['nav', 'eRadio', 'battery', 'navFeed', 'navEmFeed', 'eRadioFeed'].includes(selected)) {
+    const abtState = simEngine.navAbtState;
+    const upsMode = simEngine.upsMode;
+    const soc = simEngine.upsBatterySoc.toFixed(1);
+    const autonomy = simEngine.upsAutonomyMin;
+    const dischargeAmps = simEngine.upsDischargeAmps.toFixed(1);
+    const sourceLabel = abtState === 'UPS_BATTERY' 
+      ? '⚡ 24V DC UPS Battery (0 ms Break)' 
+      : abtState === 'EMERGENCY_ESB' 
+        ? '🚨 Emergency Switchboard (ESB / EDG via ABT)' 
+        : '✓ Normal 220 V Bus B';
+    const sourceClass = abtState === 'UPS_BATTERY' ? 'status-amber' : abtState === 'EMERGENCY_ESB' ? 'status-blue' : 'status-green';
+    const modeLabel = upsMode === 'DISCHARGING_BATTERY' 
+      ? `DISCHARGING (${dischargeAmps} A DC · 0 ms)` 
+      : upsMode === 'EDG_SUSTAINED' 
+        ? 'EDG FLOAT CHARGE' 
+        : 'MAINS FLOAT CHARGE';
+
+    upsBridgeCard = `
+      <div class="eto-elec-card solas-ups-card">
+        <h3 class="block-title">SOLAS II-1/42 &amp; 43 Navigation &amp; UPS Telemetry</h3>
+        <div class="eto-elec-grid">
+          <div><span>Active Power Source</span><strong class="${sourceClass}">${sourceLabel}</strong></div>
+          <div><span>UPS Inverter Mode</span><strong class="${upsMode === 'DISCHARGING_BATTERY' ? 'status-amber' : 'status-green'}">${modeLabel}</strong></div>
+          <div><span>Battery Bank Reserve</span><strong>${soc}% (${autonomy} min autonomy)</strong></div>
+          <div><span>SOLAS Compliance</span><strong>Reg II-1/43.2.3 (&ge; 30 min vital navigation)</strong></div>
+        </div>
+        <div class="ups-card-actions">
+          <button type="button" class="button button-secondary" id="btnInspectorUpsTest">Test 0ms UPS battery switchover</button>
+        </div>
+      </div>`;
+  }
+
   pane.innerHTML=`<div class="inspector-header"><h2>${title}</h2><div class="zone">${sub}</div><span class="status-pill ${status.startsWith('POWERED')||status==='ENERGIZED'?'live':status.startsWith('OPEN')?'open':'dead'}">${status}</span></div>
     <div class="inspector-scroll"><div class="facts"><div><span>Voltage / type</span><strong>${e?.voltage||'Vacuum circuit breaker'}</strong></div><div><span>Normal state</span><strong>${normal}</strong></div></div>
     ${electricalSpecCard}
     ${protectionRelayCard}
     ${hvLotoCard}
     ${galleyShuntCard}
+    ${upsBridgeCard}
     <div class="detail-copy"><h3>Purpose</h3><p>${purpose}</p><h3>Power path</h3><p>${path}</p><h3>How it works</h3><p>${lesson}</p></div>
     ${e&&allSupplyIds.includes(e.id)?`<div class="inspector-actions"><button class="button button-primary" data-source="${e.id}" type="button">${state.running[e.id]?'Stop':'Start'} ${e.id==='shore'?'shore supply':'generator'}</button></div>`:''}
     ${c?.breaker?`<div class="inspector-actions"><button class="button button-primary" data-breaker="${c.id}" type="button">${state.closed[c.id]?'Open':'Close'} breaker</button></div>`:''}
@@ -1963,6 +2018,11 @@ function renderInspector(){
       setMessage(simEngine.toggleFeederOvercurrent(c.id));
       renderInspector();
     }
+  });
+  pane.querySelector<HTMLButtonElement>('#btnInspectorUpsTest')?.addEventListener('click',()=>{
+    setMessage(simEngine.testUpsSwitchover(state));
+    renderControls();
+    renderInspector();
   });
 
   // Wire Phase 4 LOTO Step Buttons in Inspector
@@ -2302,6 +2362,11 @@ function updateLiveTelemetryDOM(){
         <span class="bus-tele-title">440 V emergency</span>
         <strong>${bEm.live?`${Math.round(bEm.voltageV)} V · ${bEm.frequencyHz.toFixed(1)} Hz`:'STANDBY'}</strong>
         <span>${bEm.kw} kW · essential</span>
+      </button>
+      <button type="button" class="bus-tele-card ${simEngine.upsMode==='DISCHARGING_BATTERY'?'warn':live.has('nav')?'live':'dead'}" data-bus-jump="nav">
+        <span class="bus-tele-title">SOLAS bridge UPS</span>
+        <strong>${simEngine.upsMode==='DISCHARGING_BATTERY'?'0ms BATTERY ACTIVE':`${simEngine.upsBatterySoc.toFixed(0)}% · FLOAT`}</strong>
+        <span>Nav: ${simEngine.navAbtState}</span>
       </button>`;
     strip.querySelectorAll<HTMLButtonElement>('[data-bus-jump]').forEach(btn=>{
       btn.onclick=()=>select(btn.dataset.busJump!);

@@ -263,7 +263,7 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
   },
   nav: {
     id: 'nav',
-    name: 'Navigation Bridge Electronics (Starboard Bus B)',
+    name: 'Navigation Bridge Electronics (Dual-Fed / 24V UPS Backed)',
     busId: 'consumerB',
     breakerId: 'navFeed',
     nominalVoltageV: 220,
@@ -414,6 +414,13 @@ export class MarinePowerSimEngine {
 
   // 440 V Galley Primary Board Emergency Remote Shunt Trip (SOLAS II-2 Reg 9.2 / BV NR467)
   public galleyShuntTripped = false;
+
+  // SOLAS II-1/42 & 43: Navigation Bridge ABT & 24 V DC Battery UPS State
+  public upsBatterySoc = 100.0;
+  public upsMode: 'FLOAT_CHARGE' | 'DISCHARGING_BATTERY' | 'EDG_SUSTAINED' | 'DEPLETED' = 'FLOAT_CHARGE';
+  public upsDischargeAmps = 0;
+  public upsAutonomyMin = 35.0;
+  public navAbtState: 'NORMAL' | 'EMERGENCY_ESB' | 'UPS_BATTERY' | 'DEAD' = 'NORMAL';
 
   public generators: Record<string, GeneratorTelemetry> = {};
   public feederRelays: Record<string, FeederRelayState> = {};
@@ -836,12 +843,34 @@ export class MarinePowerSimEngine {
     this.recoveryStage = null;
     this.waterfall = createInitialWaterfallStatus();
     this.blackoutDetected = true;
+    state.upsBatteryLive = true;
+    this.navAbtState = 'UPS_BATTERY';
+    this.upsMode = 'DISCHARGING_BATTERY';
+    this.upsDischargeAmps = 58.3;
     this.pushAlarm(
       'CRITICAL',
       'BLACKOUT',
       'MAIN 6.6 kV SWITCHBOARD BLACKOUT! All main generators tripped & main feeders shed via UVR. Emergency generator auto-start initiated.'
     );
-    return 'BLACKOUT SIMULATED: Main 6.6 kV bus de-energized & feeders shed. Click "PMS Auto-Recovery" or Scenario 04 for SOLAS 5-Stage Waterfall.';
+    this.pushAlarm(
+      'INFO',
+      'UPS-0MS-BRIDGE',
+      'SOLAS II-1/42 & 43: 24 V DC UPS Battery Bank active (0 ms transfer). Navigation Bridge Electronics & GMDSS powered seamlessly while EDG auto-starts.'
+    );
+    return 'BLACKOUT SIMULATED: Main bus dead & shed. Navigation Electronics & GMDSS bridged by 24V UPS battery (0 ms break). Click "PMS Auto-Recovery" or Scenario 04.';
+  }
+
+  public testUpsSwitchover(state: SimState): string {
+    state.closed.navFeed = false;
+    this.navAbtState = 'UPS_BATTERY';
+    this.upsMode = 'DISCHARGING_BATTERY';
+    this.upsDischargeAmps = 58.3;
+    this.pushAlarm(
+      'INFO',
+      'UPS-TEST',
+      'SOLAS II-1/43 UPS Switchover Test: 220 V Normal feed isolated. 24 V DC battery inverter seamlessly maintained Bridge Navigation with 0 ms interruption!'
+    );
+    return 'UPS Switchover Test: 24 V DC Battery instantly carried Bridge Navigation (0 ms break, no reboot).';
   }
 
   public startPmsRecovery(state: SimState, startAtSec = 0): string {
@@ -1029,6 +1058,40 @@ export class MarinePowerSimEngine {
       }
     }
 
+    // SOLAS II-1/42 & 43: Navigation Bridge ABT & 24 V DC Battery UPS State Machine
+    const navNormalLive = live.has('consumerB') && !!state.closed.navFeed;
+    const navEmergencyLive = (live.has('eBus') || live.has('eRadio')) && (!!state.closed.navEmFeed || !!state.closed.eRadioFeed);
+
+    if (navNormalLive) {
+      this.navAbtState = 'NORMAL';
+      this.upsMode = 'FLOAT_CHARGE';
+      this.upsDischargeAmps = 0;
+      this.upsBatterySoc = Math.min(100, this.upsBatterySoc + clampedDt * 0.15);
+      this.upsAutonomyMin = 35.0;
+      state.upsBatteryLive = true;
+    } else if (navEmergencyLive) {
+      this.navAbtState = 'EMERGENCY_ESB';
+      this.upsMode = 'EDG_SUSTAINED';
+      this.upsDischargeAmps = 0;
+      this.upsBatterySoc = Math.min(100, this.upsBatterySoc + clampedDt * 0.1);
+      this.upsAutonomyMin = Math.round((this.upsBatterySoc / 100) * 35.0);
+      state.upsBatteryLive = true;
+    } else if (this.upsBatterySoc > 0) {
+      this.navAbtState = 'UPS_BATTERY';
+      this.upsMode = 'DISCHARGING_BATTERY';
+      this.upsDischargeAmps = 58.3; // 24 V DC discharge equivalent
+      this.upsBatterySoc = Math.max(0, this.upsBatterySoc - clampedDt * 0.05);
+      this.upsAutonomyMin = Math.max(1, Math.round((this.upsBatterySoc / 100) * 35.0));
+      state.upsBatteryLive = true;
+    } else {
+      this.navAbtState = 'DEAD';
+      this.upsMode = 'DEPLETED';
+      this.upsDischargeAmps = 0;
+      this.upsAutonomyMin = 0;
+      state.upsBatteryLive = false;
+    }
+    state.upsBatterySoc = this.upsBatterySoc;
+
     // 3. Calculate active & reactive load on each bus from connected & powered equipment
     const busLoads: Record<BusKey, { kw: number; kvar: number; essKw: number; nonEssKw: number }> = {
       busA: { kw: 0, kvar: 0, essKw: 0, nonEssKw: 0 },
@@ -1063,7 +1126,16 @@ export class MarinePowerSimEngine {
         const kva = Math.hypot(kw, kvar);
         fr.currentAmps = (kva * 1000) / (Math.sqrt(3) * spec.nominalVoltageV);
       }
-      const targetBus = spec.busId === 'lvBus' ? 'lvBusA' : spec.busId === 'consumer' ? 'consumerA' : spec.busId as BusKey;
+      let targetBus = spec.busId === 'lvBus' ? 'lvBusA' : spec.busId === 'consumer' ? 'consumerA' : spec.busId as BusKey;
+      if (spec.id === 'nav') {
+        if (this.navAbtState === 'EMERGENCY_ESB') {
+          targetBus = 'eBus';
+        } else if (this.navAbtState === 'UPS_BATTERY') {
+          targetBus = 'eBus';
+          kw = 0; // Powered by internal DC battery buffer, no AC bus load
+          kvar = 0;
+        }
+      }
       const bucket = busLoads[targetBus];
       if (bucket) {
         bucket.kw += kw;

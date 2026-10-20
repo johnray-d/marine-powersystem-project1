@@ -29,6 +29,8 @@ export interface Connection {
 export interface SimState {
   running: Record<string, boolean>;
   closed: Record<string, boolean>;
+  upsBatteryLive?: boolean;
+  upsBatterySoc?: number;
 }
 
 // ============================================================================
@@ -366,7 +368,7 @@ export const equipment: Equipment[] = [
   // --- 220 V Domestic & Service Loads (Level 3 Loads: Y = 720) ---
   n('lightsA','Accommodation Lighting & Outlets','ACCOM LIGHTING & OUTLETS','load',VOLTAGES.consumer,'Accommodation (Port)','Cabin, corridor, and machinery space domestic lighting circuits.','220 V Bus A → Lighting feeder','Feeder closed','Domestic and service lighting branch.',520,720,undefined,true),
   n('galleySmall','Galley Small Appliances','GALLEY SMALL APPLIANCES','load',VOLTAGES.consumer,'Accommodation (Port/Galley)','Galley prep counters, food processors, microwave ovens, and convenience outlets.','220 V Bus A → Galley Small Appliances feeder','Feeder closed','Domestic 220 V culinary branch circuit.',650,720,undefined,true),
-  n('nav','Navigation Bridge Electronics','NAVIGATION BRIDGE ELECTRONICS','load',VOLTAGES.consumer,'Navigation Bridge','Bridge control consoles, radars, ECDIS, and navigational electronics.','220 V Bus B → Bridge feeder','Feeder closed','Essential bridge navigational and automation supply.',900,720,undefined,true),
+  n('nav','Navigation Bridge Electronics','NAVIGATION BRIDGE ELECTRONICS','load',VOLTAGES.consumer,'Navigation Bridge','Bridge control consoles, dual ARPA radars, ECDIS, and navigation lights.','Normal: 220 V Bus B · Emerg: ESB via ABT · Transitional: 24V DC UPS','Dual-feed / UPS backed','Essential navigation safety aids compliant with SOLAS II-1/42 & 43 (0 ms break battery bridging).',900,720,undefined,true),
 
   // --- 440 V SOLAS Emergency Switchboard (ESB) & Loads (Level 4: Y = 840 to 915) ---
   n('eBus','440 V Emergency Switchboard (ESB)','440 V EMERGENCY SWITCHBOARD (ESB)','emergency-bus',VOLTAGES.lv,'Upper deck emergency compartment','Distributes emergency generator power to SOLAS essential circuits during blackout.','Emergency DG → EDG CB → ESB → Essential feeders','Standby; energized during blackout','Physically separated above the bulkhead deck for flood and fire survivability.',440,840,'lv-board',true),
@@ -449,7 +451,8 @@ export const connections: Connection[] = [
   edge('eSteerFeed','eBus','eSteer','Emergency Steering feeder (MCB)',true,true,'breaker'),
   edge('eFireFeed','eBus','eFire','Emergency Fire Pump feeder (MCB)',true,true,'breaker'),
   edge('eLightFeed','eBus','eLights','Emergency Lighting & Exit Signals feeder (MCB)',true,true,'breaker'),
-  edge('eRadioFeed','eBus','eRadio','24V DC Battery UPS feeder (MCB)',true,true,'breaker')
+  edge('eRadioFeed','eBus','eRadio','24V DC Battery UPS feeder (MCB)',true,true,'breaker'),
+  edge('navEmFeed','eBus','nav','Bridge Navigation ESB / ABT Feeder',true,true,'breaker','Emergency 440V/220V backup supply to Navigation Bridge via Automatic Bus Transfer (ABT) contactor.','SOLAS II-1/42 & 43: Auto-connects Navigation Bridge to Emergency Switchboard when 220 V Bus B fails, backed up by 0ms UPS battery.')
 ];
 
 export const byId = Object.fromEntries(equipment.map(item => [item.id, item])) as Record<string, Equipment>;
@@ -460,7 +463,9 @@ export const allSupplyIds = ['dg1','dg2','dg3','dg4','eg','shore'];
 export function initialState(): SimState {
   return {
     running: Object.fromEntries(allSupplyIds.map(id => [id, id === 'dg1'])),
-    closed: Object.fromEntries(connections.filter(c => c.breaker).map(c => [c.id, !!c.normalClosed]))
+    closed: Object.fromEntries(connections.filter(c => c.breaker).map(c => [c.id, !!c.normalClosed])),
+    upsBatteryLive: true,
+    upsBatterySoc: 100
   };
 }
 
@@ -481,6 +486,17 @@ export function powered(state: SimState): Set<string> {
       queue.push(next);
     }
   }
+
+  // SOLAS II-1/42 & 43: Uninterruptible Power Supply (UPS) / 24 V DC Battery Bank
+  // Transitional source of power ensures zero-break (0 ms) continuous supply
+  // to Navigation Bridge Electronics & GMDSS Radios during blackout transitions
+  // until the Emergency Diesel Generator (EDG) energizes the Emergency Switchboard (ESB).
+  const upsDepleted = state.upsBatterySoc !== undefined && state.upsBatterySoc <= 0;
+  if (!upsDepleted && state.upsBatteryLive !== false) {
+    live.add('eRadio');
+    live.add('nav');
+  }
+
   return live;
 }
 
@@ -544,6 +560,7 @@ export const scenarios = [
       }
       s.running.eg = true;
       s.closed.egBreaker = true;
+      s.closed.navEmFeed = true;
       return s;
     },
     focus: 'eBus'

@@ -197,9 +197,9 @@ export const SOLAS_WATERFALL_STAGES: SolasWaterfallStage[] = [
     startSec: 0,
     endSec: 10,
     shortTitle: 'ESB & Emergency DG',
-    description: 'T = 0s–10s: Emergency DG auto-start → ESB supply (Steering Gear, Emergency Lighting, NavCom, Emergency Fire Pump)',
+    description: 'T = 0s–10s: Bridge Nav & GMDSS bridged by 24 V DC UPS (0 ms break) → Emergency DG auto-starts → ESB online (Steering, NavCom, Fire Pump)',
     sourcesToStart: ['eg'],
-    breakersToClose: ['egBreaker', 'eSteerFeed', 'eLightFeed', 'eRadioFeed', 'eFireFeed']
+    breakersToClose: ['egBreaker', 'navEmFeed', 'eSteerFeed', 'eLightFeed', 'eRadioFeed', 'eFireFeed']
   },
   {
     stageNumber: 2,
