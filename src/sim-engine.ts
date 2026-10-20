@@ -29,7 +29,7 @@ export interface LoadSpec {
   id: string;
   name: string;
   busId: BusKey | 'lvBus' | 'consumer';
-  breakerId: string;
+  breakerId?: string;
   nominalVoltageV: number;
   ratedKw: number;
   powerFactor: number;
@@ -71,12 +71,23 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     busId: 'reeferA',
     breakerId: 'reeferAFeed',
     nominalVoltageV: 440,
-    ratedKw: 420,
+    ratedKw: 384,
     powerFactor: 0.84,
     priority: 'non-essential',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.4,
     preferentialTripStage: 1
+  },
+  reeferUnitA: {
+    id: 'reeferUnitA',
+    name: 'Reefer Container Load A (Port 40ft)',
+    busId: 'reeferA',
+    nominalVoltageV: 440,
+    ratedKw: 36,
+    powerFactor: 0.82,
+    priority: 'non-essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 3.2
   },
   reeferB: {
     id: 'reeferB',
@@ -84,12 +95,23 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     busId: 'reeferB',
     breakerId: 'reeferBFeed',
     nominalVoltageV: 440,
-    ratedKw: 420,
+    ratedKw: 384,
     powerFactor: 0.84,
     priority: 'non-essential',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.4,
     preferentialTripStage: 1
+  },
+  reeferUnitB: {
+    id: 'reeferUnitB',
+    name: 'Reefer Container Load B (Starboard 40ft)',
+    busId: 'reeferB',
+    nominalVoltageV: 440,
+    ratedKw: 36,
+    powerFactor: 0.82,
+    priority: 'non-essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 3.2
   },
   fire1: {
     id: 'fire1',
@@ -139,10 +161,60 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     startingMethod: 'DOL',
     inrushMultiplier: 5.0
   },
+  airCompressor: {
+    id: 'airCompressor',
+    name: 'Main Starting Air Compressor & Receiver Skid',
+    busId: 'lvBusA',
+    breakerId: 'airCompFeed',
+    nominalVoltageV: 440,
+    ratedKw: 30,
+    powerFactor: 0.85,
+    priority: 'essential',
+    startingMethod: 'DOL',
+    inrushMultiplier: 4.8
+  },
+  ventFan: {
+    id: 'ventFan',
+    name: 'Engine Room Heavy Axial Ventilation Fan',
+    busId: 'lvBusB',
+    breakerId: 'ventFanFeed',
+    nominalVoltageV: 440,
+    ratedKw: 45,
+    powerFactor: 0.86,
+    priority: 'essential',
+    startingMethod: 'Star-Delta',
+    inrushMultiplier: 3.2
+  },
+  galley440: {
+    id: 'galley440',
+    name: '440 V Galley Primary Board (Ovens, Deep Fryers)',
+    busId: 'lvBusA',
+    breakerId: 'galley440Feed',
+    nominalVoltageV: 440,
+    ratedKw: 130,
+    powerFactor: 0.95,
+    priority: 'non-essential',
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.05,
+    preferentialTripStage: 1
+  },
+  crane: {
+    id: 'crane',
+    name: 'Deck Cargo Crane Feeder (Port Bus A)',
+    busId: 'lvBusA',
+    breakerId: 'craneFeed',
+    nominalVoltageV: 440,
+    ratedKw: 180,
+    powerFactor: 0.82,
+    priority: 'non-essential',
+    startingMethod: 'VFD',
+    inrushMultiplier: 1.5,
+    preferentialTripStage: 1
+  },
   ballast: {
     id: 'ballast',
-    name: 'Ballast Pump (Port)',
-    busId: 'lvBusA',
+    name: 'Ballast Pump (Starboard Bus B)',
+    busId: 'lvBusB',
     breakerId: 'ballastFeed',
     nominalVoltageV: 440,
     ratedKw: 110,
@@ -154,89 +226,64 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
   },
   bilge: {
     id: 'bilge',
-    name: 'Machinery Bilge Pump',
-    busId: 'lvBusA',
+    name: 'Machinery Bilge Pump (Starboard Bus B)',
+    busId: 'lvBusB',
     breakerId: 'bilgeFeed',
     nominalVoltageV: 440,
-    ratedKw: 38,
+    ratedKw: 45,
     powerFactor: 0.82,
     priority: 'essential',
     startingMethod: 'DOL',
     inrushMultiplier: 4.5
   },
-  steering: {
-    id: 'steering',
-    name: 'Main Steering Gear',
-    busId: 'lvBusA',
-    breakerId: 'steerFeed',
-    nominalVoltageV: 440,
-    ratedKw: 75,
-    powerFactor: 0.83,
+  lightsA: {
+    id: 'lightsA',
+    name: 'Accommodation Lighting & Outlets (Port Bus A)',
+    busId: 'consumerA',
+    breakerId: 'lightAFeed',
+    nominalVoltageV: 220,
+    ratedKw: 55,
+    powerFactor: 0.95,
     priority: 'essential',
-    startingMethod: 'DOL',
-    inrushMultiplier: 4.0
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.2
   },
-  crane: {
-    id: 'crane',
-    name: 'Deck Cargo Crane (Starboard)',
-    busId: 'lvBusB',
-    breakerId: 'craneFeed',
-    nominalVoltageV: 440,
-    ratedKw: 240,
-    powerFactor: 0.79,
+  galleySmall: {
+    id: 'galleySmall',
+    name: 'Galley Small Appliances (Port Bus A)',
+    busId: 'consumerA',
+    breakerId: 'galleySmallFeed',
+    nominalVoltageV: 220,
+    ratedKw: 28,
+    powerFactor: 0.92,
     priority: 'non-essential',
-    startingMethod: 'VFD',
-    inrushMultiplier: 1.5,
-    preferentialTripStage: 1
+    startingMethod: 'Feeder',
+    inrushMultiplier: 1.1,
+    preferentialTripStage: 2
   },
   nav: {
     id: 'nav',
-    name: 'Bridge Navigation Power',
-    busId: 'consumerA',
+    name: 'Navigation Bridge Electronics (Starboard Bus B)',
+    busId: 'consumerB',
     breakerId: 'navFeed',
     nominalVoltageV: 220,
-    ratedKw: 25,
+    ratedKw: 35,
     powerFactor: 0.94,
     priority: 'essential',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.2
   },
-  lightsA: {
-    id: 'lightsA',
-    name: 'Accommodation Lighting A (Port)',
-    busId: 'consumerA',
-    breakerId: 'lightAFeed',
-    nominalVoltageV: 220,
-    ratedKw: 45,
-    powerFactor: 0.95,
-    priority: 'essential',
-    startingMethod: 'Feeder',
-    inrushMultiplier: 1.2
-  },
-  galley: {
-    id: 'galley',
-    name: 'Ship Galley & Outlets (Starboard)',
-    busId: 'consumerB',
-    breakerId: 'galleyFeed',
-    nominalVoltageV: 220,
-    ratedKw: 145,
-    powerFactor: 0.96,
-    priority: 'non-essential',
-    startingMethod: 'Feeder',
-    inrushMultiplier: 1.1,
-    preferentialTripStage: 1
-  },
-  lightsB: {
-    id: 'lightsB',
-    name: 'Accommodation Lighting B (Starboard)',
-    busId: 'consumerB',
-    breakerId: 'lightBFeed',
-    nominalVoltageV: 220,
-    ratedKw: 45,
-    powerFactor: 0.95,
-    priority: 'essential',
-    startingMethod: 'Feeder',
-    inrushMultiplier: 1.2
+  eSteer: {
+    id: 'eSteer',
+    name: 'Emergency Steering Gear Unit',
+    busId: 'eBus',
+    breakerId: 'eSteerFeed',
+    nominalVoltageV: 440,
+    ratedKw: 75,
+    powerFactor: 0.83,
+    priority: 'emergency',
+    startingMethod: 'DOL',
+    inrushMultiplier: 4.0
   },
   eFire: {
     id: 'eFire',
@@ -244,31 +291,19 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
     busId: 'eBus',
     breakerId: 'eFireFeed',
     nominalVoltageV: 440,
-    ratedKw: 75,
+    ratedKw: 85,
     powerFactor: 0.85,
     priority: 'emergency',
     startingMethod: 'DOL',
     inrushMultiplier: 5.0
   },
-  eSteer: {
-    id: 'eSteer',
-    name: 'Emergency Steering Gear',
-    busId: 'eBus',
-    breakerId: 'eSteerFeed',
-    nominalVoltageV: 440,
-    ratedKw: 45,
-    powerFactor: 0.83,
-    priority: 'emergency',
-    startingMethod: 'DOL',
-    inrushMultiplier: 4.0
-  },
   eLights: {
     id: 'eLights',
-    name: 'SOLAS Emergency Lighting',
+    name: 'Emergency Lighting & Exit Signals',
     busId: 'eBus',
     breakerId: 'eLightFeed',
     nominalVoltageV: 440,
-    ratedKw: 18,
+    ratedKw: 25,
     powerFactor: 0.96,
     priority: 'emergency',
     startingMethod: 'Feeder',
@@ -276,12 +311,12 @@ export const LOAD_SPECS: Record<string, LoadSpec> = {
   },
   eRadio: {
     id: 'eRadio',
-    name: 'GMDSS Radio & Nav/Com',
+    name: '24V DC Battery UPS (GMDSS / Radio / NavCom)',
     busId: 'eBus',
     breakerId: 'eRadioFeed',
     nominalVoltageV: 440,
-    ratedKw: 22,
-    powerFactor: 0.94,
+    ratedKw: 20,
+    powerFactor: 0.95,
     priority: 'emergency',
     startingMethod: 'Feeder',
     inrushMultiplier: 1.1
@@ -377,6 +412,9 @@ export class MarinePowerSimEngine {
   public earthingArchitecture: EarthingArchitecture = 'HRE';
   public hvEarthing: HvEarthingTelemetry = calculateHvEarthingState('HRE', false, true);
 
+  // 440 V Galley Primary Board Emergency Remote Shunt Trip (SOLAS II-2 Reg 9.2 / BV NR467)
+  public galleyShuntTripped = false;
+
   public generators: Record<string, GeneratorTelemetry> = {};
   public feederRelays: Record<string, FeederRelayState> = {};
   public buses: Record<BusKey, BusTelemetry>;
@@ -464,6 +502,7 @@ export class MarinePowerSimEngine {
     };
 
     for (const spec of Object.values(LOAD_SPECS)) {
+      if (!spec.breakerId) continue;
       const ratedKva = spec.ratedKw / spec.powerFactor;
       const ratedAmps = (ratedKva * 1000) / (Math.sqrt(3) * spec.nominalVoltageV);
       this.feederRelays[spec.breakerId] = {
@@ -655,7 +694,41 @@ export class MarinePowerSimEngine {
       }
     }
 
+    // Shunt Trip Interlock: Prevent closing 440 V Galley ACB if Emergency Shunt Trip is active
+    if (breakerId === 'galley440Feed' && this.galleyShuntTripped) {
+      this.pushAlarm(
+        'WARNING',
+        'SHUNT-BLOCKED',
+        'Cannot close Galley 440V ACB while Emergency Shunt Trip is TRIPPED! Reset Shunt Trip pushbutton first.'
+      );
+      return {
+        allowed: false,
+        reason: 'INTERLOCK BLOCKED: Galley Emergency Shunt Trip is active (SOLAS II-2 Reg 9.2). Reset outdoor pushbutton first.'
+      };
+    }
+
     return { allowed: true };
+  }
+
+  public tripGalleyShunt(state: SimState): string {
+    this.galleyShuntTripped = true;
+    state.closed.galley440Feed = false;
+    this.pushAlarm(
+      'CRITICAL',
+      'SHUNT-TRIP',
+      '🚨 EMERGENCY SHUNT TRIP TRIGGERED: 440 V Galley Primary Board de-energized via outdoor entrance trip station (SOLAS II-2 Reg 9.2 / BV NR467).'
+    );
+    return 'Emergency Shunt Trip activated! 440 V Galley Primary Board & ventilation isolated.';
+  }
+
+  public resetGalleyShunt(): string {
+    this.galleyShuntTripped = false;
+    this.pushAlarm(
+      'INFO',
+      'SHUNT-RESET',
+      'Galley Emergency Shunt Trip station reset to ARMED. 440 V Galley ACB can now be re-closed.'
+    );
+    return 'Galley Shunt Trip reset to ARMED. Breaker can now be closed.';
   }
 
   public notifyBreakerChanged(breakerId: string, isClosed: boolean, live: Set<string>, state?: SimState): void {
@@ -970,7 +1043,7 @@ export class MarinePowerSimEngine {
     };
 
     for (const spec of Object.values(LOAD_SPECS)) {
-      const fr = this.feederRelays[spec.breakerId];
+      const fr = spec.breakerId ? this.feederRelays[spec.breakerId] : undefined;
       if (!live.has(spec.id)) {
         if (fr) fr.currentAmps = 0;
         continue;
@@ -1534,16 +1607,17 @@ export class MarinePowerSimEngine {
 
     if (this.pmsAutoLoadShed && maxGenLoad >= 94) {
       // Shed Stage 1 non-essential feeders first, then Stage 2
-      const stage1Feeders = ['reeferFeed', 'craneFeed', 'galleyFeed', 'outletFeed', 'ballastFeed'];
-      const toShed = stage1Feeders.find((b) => state.closed[b]);
+      const stage1Feeders = ['galley440Feed', 'craneFeed', 'reeferAFeed', 'reeferBFeed'];
+      const stage2Feeders = ['ballastFeed', 'galleySmallFeed', 'bowFeed'];
+      const toShed = stage1Feeders.find((b) => state.closed[b]) || stage2Feeders.find((b) => state.closed[b]);
       if (toShed) {
         state.closed[toShed] = false;
         this.pushAlarm(
           'WARNING',
           'PMS-LOAD-SHED',
-          `PMS Preferential Trip opened ${edgeById[toShed].name} (Generator load reached ${maxGenLoad}%).`
+          `PMS Preferential Trip opened ${edgeById[toShed]?.name || toShed} (Generator load reached ${maxGenLoad}%).`
         );
-        onStateMutated?.(`PMS Preferential Trip shed ${edgeById[toShed].name} to prevent overload blackout.`);
+        onStateMutated?.(`PMS Preferential Trip shed ${edgeById[toShed]?.name || toShed} to prevent overload blackout.`);
       }
     }
 

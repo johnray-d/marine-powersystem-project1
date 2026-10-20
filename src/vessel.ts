@@ -10,6 +10,16 @@ import { motorAssembly } from './motor-assembly';
 import { steeringAssembly } from './steering-assembly';
 import { reeferAssembly } from './reefer-assembly';
 import { pumpAssembly } from './pump-assembly';
+import {
+  esbCubicleAssembly,
+  batterySystemAssembly,
+  airCompressorAssembly,
+  ventFanAssembly,
+  ballastOwsAssembly,
+  galleyBoardAssembly,
+  shorePowerAssembly,
+  bridgeNavComAssembly
+} from './consumer-assemblies';
 import { resolvePublicAsset } from './assets';
 export { propellerAssembly } from './propeller-assembly';
 export { transformerAssembly } from './transformer-assembly';
@@ -18,6 +28,16 @@ export { motorAssembly } from './motor-assembly';
 export { steeringAssembly } from './steering-assembly';
 export { reeferAssembly } from './reefer-assembly';
 export { pumpAssembly } from './pump-assembly';
+export {
+  esbCubicleAssembly,
+  batterySystemAssembly,
+  airCompressorAssembly,
+  ventFanAssembly,
+  ballastOwsAssembly,
+  galleyBoardAssembly,
+  shorePowerAssembly,
+  bridgeNavComAssembly
+} from './consumer-assemblies';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.
@@ -58,7 +78,8 @@ function cargo(parent: THREE.Group) {
     box(parent, [3.14, 0.09, 5.45], [bays[b], 0.955, 0], 0x7b99a8, 0.2);
     outlineBox(parent, [3.14, 0.09, 5.45], [bays[b], 0.955, 0], 0x70a8b1, 0.35);
     for (let row = 0; row < CARGO.rows; row++) for (let tier = 0; tier < (b === 3 ? 2 : 3); tier++) {
-      if (b === 3 && row === 7 && tier === 0) continue; // This slot holds the detailed reefer container (equipment 'reeferUnit').
+      // Dedicated slots for Port (reeferUnitA, row 0) and Starboard (reeferUnitB, row 7) reefer containers
+      if (b === 3 && (row === 0 || row === 7) && tier === 0) continue;
       instances.push({ x: bays[b], y: 1.35 + tier * 0.68, z: (row - (CARGO.rows-1)/2) * CARGO.rowPitch, color: colors[(b + row + tier) % colors.length] });
     }
   }
@@ -90,7 +111,7 @@ export function createVessel(): THREE.Group {
 
   // Load the upgraded Blender 3D ship hull model
   const loader = new GLTFLoader();
-  const modelUrl = resolvePublicAsset('blender-hull-V6.glb');
+  const modelUrl = resolvePublicAsset('blender-hull-V7.glb');
 
   loader.load(
     modelUrl,
@@ -191,11 +212,56 @@ export function createVessel(): THREE.Group {
     },
     undefined,
     (error) => {
-      console.error('Failed to load 3D ship hull model (/blender-hull-V6.glb):', error);
+      console.error('Failed to load 3D ship hull model (/blender-hull-V7.glb):', error);
     }
   );
 
+  // 3D SOLAS Compartments, Fire Bulkheads, and Arc Relief Duct (Phase 5)
+  addCompartmentEnclosures(ship);
+
   return ship;
+}
+
+function addCompartmentEnclosures(parent: THREE.Group) {
+  // 1. [A-60 FIRE BULKHEAD] Engine Control Room & Main Switchboard Boundary
+  const a60Group = new THREE.Group();
+  outlineBox(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xf59e0b, 0.45);
+  box(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xd97706, 0.08);
+  parent.add(a60Group);
+
+  // 2. [ARC PRESSURE RELIEF DUCT] → OPEN AIR
+  const arcDuct = new THREE.Group();
+  // Vertical duct rising from 6.6 kV switchgear (y = 0.4) to above weather deck (y = 2.45)
+  box(arcDuct, [0.65, 2.05, 0.65], [-7.75, 1.42, 0], 0x334155, 0.85);
+  outlineBox(arcDuct, [0.65, 2.05, 0.65], [-7.75, 1.42, 0], 0x94a3b8, 0.75);
+  // Exhaust hood / louvers on weather deck
+  box(arcDuct, [0.85, 0.28, 0.85], [-7.75, 2.52, 0], 0x1e293b, 0.95);
+  // Arc warning plaque (yellow/black band)
+  box(arcDuct, [0.67, 0.15, 0.67], [-7.75, 2.25, 0], 0xfacc15, 0.95);
+  parent.add(arcDuct);
+
+  // 3. [WATERTIGHT BULKHEAD] Bow Thruster Collision Bulkhead (Trimmed & Resized for V7 Hull)
+  const wtBulkhead = new THREE.Group();
+  // Lower tank-top bulkhead plate fitting neatly between keel and lower machinery flat
+  box(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x334155, 0.35);
+  outlineBox(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x38bdf8, 0.55);
+  // Horizontal stiffener channels
+  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -2.35, 0], 0x1e293b, 0.65);
+  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -1.75, 0], 0x1e293b, 0.65);
+  // Vertical structural framing
+  for (const z of [-1.0, 0, 1.0]) {
+    box(wtBulkhead, [0.08, 1.1, 0.04], [18.6, -2.05, z], 0x1e293b, 0.65);
+  }
+  // Watertight access door frame
+  box(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x475569, 0.6);
+  outlineBox(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x38bdf8, 0.75);
+  parent.add(wtBulkhead);
+
+  // 4. EMERGENCY GENERATOR ROOM (ABOVE BULKHEAD DECK)
+  const esbRoom = new THREE.Group();
+  outlineBox(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xf97316, 0.5);
+  box(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xea580c, 0.07);
+  parent.add(esbRoom);
 }
 
 
@@ -305,18 +371,30 @@ function loadModel(e:Equipment):THREE.Group {
   const g=new THREE.Group();
   if(e.kind==='propeller'||e.id==='prop')return propellerAssembly.group;
   if(e.id==='crane'){craneModel(g);return g;}
-  if(e.id==='reeferUnit'){reeferContainer(g);return g;}
-  if(e.id==='steering'){
+  if(e.id==='reeferUnit' || e.id==='reeferUnitA' || e.id==='reeferUnitB'){reeferContainer(g);return g;}
+  if(e.id==='steering'||e.id==='eSteer'){
     box(g,[1.6,.15,.9],[0,0,0],0x3d596b);cylinder(g,.28,.4,[0,.24,0],0xa6c2cb);
     for(const z of [-.28,.28]){cylinder(g,.10,1.0,[0,.26,z],0x66ada8,'x');box(g,[.14,.25,.22],[.6,.2,z],0xbed2d8);}return g;
   }
   if(e.id==='nav'){
     for(const z of [-.62,0,.62]){box(g,[.65,.5,.5],[0,.25,z],0x486c82);const screen=box(g,[.04,.3,.38],[.35,.6,z],0x6dbfb8);screen.rotation.z=-.22;box(g,[.4,.045,.43],[.24,.52,z],0x9cafbc);}return g;
   }
-  if(e.id==='galley'){
-    box(g,[1.8,.7,.8],[0,.35,0],0xaabac2);box(g,[1.86,.07,.86],[0,.73,0],0xd6dce0);
-    for(const x of [-.5,.25])for(const z of [-.18,.18])cylinder(g,.14,.025,[x,.78,z],0x344957);
-    box(g,[.62,.4,.035],[-.3,.32,.42],0x405969);return g;
+  if(e.id==='galley440'){
+    // 440 V Galley Primary Switchboard & Heavy Thermal Battery (Ovens, Fryers)
+    box(g,[0.75,1.2,0.42],[-0.5,0.6,0],0x1e293b); // 440V Galley Distribution Switchboard
+    cylinder(g,0.04,0.035,[-0.5,0.85,0.22],0x22c55e,'z'); // ACB Closed Indicator
+    box(g,[1.3,0.78,0.72],[0.45,0.39,0],0x94a3b8); // Heavy cooking block
+    box(g,[1.34,0.06,0.76],[0.45,0.79,0],0xcbd5e1); // Stainless top
+    for(const x of [0.15,0.55])for(const z of [-0.18,0.18])cylinder(g,0.12,0.025,[x,0.83,z],0x334155);
+    // Outdoor Emergency Shunt Trip Pushbutton Station
+    box(g,[0.14,0.22,0.12],[-1.0,0.65,0.38],0xfacc15); // Safety yellow station
+    cylinder(g,0.048,0.035,[-1.0,0.65,0.46],0xdc2626,'z'); // Red mushroom head
+    return g;
+  }
+  if(e.id==='galleySmall'||e.id==='galley'){
+    box(g,[1.3,0.7,0.65],[0,0.35,0],0xaabac2);box(g,[1.35,0.05,0.7],[0,0.725,0],0xd6dce0);
+    box(g,[0.45,0.3,0.35],[-0.3,0.88,0],0x475569); // Food processor / microwave
+    return g;
   }
   if(e.id==='lights'||e.id==='eLights'||e.id==='outlets'){
     const count=e.id==='lights'?4:e.id==='outlets'?3:2;
@@ -336,78 +414,181 @@ function loadModel(e:Equipment):THREE.Group {
 export function createVesselEquipment(e:Equipment):THREE.Group {
   const placement=vesselLayout[e.id];
   const root=new THREE.Group();root.position.set(...placement.position);root.userData.eqId=e.id;
+  const EQ_SCALE = 0.75;
+  const size: [number, number, number] = [
+    placement.size[0] * EQ_SCALE,
+    placement.size[1] * EQ_SCALE,
+    placement.size[2] * EQ_SCALE
+  ];
   if(e.id==='prop'||e.kind==='propeller'){
+    propellerAssembly.group.scale.setScalar(EQ_SCALE);
     root.add(propellerAssembly.group);
-    root.userData.height=placement.size[1];
+    root.userData.height=placement.size[1] * EQ_SCALE;
     root.userData.propellerAssembly=propellerAssembly;
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
   if(e.id==='txA'||e.id==='txB'||e.id==='txReeferA'||e.id==='txReeferB'||e.id==='txConA'||e.id==='txConB'||e.kind==='transformer'||e.model==='transformer'){
-    const txGroup = transformerAssembly.createEquipmentGroup(e.id, placement.size);
+    const txGroup = transformerAssembly.createEquipmentGroup(e.id, size);
     txGroup.rotation.y = placement.rotation || 0;
     root.add(txGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.transformerAssembly = transformerAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
     }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
   if(e.id==='drive'||e.kind==='drive'){
-    const driveGroup = driveAssembly.createEquipmentGroup(e.id, placement.size);
+    const driveGroup = driveAssembly.createEquipmentGroup(e.id, size);
     driveGroup.rotation.y = placement.rotation || 0;
     root.add(driveGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.driveAssembly = driveAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
     }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
   if(e.id==='motor'||e.kind==='motor'){
-    const motorGroup = motorAssembly.createEquipmentGroup(e.id, placement.size);
+    const motorGroup = motorAssembly.createEquipmentGroup(e.id, size);
     motorGroup.rotation.y = placement.rotation || 0;
     root.add(motorGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.motorAssembly = motorAssembly;
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
   if(e.id==='steering'){
-    const steeringGroup = steeringAssembly.createEquipmentGroup(e.id, placement.size);
+    const steeringGroup = steeringAssembly.createEquipmentGroup(e.id, size);
     steeringGroup.rotation.y = placement.rotation || 0;
     root.add(steeringGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.steeringAssembly = steeringAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
     }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
   if(e.id==='reefer'||e.id==='reeferA'||e.id==='reeferB'||e.model==='reefer'||e.kind==='reefer'){
-    const reeferGroup = reeferAssembly.createEquipmentGroup(e.id, placement.size);
+    const reeferGroup = reeferAssembly.createEquipmentGroup(e.id, size);
     reeferGroup.rotation.y = placement.rotation || 0;
     root.add(reeferGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.reeferAssembly = reeferAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
     }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
   }
-  if(e.kind==='pump'||e.model==='pump'||['cooling','cooling1','cooling2','fire','fire1','fire2','ballast','bilge','eFire'].includes(e.id)){
-    const pumpGroup = pumpAssembly.createEquipmentGroup(e.id, placement.size);
+  if(e.id==='ballast'){
+    const ballastGroup = ballastOwsAssembly.createEquipmentGroup(e.id, size);
+    ballastGroup.rotation.y = placement.rotation || 0;
+    root.add(ballastGroup);
+    root.userData.height = size[1];
+    root.userData.ballastOwsAssembly = ballastOwsAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='airCompressor'){
+    const compGroup = airCompressorAssembly.createEquipmentGroup(e.id, size);
+    compGroup.rotation.y = placement.rotation || 0;
+    root.add(compGroup);
+    root.userData.height = size[1];
+    root.userData.airCompressorAssembly = airCompressorAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='ventFan'){
+    const fanGroup = ventFanAssembly.createEquipmentGroup(e.id, size);
+    fanGroup.rotation.y = placement.rotation || 0;
+    root.add(fanGroup);
+    root.userData.height = size[1];
+    root.userData.ventFanAssembly = ventFanAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='eBus'){
+    const esbGroup = esbCubicleAssembly.createEquipmentGroup(e.id, size);
+    esbGroup.rotation.y = placement.rotation || 0;
+    root.add(esbGroup);
+    root.userData.height = size[1];
+    root.userData.esbCubicleAssembly = esbCubicleAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='eRadio'){
+    const battGroup = batterySystemAssembly.createEquipmentGroup(e.id, size);
+    battGroup.rotation.y = placement.rotation || 0;
+    root.add(battGroup);
+    root.userData.height = size[1];
+    root.userData.batterySystemAssembly = batterySystemAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='galley440'){
+    const galleyGroup = galleyBoardAssembly.createEquipmentGroup(e.id, size);
+    galleyGroup.rotation.y = placement.rotation || 0;
+    root.add(galleyGroup);
+    root.userData.height = size[1];
+    root.userData.galleyBoardAssembly = galleyBoardAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='shore'){
+    const shoreGroup = shorePowerAssembly.createEquipmentGroup(e.id, size);
+    shoreGroup.rotation.y = placement.rotation || 0;
+    root.add(shoreGroup);
+    root.userData.height = size[1];
+    root.userData.shorePowerAssembly = shorePowerAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.id==='nav'){
+    const navGroup = bridgeNavComAssembly.createEquipmentGroup(e.id, size);
+    navGroup.rotation.y = placement.rotation || 0;
+    root.add(navGroup);
+    root.userData.height = size[1];
+    root.userData.bridgeNavComAssembly = bridgeNavComAssembly;
+    if(placement.space!=='external'&&placement.space!=='cargo'){
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
+    }
+    root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
+    return root;
+  }
+  if(e.kind==='pump'||e.model==='pump'||['cooling','cooling1','cooling2','fire','fire1','fire2','bilge','eFire'].includes(e.id)){
+    const pumpGroup = pumpAssembly.createEquipmentGroup(e.id, size);
     pumpGroup.rotation.y = placement.rotation || 0;
     root.add(pumpGroup);
-    root.userData.height = placement.size[1];
+    root.userData.height = size[1];
     root.userData.pumpAssembly = pumpAssembly;
     if(placement.space!=='external'&&placement.space!=='cargo'){
-      const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+      const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
     }
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;
@@ -415,12 +596,12 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
   const model=e.model?createModel(e.model).group:loadModel(e);
   model.rotation.y=placement.rotation||0;model.updateMatrixWorld(true);
   let bounds=new THREE.Box3().setFromObject(model);const raw=bounds.getSize(new THREE.Vector3());
-  const scale=Math.min(placement.size[0]/raw.x,placement.size[1]/raw.y,placement.size[2]/raw.z);
+  const scale=Math.min(size[0]/raw.x,size[1]/raw.y,size[2]/raw.z);
   model.scale.setScalar(scale);model.updateMatrixWorld(true);bounds=new THREE.Box3().setFromObject(model);
   const center=bounds.getCenter(new THREE.Vector3());model.position.set(-center.x,-bounds.min.y,-center.z);
   root.add(model);root.userData.height=bounds.max.y-bounds.min.y;
   if(placement.space!=='external'&&placement.space!=='cargo'&&e.id!=='bow'&&e.kind!=='thruster'){
-    const base=box(root,[Math.min(placement.size[0]+.09,2.2),.035,placement.size[2]+.07],[0,-.025,0],0x375b70,.7);base.userData.foundation=true;
+    const base=box(root,[Math.min(size[0]+.09*EQ_SCALE,2.2*EQ_SCALE),.035*EQ_SCALE,size[2]+.07*EQ_SCALE],[0,-.025*EQ_SCALE,0],0x375b70,.7);base.userData.foundation=true;
   }
   root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
   return root;

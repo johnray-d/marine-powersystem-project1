@@ -2,11 +2,30 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
 import { createModel, type ModelInstance } from './models';
-import { createVessel, createVesselEquipment, propellerAssembly, transformerAssembly, driveAssembly, motorAssembly, steeringAssembly, reeferAssembly, pumpAssembly } from './vessel';
+import {
+  createVessel,
+  createVesselEquipment,
+  propellerAssembly,
+  transformerAssembly,
+  driveAssembly,
+  motorAssembly,
+  steeringAssembly,
+  reeferAssembly,
+  pumpAssembly,
+  esbCubicleAssembly,
+  batterySystemAssembly,
+  airCompressorAssembly,
+  ventFanAssembly,
+  ballastOwsAssembly,
+  galleyBoardAssembly,
+  shorePowerAssembly,
+  bridgeNavComAssembly
+} from './vessel';
 import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
 
 const C = { live: 0xff2222, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
-const BG = { vessel: 0xdfeaf1, exploded: 0xe9f1f6 };
+const BG = { vessel: 0xdfe3e6, exploded: 0xeceef0 };
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 function renderer(host: HTMLElement): THREE.WebGLRenderer {
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -21,7 +40,7 @@ function lights(scene: THREE.Scene) {
   const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(-5, 12, 8); scene.add(key);
   const fill = new THREE.DirectionalLight(0xbfd8e6, 1); fill.position.set(8, 3, -8); scene.add(fill);
 }
-function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .028): THREE.Mesh {
+function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .012): THREE.Mesh {
   const diff = b.clone().sub(a);
   const len = Math.max(.001, diff.length());
   const mesh = new THREE.Mesh(
@@ -30,11 +49,11 @@ function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .028): THREE.M
   );
   // Outer red glow aura mesh (visible when energized)
   const glow = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 2.3, radius * 2.3, len, 8),
+    new THREE.CylinderGeometry(radius * 1.8, radius * 1.8, len, 8),
     new THREE.MeshBasicMaterial({
       color: 0xff3b3b,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.28,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     })
@@ -151,12 +170,12 @@ export class VesselView {
     this.scene.add(this.sea);
     for (const e of equipment) {
       const group = createVesselEquipment(e);
-      const placement = vesselLayout[e.id], size = placement.size, inContainer = placement.space === 'cargo';
-      const radius = inContainer ? .3 : Math.max(.16, Math.max(size[0], size[2]) / 2 + .06);
-      const halo = new THREE.Mesh(new THREE.RingGeometry(radius, radius + .035, 32), new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .7, side: THREE.DoubleSide, depthWrite: false }));
+      const placement = vesselLayout[e.id], size = placement.size.map(v => v * 0.75), inContainer = placement.space === 'cargo';
+      const radius = inContainer ? .22 : Math.max(.12, Math.max(size[0], size[2]) / 2 + .04);
+      const halo = new THREE.Mesh(new THREE.RingGeometry(radius, radius + .026, 32), new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .7, side: THREE.DoubleSide, depthWrite: false }));
       halo.rotation.x = -Math.PI / 2; halo.position.y = .012; halo.userData.halo = true;
       // A container's ring sits just outside its refrigeration end, which faces -x when the container is rotated half a turn.
-      if (inContainer) halo.position.x = (placement.rotation === Math.PI ? -1 : 1) * (size[0] / 2 + .2);
+      if (inContainer) halo.position.x = (placement.rotation === Math.PI ? -1 : 1) * (size[0] / 2 + .15);
       group.add(halo);
       this.objects.set(e.id, group); this.scene.add(group);
       const label = document.createElement('div'); label.className = 'vessel-label'; label.textContent = e.short;
@@ -174,26 +193,29 @@ export class VesselView {
       const group = new THREE.Group();
       // Cable runs follow a longitudinal internal route with short branch connections.
       const points = c.id === 'shaft' || c.id === 'tie' ? [a, b]
-        : c.id === 'reeferPlug' ? [a, new THREE.Vector3((a.x + b.x) / 2, Math.min(a.y, b.y) - .1, (a.z + b.z) / 2), b]
+        : (c.id === 'reeferPlug' || c.id === 'reeferPlugA' || c.id === 'reeferPlugB') ? [a, new THREE.Vector3((a.x + b.x) / 2, Math.min(a.y, b.y) - .1, (a.z + b.z) / 2), b]
         : [a, new THREE.Vector3(a.x, a.y, 0), new THREE.Vector3(b.x, a.y, 0),
         new THREE.Vector3(b.x, b.y, 0), b];
       const route = new THREE.CurvePath<THREE.Vector3>();
       for (let i = 1; i < points.length; i++) {
         if (points[i - 1].distanceTo(points[i]) < .015) continue;
         route.add(new THREE.LineCurve3(points[i - 1], points[i]));
-        group.add(lineBetween(points[i - 1], points[i], c.id === 'shaft' ? .06 : .028));
+        group.add(lineBetween(points[i - 1], points[i], c.id === 'shaft' ? .045 : .012));
       }
       for (const offset of [0, 0.33, 0.66]) {
+        // Slender animated line pulse oriented along the cable tangent (replaces large yellow sphere)
+        const pulseLen = 0.22;
+        const pulseRad = 0.015;
         const pulse = new THREE.Mesh(
-          new THREE.SphereGeometry(.068, 12, 10),
+          new THREE.CylinderGeometry(pulseRad, pulseRad, pulseLen, 8),
           new THREE.MeshBasicMaterial({ color: 0xfff01f })
         );
         const pulseHalo = new THREE.Mesh(
-          new THREE.SphereGeometry(.135, 12, 10),
+          new THREE.CylinderGeometry(pulseRad * 1.5, pulseRad * 1.5, pulseLen * 1.06, 8),
           new THREE.MeshBasicMaterial({
             color: 0xfacc15,
             transparent: true,
-            opacity: 0.52,
+            opacity: 0.38,
             blending: THREE.AdditiveBlending,
             depthWrite: false
           })
@@ -204,7 +226,7 @@ export class VesselView {
         pulse.userData.offset = offset;
         group.add(pulse);
       }
-      const gap = new THREE.Mesh(new THREE.TorusGeometry(.095, .021, 6, 14), new THREE.MeshBasicMaterial({ color: C.open, side: THREE.DoubleSide }));
+      const gap = new THREE.Mesh(new THREE.TorusGeometry(.045, .010, 6, 14), new THREE.MeshBasicMaterial({ color: C.open, side: THREE.DoubleSide }));
       gap.position.copy(route.getPoint(.45)); gap.userData.gap = true; group.add(gap);
       this.paths.set(c.id, group); this.scene.add(group);
     }
@@ -215,10 +237,10 @@ export class VesselView {
   }
   private endpoint(id: string) {
     const object = this.objects.get(id)!;
-    if (id === 'reeferUnit') {
+    if (id === 'reeferUnit' || id === 'reeferUnitA' || id === 'reeferUnitB') {
       // The supply plugs into the inlet on the refrigeration end of the container.
       const placement = vesselLayout[id], direction = placement.rotation === Math.PI ? -1 : 1;
-      return object.position.clone().add(new THREE.Vector3(direction * (placement.size[0] / 2 + .05), .28, 0));
+      return object.position.clone().add(new THREE.Vector3(direction * (placement.size[0] * 0.75 / 2 + .05), .28 * 0.75, 0));
     }
     if (id === 'prop') {
       return object.position.clone();
@@ -244,12 +266,14 @@ export class VesselView {
       (halo.material as THREE.MeshBasicMaterial).color.setHex(id === selection ? C.selected : live.has(id) ? C.live : C.dead);
       (halo.material as THREE.MeshBasicMaterial).opacity = id === selection ? .95 : .58;
     }
-    const reeferOn = live.has('reeferUnit');
-    this.objects.get('reeferUnit')?.traverse(o => {
-      if (!o.userData.statusLight) return;
-      const material = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
-      material.color.setHex(reeferOn ? 0x41ff9a : 0x7a2a2a); material.emissive.setHex(reeferOn ? 0x1fb868 : 0x000000);
-    });
+    for (const rId of ['reeferUnit', 'reeferUnitA', 'reeferUnitB']) {
+      const reeferOn = live.has(rId);
+      this.objects.get(rId)?.traverse(o => {
+        if (!o.userData.statusLight) return;
+        const material = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        material.color.setHex(reeferOn ? 0x41ff9a : 0x7a2a2a); material.emissive.setHex(reeferOn ? 0x1fb868 : 0x000000);
+      });
+    }
     for (const c of connections) {
       const status = connectionState(c, state, live);
       for (const child of this.paths.get(c.id)!.children) {
@@ -303,7 +327,11 @@ export class VesselView {
     if (!this.host.clientWidth || !this.host.clientHeight) return;
     (this.sea.material as THREE.ShaderMaterial).uniforms.uTime.value = this.phase;
     // The reefer's condenser fan turns only while the container is supplied.
-    if (this.live.has('reeferUnit')) this.objects.get('reeferUnit')?.traverse(o => { if (o.userData.spin) o.rotation.x += dt * 9; });
+    for (const rId of ['reeferUnit', 'reeferUnitA', 'reeferUnitB']) {
+      if (this.live.has(rId)) {
+        this.objects.get(rId)?.traverse(o => { if (o.userData.spin) o.rotation.x += dt * 9; });
+      }
+    }
     // Main propulsion propeller spins when propulsion is energized, or continuously in inspect mode
     const isPropulsionActive = this.live.has('prop') || this.live.has('motor');
     const isInspectingPropeller = this.selection === 'prop';
@@ -349,6 +377,26 @@ export class VesselView {
     // Update pumps rotation and explosion
     pumpAssembly.updateRotation(dt, this.live);
     pumpAssembly.updateExplosion(dt);
+    // Kinematic updates for 8 consumer assemblies
+    esbCubicleAssembly.updateKinematics(dt, 0, this.live.has('eBus'));
+    batterySystemAssembly.updateKinematics(dt, 0, this.live.has('eRadio'));
+    airCompressorAssembly.updateKinematics(dt, 1200, this.live.has('airCompressor'));
+    ventFanAssembly.updateKinematics(dt, 1750, this.live.has('ventFan'));
+    ballastOwsAssembly.updateKinematics(dt, 1800, this.live.has('ballast'));
+    galleyBoardAssembly.updateKinematics(dt, 0, this.live.has('galley440'));
+    shorePowerAssembly.updateKinematics(dt, 8, this.live.has('shore'));
+    bridgeNavComAssembly.updateKinematics(dt, 24, this.live.has('nav'));
+
+    // Explosion updates for 8 consumer assemblies
+    esbCubicleAssembly.updateExplosion(dt);
+    batterySystemAssembly.updateExplosion(dt);
+    airCompressorAssembly.updateExplosion(dt);
+    ventFanAssembly.updateExplosion(dt);
+    ballastOwsAssembly.updateExplosion(dt);
+    galleyBoardAssembly.updateExplosion(dt);
+    shorePowerAssembly.updateExplosion(dt);
+    bridgeNavComAssembly.updateExplosion(dt);
+
     // Bow thruster spins when energized
     if (this.live.has('bow')) {
       this.objects.get('bow')?.traverse(o => { if (o.userData.spinImpeller) o.rotation.x += dt * 18; });
@@ -359,7 +407,12 @@ export class VesselView {
       for (const child of this.paths.get(c.id)!.children) if (child.userData.pulse && child.visible) {
         const route = child.userData.route as THREE.CurvePath<THREE.Vector3>;
         const offset = child.userData.offset || 0;
-        child.position.copy(route.getPoint((this.phase * .38 + offset) % 1));
+        const t = (this.phase * .38 + offset) % 1;
+        child.position.copy(route.getPoint(t));
+        const tangent = route.getTangent(t);
+        if (tangent && tangent.lengthSq() > 0.0001) {
+          child.quaternion.setFromUnitVectors(UP_AXIS, tangent);
+        }
       }
     }
     this.renderer.render(this.scene, this.camera);

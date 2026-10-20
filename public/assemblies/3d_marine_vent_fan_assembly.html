@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engine Room Heavy Axial Ventilation Fan & Starter Box — 3D Explodable CAD Assembly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cad-accent: #f97316;
+            --cad-blue: #38bdf8;
+            --cad-teal: #2dd4bf;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0b111e;
+            color: #f1f5f9;
+            user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 65%, #070b14 100%);
+        }
+        body.light-studio #canvas-container {
+            background: radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%);
+        }
+        .cad-grid-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background-image: 
+                linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+            background-size: 36px 36px;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f97316;
+            border: 2px solid #fff;
+            margin-top: -7px;
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #fb923c;
+        }
+        .callout-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.15s ease;
+            z-index: 10;
+        }
+        .callout-label:hover {
+            transform: translate(-50%, -50%) scale(1.06);
+            z-index: 25;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
+
+    <!-- 3D WebGL Viewport -->
+    <div id="canvas-container"></div>
+    <div class="cad-grid-overlay"></div>
+
+    <!-- SVG Overlay for Callout Leader Lines -->
+    <svg id="leader-svg" class="fixed inset-0 w-full h-full pointer-events-none z-10"></svg>
+
+    <!-- HTML Container for 3D Floating Callout Badges -->
+    <div id="labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- Top Header Bar -->
+    <header class="fixed top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <div class="glass-panel px-4 py-2.5 rounded-xl flex items-center gap-3.5 pointer-events-auto shadow-2xl">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-600 to-cyan-700 flex items-center justify-center shadow-inner border border-teal-400/30">
+                <svg class="w-6 h-6 text-cyan-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 3a9 9 0 0 1 9 9h-9V3z"></path>
+                    <path d="M12 12v9a9 9 0 0 1-9-9h9z"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/30 mono">ETO MARINE CAD</span>
+                    <span id="status-badge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono">FAN ROTATION SYNCED</span>
+                </div>
+                <h1 class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">Engine Room Heavy Axial Ventilation Fan &amp; Local Starter Box</h1>
+            </div>
+        </div>
+
+        <!-- Top Right Quick Controls -->
+        <div class="glass-panel p-1.5 rounded-xl flex flex-wrap items-center gap-1.5 pointer-events-auto shadow-2xl">
+            <button id="btn-labels" onclick="toggleCallouts()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition">
+                Labels: ON
+            </button>
+            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition" title="Toggle Dark CAD vs Light Blueprint Background">
+                Light CAD
+            </button>
+            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+            <button onclick="setCameraPreset('iso')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Iso View</button>
+            <button onclick="setCameraPreset('front')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Axial Duct View</button>
+            <button onclick="setCameraPreset('diagram')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Exploded CAD Angle</button>
+        </div>
+    </header>
+
+    <!-- Left Sidebar: Bill of Materials -->
+    <aside id="left-panel" class="fixed top-20 left-3 bottom-28 w-72 z-20 flex flex-col gap-2 pointer-events-none hidden lg:flex">
+        <div class="glass-panel rounded-xl p-3.5 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-700/80">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Assembly BOM (6 Units)</h2>
+                    <p class="text-[11px] text-slate-400">Click any component to inspect</p>
+                </div>
+                <button onclick="selectPart(null)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 transition">
+                    Reset Focus
+                </button>
+            </div>
+
+            <div id="bom-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+
+            <div class="pt-2.5 mt-2 border-t border-slate-700/80 grid grid-cols-2 gap-1.5 text-[11px] text-slate-400 mono">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#38bdf8] inline-block"></span> Galvanized Steel
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#d4a857] inline-block"></span> Bronze Impeller
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#2dd4bf] inline-block"></span> IP56 Motor
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-[#ef4444] inline-block"></span> SOLAS Fire Damper
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Sidebar: Part Inspector & Operational Control Panel -->
+    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-11rem)]">
+        <!-- Selected Component Details Card -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl transition-all duration-200">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <span id="part-code" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30 mono">ASSY-04</span>
+                    <h3 id="part-title" class="text-base font-bold text-white mt-1">Axial Ventilation Fan Unit</h3>
+                </div>
+                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-400/30 font-medium transition">
+                    Isolate
+                </button>
+            </div>
+            <p id="part-desc" class="text-xs text-slate-300 leading-relaxed mt-2">
+                45 kW 440 V high-pressure engine room axial supply fan with 8 aerofoil bronze blades, star-delta starter cubicle, and automatic pneumatic SOLAS fire damper actuator.
+            </p>
+            <div class="mt-3 pt-2.5 border-t border-slate-700/70 grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Material Spec</span>
+                    <span id="part-material" class="text-slate-100 font-semibold mono">Marine Grade Galvanized &amp; Cu3</span>
+                </div>
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Explosion Axis</span>
+                    <span id="part-axis" class="text-teal-300 font-semibold mono">Axial &amp; Transverse</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fan Speed & Direction Control Panel -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Engine Room Fan Control
+                </span>
+                <span id="rpm-readout" class="text-xs font-bold text-teal-400 mono">1750 RPM (SUPPLY)</span>
+            </div>
+
+            <!-- Fan Direction Buttons -->
+            <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                <button id="btn-exhaust" onclick="setFanDirection(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                    ◄ Exhaust
+                </button>
+                <button id="btn-stop" onclick="setFanDirection(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
+                    STOP
+                </button>
+                <button id="btn-supply" onclick="setFanDirection(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition">
+                    Supply ►
+                </button>
+            </div>
+
+            <!-- Toggle Streamlines & Fire Damper -->
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                    <input type="checkbox" id="chk-streamlines" checked onchange="toggleStreamlines(this.checked)" class="rounded accent-teal-400">
+                    <span>Airflow Particles</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                    <input type="checkbox" id="chk-damper" onchange="toggleFireDamper(this.checked)" class="rounded accent-red-500">
+                    <span>Trip Fire Damper</span>
+                </label>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bottom Master Explosion Controller -->
+    <footer class="fixed bottom-3 left-3 right-3 z-30 flex justify-center pointer-events-none">
+        <div class="glass-panel px-5 py-3.5 rounded-2xl w-full max-w-3xl pointer-events-auto shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-teal-400 mono flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                        Assembly Explosion Factor
+                    </span>
+                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-bold mono">65%</span>
+                </div>
+
+                <!-- Quick Stage Presets -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        0% Assembled
+                    </button>
+                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        45% Sub-Assy
+                    </button>
+                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-600/30 transition">
+                        100% Full Exploded View
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Slider -->
+            <div class="flex items-center gap-4">
+                <span class="text-[11px] font-medium text-slate-400 mono">LOCKED</span>
+                <input id="explode-slider" type="range" min="0" max="100" value="65" class="w-full" oninput="onExplodeSliderChange(this.value)">
+                <span class="text-[11px] font-medium text-slate-400 mono">EXPLODED</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // 1. CONFIGURATION & STATE
+        // ============================================================================
+        let scene, camera, renderer, controls;
+        let explodeFactor = 0.65;
+        let targetExplodeFactor = 0.65;
+        let isAnimatingExplode = false;
+
+        let fanDirection = 1; // 1 = Supply, 0 = Stop, -1 = Exhaust
+        let fanAngularVel = 0.08;
+        let showCallouts = true;
+        let showAirflow = true;
+        let isFireDamperTripped = false;
+        let selectedPartId = null;
+        let isIsolated = false;
+
+        const assemblyRoot = new THREE.Group();
+        const partMeshGroups = {};
+        const animatedParts = [];
+        let rotatingImpellerMesh = null;
+        let airflowParticlesGroup;
+
+        const BOM_PARTS = [
+            {
+                id: 'Fan_Cylindrical_Casing',
+                code: 'PRT-01',
+                name: 'Fan Cylindrical Casing & Saddles',
+                shortLabel: 'FAN CYLINDRICAL CASING',
+                material: 'Galvanized Heavy Marine Steel Trunking',
+                axis: 'Fixed Reference Datum (0,0,0)',
+                desc: 'Cylindrical steel fan housing on saddle mounting legs with stiffening ribs, intake bellmouth, and top inspection access hatch.',
+                explodeOffset: new THREE.Vector3(0, 0, 0),
+                labelAnchorOffset: new THREE.Vector3(0, 0.15, 0),
+                labelScreenDir: { x: -145, y: 45 }
+            },
+            {
+                id: 'Flange_Rings',
+                code: 'PRT-02',
+                name: 'Companion Flange Rings & Bolts',
+                shortLabel: 'FLANGE RINGS & BOLTS',
+                material: 'Forged DIN PN16 Companion Flanges',
+                axis: '+Y Vertical (+0.70m)',
+                desc: 'Front and rear companion flanges with 12-bolt rings connecting securely to the vessel\'s engine room ventilation trunking.',
+                explodeOffset: new THREE.Vector3(0, 0.70, 0),
+                labelAnchorOffset: new THREE.Vector3(0, 0.40, 0),
+                labelScreenDir: { x: -140, y: -60 }
+            },
+            {
+                id: 'Axial_Impeller_Blades',
+                code: 'PRT-03',
+                name: '8-Blade Aerofoil Impeller & Hub',
+                shortLabel: 'AXIAL IMPELLER BLADES',
+                material: 'Cu3 Cast-Aluminum Bronze Aerofoils',
+                axis: '+Z Forward Axial (+0.75m)',
+                desc: 'Dynamically balanced 8-blade pitched aerofoil impeller with concentric nose spinner cap rotating at 1750 RPM around the Z axis.',
+                explodeOffset: new THREE.Vector3(0, 0, 0.75),
+                labelAnchorOffset: new THREE.Vector3(0, 0.22, 0.45),
+                labelScreenDir: { x: 135, y: -55 }
+            },
+            {
+                id: '440V_Drive_Motor',
+                code: 'PRT-04',
+                name: '440 V In-Stream Drive Motor',
+                shortLabel: '440V DRIVE MOTOR',
+                material: 'Class H Marine IP56 TEFC Motor',
+                axis: '-Z Aft Axial (-0.65m)',
+                desc: '45 kW marine flange induction motor cooled directly by supply airflow, supported on 4 aerodynamic guide-vane struts.',
+                explodeOffset: new THREE.Vector3(0, 0, -0.65),
+                labelAnchorOffset: new THREE.Vector3(0, 0.20, -0.35),
+                labelScreenDir: { x: -140, y: -45 }
+            },
+            {
+                id: 'Local_Starter_Enclosure',
+                code: 'PRT-05',
+                name: 'Local Star-Delta Starter & Meter Box',
+                shortLabel: 'LOCAL STARTER ENCLOSURE',
+                material: 'Switchboard-Grade IP56 Cubicle',
+                axis: '+X Transverse (+0.65m)',
+                desc: 'Local control cubicle equipped with Star-Delta contactors, ammeter gauge, cyan LCD, isolator switch, and pilot lamps.',
+                explodeOffset: new THREE.Vector3(0.65, 0, 0),
+                labelAnchorOffset: new THREE.Vector3(0.45, 0.15, 0),
+                labelScreenDir: { x: 145, y: 15 }
+            },
+            {
+                id: 'Fire_Damper_Actuator',
+                code: 'PRT-06',
+                name: 'SOLAS Fire Damper Actuator & Linkage',
+                shortLabel: 'FIRE DAMPER ACTUATOR',
+                material: 'SOLAS Spring-Return Pneumatic Actuator',
+                axis: '-X Transverse (-0.65m)',
+                desc: 'High-visibility safety red pneumatic spring-return actuator that snaps fire dampers shut upon engine room fire alarm.',
+                explodeOffset: new THREE.Vector3(-0.65, 0, 0),
+                labelAnchorOffset: new THREE.Vector3(-0.43, 0.15, 0),
+                labelScreenDir: { x: -150, y: 80 }
+            }
+        ];
+
+        // ============================================================================
+        // 2. THREE.JS INITIALIZATION & LIGHTING
+        // ============================================================================
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(-2.8, 1.8, 3.2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.44, 0);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 1.4);
+            scene.add(ambient);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.2);
+            dirLight1.position.set(4, 7, 5);
+            dirLight1.castShadow = true;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 1.2);
+            dirLight2.position.set(-4, -2, -4);
+            scene.add(dirLight2);
+
+            scene.add(assemblyRoot);
+
+            buildAirflowParticles();
+            loadModel();
+            setupRaycasting();
+            buildBOMSidebar();
+            buildCalloutDOMElements();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // ============================================================================
+        // 3. GLB MODEL LOADING & PARSING
+        // ============================================================================
+        function loadModel() {
+            const loader = new THREE.GLTFLoader();
+            loader.load('../vent_fan_assembly.glb', (gltf) => {
+                const childMeshes = [];
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh) childMeshes.push(child);
+                });
+
+                BOM_PARTS.forEach((part) => {
+                    const group = new THREE.Group();
+                    group.name = part.id;
+                    assemblyRoot.add(group);
+                    partMeshGroups[part.id] = group;
+                });
+
+                childMeshes.forEach((mesh) => {
+                    const partMatch = BOM_PARTS.find(p => mesh.name.startsWith(p.id));
+                    const partId = partMatch ? partMatch.id : 'Fan_Cylindrical_Casing';
+                    const parentGrp = partMeshGroups[partId];
+
+                    mesh.userData.partId = partId;
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+
+                    const originalPos = mesh.position.clone();
+                    parentGrp.add(mesh);
+
+                    animatedParts.push({
+                        mesh,
+                        partId,
+                        originalPos,
+                        isRotating: mesh.name.startsWith('Axial_Impeller_Blades')
+                    });
+
+                    if (mesh.name.startsWith('Axial_Impeller_Blades') && !rotatingImpellerMesh) {
+                        rotatingImpellerMesh = mesh;
+                    }
+                });
+
+                updateExplosionPositions(explodeFactor);
+            });
+        }
+
+        // ============================================================================
+        // 4. AIRFLOW PARTICLES
+        // ============================================================================
+        function buildAirflowParticles() {
+            airflowParticlesGroup = new THREE.Group();
+            const count = 45;
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x2dd4bf,
+                transparent: true,
+                opacity: 0.55
+            });
+
+            for (let i = 0; i < count; i++) {
+                const radius = 0.08 + Math.random() * 0.32;
+                const angle = Math.random() * Math.PI * 2;
+                const len = 0.08 + Math.random() * 0.12;
+                const geo = new THREE.CylinderGeometry(0.006, 0.002, len, 6);
+                geo.rotateX(Math.PI / 2);
+                const mesh = new THREE.Mesh(geo, mat);
+
+                mesh.position.set(
+                    Math.cos(angle) * radius,
+                    0.44 + Math.sin(angle) * radius,
+                    (Math.random() - 0.5) * 1.8
+                );
+                mesh.userData = { radius, angle, speed: 0.015 + Math.random() * 0.02 };
+                airflowParticlesGroup.add(mesh);
+            }
+            scene.add(airflowParticlesGroup);
+        }
+
+        // ============================================================================
+        // 5. EXPLOSION DYNAMICS & UI
+        // ============================================================================
+        function updateExplosionPositions(factor) {
+            explodeFactor = factor;
+
+            BOM_PARTS.forEach((part) => {
+                const grp = partMeshGroups[part.id];
+                if (!grp) return;
+                grp.position.set(
+                    part.explodeOffset.x * factor,
+                    part.explodeOffset.y * factor,
+                    part.explodeOffset.z * factor
+                );
+            });
+
+            const pct = Math.round(factor * 100);
+            const slider = document.getElementById('explode-slider');
+            if (slider && Math.abs(slider.value - pct) > 1) slider.value = pct;
+            const badge = document.getElementById('explode-pct');
+            if (badge) badge.textContent = `${pct}%`;
+        }
+
+        function onExplodeSliderChange(val) {
+            isAnimatingExplode = false;
+            targetExplodeFactor = parseFloat(val) / 100;
+            updateExplosionPositions(targetExplodeFactor);
+        }
+
+        function animateExplodeTo(target) {
+            targetExplodeFactor = target;
+            isAnimatingExplode = true;
+        }
+
+        function toggleStudioTheme() {
+            const isLight = document.body.classList.toggle('light-studio');
+            const btn = document.getElementById('btn-theme');
+            if (btn) btn.textContent = isLight ? 'Dark CAD' : 'Light CAD';
+        }
+
+        function toggleCallouts() {
+            showCallouts = !showCallouts;
+            document.getElementById('labels-container').style.display = showCallouts ? 'block' : 'none';
+            document.getElementById('leader-svg').style.display = showCallouts ? 'block' : 'none';
+            const btn = document.getElementById('btn-labels');
+            if (btn) {
+                btn.textContent = showCallouts ? 'Labels: ON' : 'Labels: OFF';
+                btn.className = showCallouts
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 transition';
+            }
+        }
+
+        function toggleStreamlines(checked) {
+            showAirflow = checked;
+            if (airflowParticlesGroup) airflowParticlesGroup.visible = showAirflow && fanDirection !== 0;
+        }
+
+        function toggleFireDamper(checked) {
+            isFireDamperTripped = checked;
+            if (isFireDamperTripped) {
+                setFanDirection(0);
+                document.getElementById('status-badge').textContent = 'FIRE DAMPER TRIPPED · FAN INTERLOCKED';
+                document.getElementById('status-badge').className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-400/30 mono';
+            } else {
+                document.getElementById('status-badge').textContent = 'FAN ROTATION SYNCED';
+                document.getElementById('status-badge').className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono';
+            }
+        }
+
+        function setFanDirection(dir) {
+            if (isFireDamperTripped && dir !== 0) return;
+            fanDirection = dir;
+            const rpmEl = document.getElementById('rpm-readout');
+            const bEx = document.getElementById('btn-exhaust');
+            const bStop = document.getElementById('btn-stop');
+            const bSup = document.getElementById('btn-supply');
+
+            const inactive = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            bEx.className = inactive;
+            bStop.className = inactive;
+            bSup.className = inactive;
+
+            if (dir === 1) {
+                rpmEl.textContent = '1750 RPM (SUPPLY)';
+                rpmEl.className = 'text-xs font-bold text-teal-400 mono';
+                bSup.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition';
+            } else if (dir === -1) {
+                rpmEl.textContent = '1750 RPM (EXHAUST)';
+                rpmEl.className = 'text-xs font-bold text-amber-400 mono';
+                bEx.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+            } else {
+                rpmEl.textContent = '0 RPM (STOPPED)';
+                rpmEl.className = 'text-xs font-bold text-slate-400 mono';
+                bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-slate-200 border border-slate-600 transition';
+            }
+
+            if (airflowParticlesGroup) airflowParticlesGroup.visible = showAirflow && fanDirection !== 0;
+        }
+
+        function setCameraPreset(preset) {
+            if (preset === 'iso') {
+                camera.position.set(-2.8, 1.8, 3.2);
+                controls.target.set(0, 0.44, 0);
+            } else if (preset === 'front') {
+                camera.position.set(0, 0.44, 3.6);
+                controls.target.set(0, 0.44, 0);
+            } else if (preset === 'diagram') {
+                camera.position.set(-3.2, 2.4, 2.8);
+                controls.target.set(0, 0.44, 0);
+                animateExplodeTo(0.85);
+            }
+            controls.update();
+        }
+
+        // ============================================================================
+        // 6. BILL OF MATERIALS & INSPECTION
+        // ============================================================================
+        function buildBOMSidebar() {
+            const listEl = document.getElementById('bom-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            BOM_PARTS.forEach((part) => {
+                const isSelected = selectedPartId === part.id;
+                const item = document.createElement('button');
+                item.className = `w-full text-left px-3 py-2 rounded-lg border transition flex items-center justify-between gap-2 ${
+                    isSelected
+                        ? 'bg-teal-500/25 border-teal-400/60 text-white'
+                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-300'
+                }`;
+                item.onclick = () => selectPart(part.id);
+                item.innerHTML = `
+                    <div class="truncate">
+                        <span class="text-[10px] font-bold text-teal-400 mono block">${part.code}</span>
+                        <span class="text-xs font-medium truncate block">${part.name}</span>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 mono shrink-0">Inspect</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function selectPart(partId) {
+            selectedPartId = partId;
+            const isolateBtn = document.getElementById('btn-isolate');
+
+            if (!partId) {
+                isIsolated = false;
+                isolateBtn.classList.add('hidden');
+                document.getElementById('part-code').textContent = 'ASSY-04';
+                document.getElementById('part-title').textContent = 'Axial Ventilation Fan Unit';
+                document.getElementById('part-desc').textContent = '45 kW 440 V high-pressure engine room axial supply fan with 8 aerofoil bronze blades, star-delta starter cubicle, and automatic pneumatic SOLAS fire damper actuator.';
+                document.getElementById('part-material').textContent = 'Marine Grade Galvanized & Cu3';
+                document.getElementById('part-axis').textContent = 'Axial & Transverse';
+
+                BOM_PARTS.forEach((p) => {
+                    if (partMeshGroups[p.id]) partMeshGroups[p.id].visible = true;
+                });
+            } else {
+                const part = BOM_PARTS.find(p => p.id === partId);
+                if (part) {
+                    isolateBtn.classList.remove('hidden');
+                    isolateBtn.textContent = isIsolated ? 'Show All' : 'Isolate';
+                    document.getElementById('part-code').textContent = part.code;
+                    document.getElementById('part-title').textContent = part.name;
+                    document.getElementById('part-desc').textContent = part.desc;
+                    document.getElementById('part-material').textContent = part.material;
+                    document.getElementById('part-axis').textContent = part.axis;
+
+                    if (isIsolated) {
+                        BOM_PARTS.forEach((p) => {
+                            if (partMeshGroups[p.id]) partMeshGroups[p.id].visible = (p.id === selectedPartId);
+                        });
+                    }
+                }
+            }
+            buildBOMSidebar();
+        }
+
+        function toggleIsolateSelected() {
+            if (!selectedPartId) return;
+            isIsolated = !isIsolated;
+            selectPart(selectedPartId);
+        }
+
+        // ============================================================================
+        // 7. CALLOUT BADGES & SVG LEADER LINES
+        // ============================================================================
+        const calloutDOMMap = {};
+
+        function buildCalloutDOMElements() {
+            const container = document.getElementById('labels-container');
+            container.innerHTML = '';
+
+            BOM_PARTS.forEach((part) => {
+                const div = document.createElement('div');
+                div.className = 'callout-label px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-600/80 text-[10px] font-bold tracking-wider text-slate-100 shadow-lg mono whitespace-nowrap';
+                div.textContent = part.shortLabel;
+                div.onclick = () => selectPart(part.id);
+                container.appendChild(div);
+                calloutDOMMap[part.id] = div;
+            });
+        }
+
+        function updateCalloutPositions() {
+            if (!showCallouts) return;
+            const svg = document.getElementById('leader-svg');
+            svg.innerHTML = '';
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            BOM_PARTS.forEach((part) => {
+                const domEl = calloutDOMMap[part.id];
+                const grp = partMeshGroups[part.id];
+                if (!domEl || !grp) return;
+
+                if (!grp.visible || explodeFactor < 0.12) {
+                    domEl.style.opacity = '0';
+                    domEl.style.pointerEvents = 'none';
+                    return;
+                }
+
+                const worldPos = grp.position.clone().add(part.labelAnchorOffset);
+                const projected = worldPos.clone().project(camera);
+
+                if (projected.z > 1) {
+                    domEl.style.opacity = '0';
+                    return;
+                }
+
+                const anchorX = (projected.x * 0.5 + 0.5) * width;
+                const anchorY = (-(projected.y * 0.5) + 0.5) * height;
+
+                const labelX = Math.max(90, Math.min(width - 90, anchorX + part.labelScreenDir.x));
+                const labelY = Math.max(70, Math.min(height - 90, anchorY + part.labelScreenDir.y));
+
+                domEl.style.left = `${labelX}px`;
+                domEl.style.top = `${labelY}px`;
+                domEl.style.opacity = (selectedPartId === part.id ? '1' : '0.90');
+                domEl.style.pointerEvents = 'auto';
+                domEl.style.borderColor = (selectedPartId === part.id ? '#2dd4bf' : 'rgba(100,116,139,0.7)');
+
+                // SVG Leader Line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                const elbowX = anchorX + part.labelScreenDir.x * 0.55;
+                const elbowY = labelY;
+                line.setAttribute('points', `${anchorX},${anchorY} ${elbowX},${elbowY} ${labelX},${labelY}`);
+                line.setAttribute('fill', 'none');
+                line.setAttribute('stroke', selectedPartId === part.id ? '#2dd4bf' : '#64748b');
+                line.setAttribute('stroke-width', selectedPartId === part.id ? '2' : '1.2');
+                svg.appendChild(line);
+
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', anchorX);
+                dot.setAttribute('cy', anchorY);
+                dot.setAttribute('r', '3');
+                dot.setAttribute('fill', selectedPartId === part.id ? '#2dd4bf' : '#38bdf8');
+                svg.appendChild(dot);
+            });
+        }
+
+        function setupRaycasting() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let downTime = 0;
+
+            renderer.domElement.addEventListener('pointerdown', () => { downTime = performance.now(); });
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (performance.now() - downTime > 220) return;
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
+                if (intersects.length > 0) {
+                    let obj = intersects[0].object;
+                    while (obj && !obj.userData?.partId) obj = obj.parent;
+                    if (obj && obj.userData?.partId) selectPart(obj.userData.partId);
+                }
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ============================================================================
+        // 8. ANIMATION LOOP & KINEMATICS (PROPER LOCAL ROTATION AROUND Z)
+        // ============================================================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth explosion slider animation
+            if (isAnimatingExplode) {
+                const diff = targetExplodeFactor - explodeFactor;
+                if (Math.abs(diff) < 0.005) {
+                    explodeFactor = targetExplodeFactor;
+                    isAnimatingExplode = false;
+                } else {
+                    explodeFactor += diff * 0.12;
+                }
+                updateExplosionPositions(explodeFactor);
+            }
+
+            // PROPER LOCAL ROTATION: Vent Fan spins axially around Z axis
+            if (fanDirection !== 0 && rotatingImpellerMesh) {
+                const deltaAngle = fanDirection * fanAngularVel;
+                animatedParts.forEach((p) => {
+                    if (p.isRotating) {
+                        p.mesh.rotation.z += deltaAngle;
+                    }
+                });
+            }
+
+            // Airflow particles animation
+            if (airflowParticlesGroup && showAirflow && fanDirection !== 0) {
+                const flowDir = fanDirection;
+                airflowParticlesGroup.children.forEach((mesh) => {
+                    mesh.position.z += flowDir * mesh.userData.speed;
+                    if (mesh.position.z > 1.2) mesh.position.z = -1.2;
+                    if (mesh.position.z < -1.2) mesh.position.z = 1.2;
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+            updateCalloutPositions();
+        }
+
+        window.onload = () => {
+            initScene();
+            animate();
+        };
+    </script>
+</body>
+</html>

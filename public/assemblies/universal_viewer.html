@@ -1,283 +1,927 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Universal Marine CAD & Electrical Manifest Viewer</title>
-  <style>
-    :root {
-      --bg: #07111e;
-      --panel: rgba(11, 24, 41, 0.88);
-      --border: rgba(56, 189, 248, 0.25);
-      --accent: #2dd4bf;
-      --blue: #38bdf8;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: radial-gradient(circle at 50% 35%, #112842 0%, #060d18 75%);
-      color: var(--text);
-      font-family: 'DM Sans', system-ui, sans-serif;
-      overflow: hidden;
-      height: 100vh;
-    }
-    #canvas-host { position: absolute; inset: 0; }
-    .hud-left {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      bottom: 16px;
-      width: 340px;
-      background: var(--panel);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      z-index: 10;
-    }
-    .eyebrow {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
-    h1 { font-size: 17px; margin: 4px 0 2px; }
-    .sub { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin: 0; }
-    select, input[type="range"], button {
-      width: 100%;
-      background: #0f2238;
-      color: var(--text);
-      border: 1px solid #234366;
-      border-radius: 7px;
-      padding: 7px 10px;
-      font: inherit;
-      font-size: 12px;
-    }
-    .elec-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      background: rgba(6, 15, 28, 0.65);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 8px;
-      padding: 9px;
-    }
-    .elec-cell span {
-      display: block;
-      font-size: 9px;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .elec-cell strong {
-      font-family: monospace;
-      font-size: 12px;
-      color: var(--blue);
-      margin-top: 2px;
-      display: block;
-    }
-    .parts-scroll {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      padding-right: 4px;
-    }
-    .part-item {
-      text-align: left;
-      background: rgba(18, 37, 60, 0.7);
-      border: 1px solid rgba(100, 140, 180, 0.22);
-      border-radius: 7px;
-      padding: 7px 10px;
-      cursor: pointer;
-    }
-    .part-item:hover, .part-item.active {
-      border-color: var(--accent);
-      background: rgba(20, 184, 166, 0.16);
-    }
-    .part-desc {
-      font-size: 11px;
-      color: #cbd5e1;
-      background: rgba(13, 148, 136, 0.14);
-      border-left: 3px solid var(--accent);
-      padding: 8px 10px;
-      border-radius: 0 6px 6px 0;
-      line-height: 1.45;
-    }
-  </style>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-      }
-    }
-  </script>
-</head>
-<body>
-  <div id="canvas-host"></div>
-  <aside class="hud-left">
-    <div>
-      <div class="eyebrow">UNIVERSAL MANIFEST VIEWER · ETO LAB</div>
-      <h1 id="eqTitle">Loading Equipment...</h1>
-      <p class="sub" id="eqSub"></p>
-    </div>
-    <label style="font-size:11px;color:var(--muted);">
-      Equipment Manifest
-      <select id="eqSelect"></select>
-    </label>
-    <div class="elec-grid" id="elecGrid"></div>
-    <label style="font-size:11px;color:var(--muted);">
-      Explosion Factor (<span id="expVal">0%</span>)
-      <input type="range" id="expSlider" min="0" max="1" step="0.01" value="0" />
-    </label>
-    <div class="parts-scroll" id="partsList"></div>
-    <div class="part-desc" id="partDesc">Click any subassembly or 3D mesh to inspect its function and electrical linkage.</div>
-  </aside>
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-    const host = document.getElementById('canvas-host');
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    host.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(3.2, 2.2, 4.2);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.2));
-    const dir = new THREE.DirectionalLight(0xffffff, 2.5);
-    dir.position.set(5, 10, 7);
-    scene.add(dir);
-
-    const catalogRes = await fetch('../manifests/equipment_catalog.json');
-    const catalog = await catalogRes.json();
-    const eqMap = catalog.equipment;
-
-    const selectEl = document.getElementById('eqSelect');
-    Object.values(eqMap).forEach(item => {
-      const opt = document.createElement('option');
-      opt.value = item.id;
-      opt.textContent = `${item.title} (${item.electrical.voltage})`;
-      selectEl.appendChild(opt);
-    });
-
-    const params = new URLSearchParams(window.location.search);
-    const initialId = params.get('eq') || 'cooling';
-    if (eqMap[initialId]) selectEl.value = initialId;
-
-    let root = new THREE.Group();
-    scene.add(root);
-    let animated = [];
-    let rotGroup = new THREE.Group();
-    let explodeTarget = 0;
-
-    async function loadEquipment(id) {
-      const item = eqMap[id];
-      if (!item) return;
-      const baseItem = item.inherits ? eqMap[item.inherits] : item;
-      const partsMeta = item.parts || baseItem?.parts || {};
-
-      document.getElementById('eqTitle').textContent = item.title;
-      document.getElementById('eqSub').textContent = item.subtitle;
-      const el = item.electrical;
-      document.getElementById('elecGrid').innerHTML = `
-        <div class="elec-cell"><span>VOLTAGE</span><strong>${el.voltage}</strong></div>
-        <div class="elec-cell"><span>RATED POWER</span><strong>${el.ratedKw} kW</strong></div>
-        <div class="elec-cell"><span>POWER FACTOR</span><strong>${el.powerFactor}</strong></div>
-        <div class="elec-cell"><span>BUS ID</span><strong>${el.busId}</strong></div>
-        <div class="elec-cell"><span>BREAKER</span><strong>${el.breakerId}</strong></div>
-        <div class="elec-cell"><span>PRIORITY</span><strong>${el.priority.toUpperCase()}</strong></div>
-      `;
-
-      scene.remove(root);
-      root = new THREE.Group();
-      rotGroup = new THREE.Group();
-      const pivotY = item.kinematics?.pivotY ?? 0;
-      rotGroup.position.set(0, pivotY, 0);
-      root.add(rotGroup);
-      scene.add(root);
-      animated = [];
-
-      const loader = new GLTFLoader();
-      const gltf = await loader.loadAsync('..' + item.glb);
-      const meshes = [];
-      gltf.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
-
-      const listEl = document.getElementById('partsList');
-      listEl.innerHTML = '';
-
-      meshes.forEach(m => {
-        const prefix = Object.keys(partsMeta).find(k => m.name.startsWith(k));
-        const meta = prefix ? partsMeta[prefix] : { label: m.name, explode: [0, 0, 0], description: 'Precision CAD component.' };
-        const isRot = (item.kinematics?.rotatingPrefixes || []).some(p => m.name.startsWith(p));
-        if (isRot) {
-          m.position.y -= pivotY;
-          rotGroup.add(m);
-        } else {
-          root.add(m);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Marine CAD &amp; Explodable Assembly Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cad-accent: #f97316;
+            --cad-blue: #38bdf8;
+            --cad-teal: #2dd4bf;
         }
-        animated.push({
-          mesh: m,
-          basePos: m.position.clone(),
-          offset: new THREE.Vector3(...(meta.explode || [0, 0, 0])),
-          meta
-        });
-      });
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0b111e;
+            color: #f1f5f9;
+            user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 65%, #070b14 100%);
+        }
+        body.light-studio #canvas-container {
+            background: radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%);
+        }
+        .cad-grid-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background-image: 
+                linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+            background-size: 36px 36px;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f97316;
+            border: 2px solid #fff;
+            margin-top: -7px;
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #fb923c;
+        }
+        .callout-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.15s ease;
+            z-index: 10;
+        }
+        .callout-label:hover {
+            transform: translate(-50%, -50%) scale(1.06);
+            z-index: 25;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+        select, button {
+            outline: none;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
 
-      const seen = new Set();
-      animated.forEach(({ mesh, meta }) => {
-        if (seen.has(meta.label)) return;
-        seen.add(meta.label);
-        const btn = document.createElement('button');
-        btn.className = 'part-item';
-        btn.textContent = meta.label;
-        btn.onclick = () => {
-          document.querySelectorAll('.part-item').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          document.getElementById('partDesc').innerHTML = `<strong>${meta.label}</strong><br/>${meta.description}`;
+    <!-- 3D WebGL Viewport -->
+    <div id="canvas-container"></div>
+    <div class="cad-grid-overlay"></div>
+
+    <!-- SVG Overlay for Callout Leader Lines -->
+    <svg id="leader-svg" class="fixed inset-0 w-full h-full pointer-events-none z-10"></svg>
+
+    <!-- HTML Container for 3D Floating Callout Badges -->
+    <div id="labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- Top Header Bar -->
+    <header class="fixed top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <div class="glass-panel px-4 py-2.5 rounded-xl flex items-center gap-3.5 pointer-events-auto shadow-2xl">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-600 to-amber-700 flex items-center justify-center shadow-inner border border-orange-400/30">
+                <svg class="w-6 h-6 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 9a6 6 0 0 0-6-4c0 3 2 5 3 6"></path>
+                    <path d="M15 12a6 6 0 0 0 4-6c-3 0-5 2-6 3"></path>
+                    <path d="M12 15a6 6 0 0 0 6 4c0-3-2-5-3-6"></path>
+                    <path d="M9 12a6 6 0 0 0-4 6c3 0 5-2 6-3"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 mono">ETO MARINE CAD</span>
+                    <span id="status-badge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono">KINEMATICS ACTIVE</span>
+                </div>
+                <h1 id="header-title" class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">Marine CAD Explodable Assembly</h1>
+            </div>
+        </div>
+
+        <!-- Top Right Controls & Equipment Switcher -->
+        <div class="glass-panel p-1.5 rounded-xl flex flex-wrap items-center gap-1.5 pointer-events-auto shadow-2xl">
+            <!-- Equipment Selector -->
+            <div class="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700">
+                <span class="text-[10px] font-bold uppercase text-slate-400 mono">EQUIPMENT</span>
+                <select id="eqSelect" class="bg-transparent text-xs font-semibold text-sky-300 cursor-pointer border-none py-0.5 pr-2">
+                </select>
+            </div>
+
+            <button id="btn-labels" onclick="toggleCallouts()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition">
+                Labels: ON
+            </button>
+            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition" title="Toggle Dark CAD vs Light Blueprint Background">
+                Light CAD
+            </button>
+            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+            <button onclick="setCameraPreset('iso')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Iso View</button>
+            <button onclick="setCameraPreset('front')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Front / Side</button>
+            <button onclick="setCameraPreset('diagram')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Exploded CAD</button>
+        </div>
+    </header>
+
+    <!-- Left Sidebar: Bill of Materials -->
+    <aside id="left-panel" class="fixed top-20 left-3 bottom-28 w-72 z-20 flex flex-col gap-2 pointer-events-none hidden lg:flex">
+        <div class="glass-panel rounded-xl p-3.5 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-700/80">
+                <div>
+                    <h2 id="bom-header-count" class="text-xs font-bold uppercase tracking-wider text-slate-300">Assembly BOM</h2>
+                    <p class="text-[11px] text-slate-400">Click any component to inspect</p>
+                </div>
+                <button onclick="selectPart(null)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 transition">
+                    Reset Focus
+                </button>
+            </div>
+
+            <!-- Parts List populated dynamically -->
+            <div id="bom-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+
+            <!-- Electrical Telemetry Grid -->
+            <div id="elec-telemetry" class="pt-2.5 mt-2 border-t border-slate-700/80 grid grid-cols-3 gap-1.5 text-[10px] mono">
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Sidebar: Part Inspector & Operational Control Panel -->
+    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-11rem)]">
+        <!-- Selected Component Details Card -->
+        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl transition-all duration-200">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <span id="part-code" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 mono">ASSY-00</span>
+                    <h3 id="part-title" class="text-base font-bold text-white mt-1">Complete Assembly</h3>
+                </div>
+                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 font-medium transition">
+                    Isolate
+                </button>
+            </div>
+            <p id="part-desc" class="text-xs text-slate-300 leading-relaxed mt-2">
+                Precision marine electrical subassembly inspected via interactive 3D CAD viewport.
+            </p>
+            <div class="mt-3 pt-2.5 border-t border-slate-700/70 grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Material Spec</span>
+                    <span id="part-material" class="text-slate-100 font-semibold mono">Marine Grade Steel</span>
+                </div>
+                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[10px] uppercase">Explosion Axis</span>
+                    <span id="part-axis" class="text-sky-300 font-semibold mono">Orthogonal Vector</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Equipment-Specific Operational Control Panel -->
+        <div id="equipment-ctrl-panel" class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl">
+            <!-- Dynamically populated based on equipment type -->
+        </div>
+    </aside>
+
+    <!-- Bottom Master Explosion Controller -->
+    <footer class="fixed bottom-3 left-3 right-3 z-30 flex justify-center pointer-events-none">
+        <div class="glass-panel px-5 py-3.5 rounded-2xl w-full max-w-3xl pointer-events-auto shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-orange-400 mono flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                        Assembly Explosion Factor
+                    </span>
+                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-400/30 text-orange-300 text-xs font-bold mono">0%</span>
+                </div>
+
+                <!-- Quick Stage Presets -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        0% Assembled
+                    </button>
+                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                        45% Sub-Assy
+                    </button>
+                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 transition">
+                        100% Full Exploded View
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Slider -->
+            <div class="flex items-center gap-4">
+                <span class="text-[11px] font-medium text-slate-400 mono">LOCKED</span>
+                <input id="explode-slider" type="range" min="0" max="100" value="0" class="w-full" oninput="onExplodeSliderChange(this.value)">
+                <span class="text-[11px] font-medium text-slate-400 mono">EXPLODED</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // 1. STATE & GLOBAL CONFIGURATION
+        // ============================================================================
+        let scene, camera, renderer, controls;
+        let explodeFactor = 0.0;
+        let targetExplodeFactor = 0.0;
+        let isAnimatingExplode = false;
+
+        let currentEquipmentId = 'cooling';
+        let currentItem = null;
+        let currentKinematics = null;
+        let isKinematicsRunning = true;
+        let kinParam1 = 1; // fan direction, radar rpm multiplier, etc.
+
+        let showCallouts = true;
+        let selectedPartId = null;
+        let isIsolated = false;
+
+        let assemblyRoot = new THREE.Group();
+        const partMeshGroups = {};
+        const animatedMeshes = [];
+        let catalogEquipment = {};
+
+        // Callout DOM map & directions
+        const calloutDOMMap = {};
+        const defaultScreenDirs = [
+            { x: -145, y: -45 },
+            { x: 145, y: -45 },
+            { x: -145, y: 40 },
+            { x: 145, y: 40 },
+            { x: -130, y: -70 },
+            { x: 130, y: -70 },
+            { x: -160, y: 15 },
+            { x: 160, y: 15 }
+        ];
+
+        // ============================================================================
+        // 2. SCENE INITIALIZATION
+        // ============================================================================
+        async function initScene() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(-2.8, 2.0, 3.4);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.45, 0);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 1.4);
+            scene.add(ambient);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.2);
+            dirLight1.position.set(4, 7, 5);
+            dirLight1.castShadow = true;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 1.2);
+            dirLight2.position.set(-4, -2, -4);
+            scene.add(dirLight2);
+
+            scene.add(assemblyRoot);
+
+            setupRaycasting();
+            window.addEventListener('resize', onWindowResize);
+
+            // Load Catalog
+            await loadCatalogData();
+        }
+
+        async function loadCatalogData() {
+            try {
+                const res = await fetch('../manifests/equipment_catalog.json');
+                const data = await res.json();
+                catalogEquipment = data.equipment || {};
+
+                const selectEl = document.getElementById('eqSelect');
+                selectEl.innerHTML = '';
+
+                Object.values(catalogEquipment).forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = `${item.title.split('(')[0].trim()} (${item.electrical?.voltage || 'Marine'})`;
+                    selectEl.appendChild(opt);
+                });
+
+                selectEl.onchange = () => switchEquipment(selectEl.value);
+
+                // Read URL search params
+                const params = new URLSearchParams(window.location.search);
+                const initId = params.get('eq') || 'ventFan';
+                if (catalogEquipment[initId]) {
+                    selectEl.value = initId;
+                    currentEquipmentId = initId;
+                } else {
+                    currentEquipmentId = selectEl.value;
+                }
+
+                await loadEquipment(currentEquipmentId);
+            } catch (err) {
+                console.error('Failed to load equipment catalog:', err);
+            }
+        }
+
+        // ============================================================================
+        // 3. EQUIPMENT LOADING & PARSING
+        // ============================================================================
+        async function loadEquipment(eqId) {
+            currentEquipmentId = eqId;
+            currentItem = catalogEquipment[eqId];
+            if (!currentItem) return;
+
+            document.getElementById('header-title').textContent = currentItem.title;
+
+            // Clear previous assembly
+            scene.remove(assemblyRoot);
+            assemblyRoot = new THREE.Group();
+            scene.add(assemblyRoot);
+
+            for (const k in partMeshGroups) delete partMeshGroups[k];
+            animatedMeshes.length = 0;
+            for (const k in calloutDOMMap) delete calloutDOMMap[k];
+
+            // Parts metadata
+            const baseItem = currentItem.inherits ? catalogEquipment[currentItem.inherits] : currentItem;
+            const partsMeta = currentItem.parts || baseItem?.parts || {};
+
+            // Electrical telemetry
+            const el = currentItem.electrical || { voltage: '440 V', ratedKw: 45, powerFactor: 0.85, busId: 'BUS', breakerId: 'BKR', priority: 'essential' };
+            document.getElementById('elec-telemetry').innerHTML = `
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">VOLTAGE</span><strong class="text-sky-300 font-bold">${el.voltage}</strong></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">POWER</span><strong class="text-amber-300 font-bold">${el.ratedKw} kW</strong></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">BUS</span><strong class="text-emerald-300 font-bold">${el.busId}</strong></div>
+            `;
+
+            // Kinematics setup
+            currentKinematics = currentItem.kinematics || null;
+            isKinematicsRunning = true;
+            kinParam1 = 1;
+
+            // Build Equipment Operational Panel
+            buildOperationalPanel(eqId, currentItem);
+
+            // Load GLB
+            const loader = new THREE.GLTFLoader();
+            const glbUrl = '..' + currentItem.glb;
+
+            try {
+                const gltf = await loader.loadAsync(glbUrl);
+                const childMeshes = [];
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh) childMeshes.push(child);
+                });
+
+                // Compute bounding box & auto center
+                const rawBox = new THREE.Box3().setFromObject(gltf.scene);
+                const center = rawBox.getCenter(new THREE.Vector3());
+                controls.target.set(0, center.y, 0);
+
+                // Prepare normalized parts list
+                const partKeys = Object.keys(partsMeta);
+                const normalizedParts = [];
+
+                if (partKeys.length > 0) {
+                    partKeys.forEach((key, idx) => {
+                        const p = partsMeta[key];
+                        normalizedParts.push({
+                            id: key,
+                            code: p.code || `PRT-0${idx + 1}`,
+                            name: p.label || key,
+                            shortLabel: p.shortLabel || (p.label.split('·')[1]?.trim() || p.label).toUpperCase(),
+                            material: p.material || 'Marine Class Alloy Steel',
+                            axis: p.axisName || (p.explode ? `[${p.explode.join(', ')}]` : 'Datum'),
+                            desc: p.description || 'High precision marine assembly component.',
+                            explodeOffset: new THREE.Vector3(...(p.explode || [0, 0, 0])),
+                            labelAnchorOffset: p.labelAnchorOffset ? new THREE.Vector3(...p.labelAnchorOffset) : new THREE.Vector3(0, 0.25, 0),
+                            labelScreenDir: p.labelScreenDir || defaultScreenDirs[idx % defaultScreenDirs.length]
+                        });
+                    });
+                } else {
+                    // Fallback to mesh names if parts are not pre-listed
+                    childMeshes.forEach((mesh, idx) => {
+                        normalizedParts.push({
+                            id: mesh.name,
+                            code: `PRT-0${idx + 1}`,
+                            name: mesh.name.replace(/_/g, ' '),
+                            shortLabel: mesh.name.replace(/_/g, ' ').toUpperCase(),
+                            material: 'Marine Alloy',
+                            axis: 'Datum',
+                            desc: 'Precision CAD component.',
+                            explodeOffset: new THREE.Vector3(0, 0, 0),
+                            labelAnchorOffset: new THREE.Vector3(0, 0.25, 0),
+                            labelScreenDir: defaultScreenDirs[idx % defaultScreenDirs.length]
+                        });
+                    });
+                }
+
+                // Create part groups
+                normalizedParts.forEach((part) => {
+                    const grp = new THREE.Group();
+                    grp.name = part.id;
+                    assemblyRoot.add(grp);
+                    partMeshGroups[part.id] = { group: grp, meta: part };
+                });
+
+                // Assign meshes into corresponding part group
+                childMeshes.forEach((mesh) => {
+                    const match = normalizedParts.find(p => mesh.name.startsWith(p.id));
+                    const partId = match ? match.id : normalizedParts[0].id;
+                    const pEntry = partMeshGroups[partId];
+
+                    mesh.userData.partId = partId;
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+
+                    pEntry.group.add(mesh);
+
+                    const isRotating = currentKinematics?.rotatingPrefixes?.some(pref => mesh.name.startsWith(pref)) || false;
+                    animatedMeshes.push({
+                        mesh,
+                        partId,
+                        isRotating
+                    });
+                });
+
+                // Build BOM & Callouts
+                buildBOMSidebar(normalizedParts);
+                buildCalloutDOMElements(normalizedParts);
+
+                // Set initial explosion
+                updateExplosionPositions(explodeFactor);
+                selectPart(null);
+
+            } catch (err) {
+                console.error(`Failed to load ${glbUrl}:`, err);
+            }
+        }
+
+        function switchEquipment(eqId) {
+            loadEquipment(eqId);
+        }
+
+        // ============================================================================
+        // 4. OPERATIONAL CONTROL PANEL
+        // ============================================================================
+        function buildOperationalPanel(eqId, item) {
+            const panel = document.getElementById('equipment-ctrl-panel');
+            panel.innerHTML = '';
+
+            if (eqId === 'ventFan') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Ventilation Fan Control
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-teal-400 mono">1750 RPM (SUPPLY)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                        <button id="btn-u-ex" onclick="setUnivVentDir(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">◄ Exhaust</button>
+                        <button id="btn-u-stop" onclick="setUnivVentDir(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
+                        <button id="btn-u-sup" onclick="setUnivVentDir(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition">Supply ►</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                        <span class="text-slate-300">Starter: Star-Delta Active</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                `;
+            } else if (eqId === 'nav') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
+                            S-Band Radar Turning
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-sky-400 mono">24 RPM (NORMAL SCAN)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                        <button id="btn-u-12" onclick="setUnivRadarRPM(12)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">12 RPM</button>
+                        <button id="btn-u-24" onclick="setUnivRadarRPM(24)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-500/50 transition">24 RPM</button>
+                        <button id="btn-u-stop" onclick="setUnivRadarRPM(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                        <span class="text-slate-300">COLREG Mimic: Active</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>
+                    </div>
+                `;
+            } else {
+                const rpm = currentKinematics?.rpm || 1750;
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Kinematic Drive State
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-orange-400 mono">${rpm} RPM</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button onclick="toggleUnivKinematics(true)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 transition">RUN</button>
+                        <button onclick="toggleUnivKinematics(false)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                        <span class="text-slate-300">Feeder Status: ENERGIZED</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    </div>
+                `;
+            }
+        }
+
+        window.setUnivVentDir = (dir) => {
+            kinParam1 = dir;
+            const rpmEl = document.getElementById('univ-rpm');
+            const bEx = document.getElementById('btn-u-ex');
+            const bStop = document.getElementById('btn-u-stop');
+            const bSup = document.getElementById('btn-u-sup');
+            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            if (bEx) bEx.className = inact;
+            if (bStop) bStop.className = inact;
+            if (bSup) bSup.className = inact;
+
+            if (dir === 1) {
+                if (rpmEl) { rpmEl.textContent = '1750 RPM (SUPPLY)'; rpmEl.className = 'text-xs font-bold text-teal-400 mono'; }
+                if (bSup) bSup.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition';
+            } else if (dir === -1) {
+                if (rpmEl) { rpmEl.textContent = '1750 RPM (EXHAUST)'; rpmEl.className = 'text-xs font-bold text-amber-400 mono'; }
+                if (bEx) bEx.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+            } else {
+                if (rpmEl) { rpmEl.textContent = '0 RPM (STOPPED)'; rpmEl.className = 'text-xs font-bold text-slate-400 mono'; }
+                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-slate-200 border border-slate-600 transition';
+            }
         };
-        listEl.appendChild(btn);
-      });
-    }
 
-    selectEl.onchange = () => loadEquipment(selectEl.value);
-    document.getElementById('expSlider').oninput = (e) => {
-      explodeTarget = parseFloat(e.target.value);
-      document.getElementById('expVal').textContent = `${Math.round(explodeTarget * 100)}%`;
-      animated.forEach(p => {
-        p.mesh.position.copy(p.basePos).addScaledVector(p.offset, explodeTarget);
-      });
-    };
+        window.setUnivRadarRPM = (rpm) => {
+            kinParam1 = rpm / 24;
+            const rpmEl = document.getElementById('univ-rpm');
+            const b12 = document.getElementById('btn-u-12');
+            const b24 = document.getElementById('btn-u-24');
+            const bStop = document.getElementById('btn-u-stop');
+            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            if (b12) b12.className = inact;
+            if (b24) b24.className = inact;
+            if (bStop) bStop.className = inact;
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+            if (rpm === 24) {
+                if (rpmEl) { rpmEl.textContent = '24 RPM (NORMAL SCAN)'; rpmEl.className = 'text-xs font-bold text-sky-400 mono'; }
+                if (b24) b24.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-500/50 transition';
+            } else if (rpm === 12) {
+                if (rpmEl) { rpmEl.textContent = '12 RPM (LONG RANGE)'; rpmEl.className = 'text-xs font-bold text-amber-400 mono'; }
+                if (b12) b12.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+            } else {
+                if (rpmEl) { rpmEl.textContent = '0 RPM (STOPPED)'; rpmEl.className = 'text-xs font-bold text-slate-400 mono'; }
+                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-slate-200 border border-slate-600 transition';
+            }
+        };
 
-    await loadEquipment(selectEl.value);
+        window.toggleUnivKinematics = (run) => {
+            isKinematicsRunning = run;
+            const rpmEl = document.getElementById('univ-rpm');
+            if (rpmEl) {
+                rpmEl.textContent = run ? `${currentKinematics?.rpm || 1750} RPM` : '0 RPM (STOPPED)';
+                rpmEl.className = run ? 'text-xs font-bold text-orange-400 mono' : 'text-xs font-bold text-slate-400 mono';
+            }
+        };
 
-    function animate() {
-      requestAnimationFrame(animate);
-      rotGroup.rotation.x += 0.04;
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
+        // ============================================================================
+        // 5. EXPLOSION DYNAMICS & CONTROLS
+        // ============================================================================
+        function updateExplosionPositions(factor) {
+            explodeFactor = factor;
+
+            for (const partId in partMeshGroups) {
+                const entry = partMeshGroups[partId];
+                if (!entry || !entry.group) continue;
+                entry.group.position.set(
+                    entry.meta.explodeOffset.x * factor,
+                    entry.meta.explodeOffset.y * factor,
+                    entry.meta.explodeOffset.z * factor
+                );
+            }
+
+            const pct = Math.round(factor * 100);
+            const slider = document.getElementById('explode-slider');
+            if (slider && Math.abs(slider.value - pct) > 1) slider.value = pct;
+            const badge = document.getElementById('explode-pct');
+            if (badge) badge.textContent = `${pct}%`;
+        }
+
+        function onExplodeSliderChange(val) {
+            isAnimatingExplode = false;
+            targetExplodeFactor = parseFloat(val) / 100;
+            updateExplosionPositions(targetExplodeFactor);
+        }
+
+        function animateExplodeTo(target) {
+            targetExplodeFactor = target;
+            isAnimatingExplode = true;
+        }
+
+        function toggleStudioTheme() {
+            const isLight = document.body.classList.toggle('light-studio');
+            const btn = document.getElementById('btn-theme');
+            if (btn) btn.textContent = isLight ? 'Dark CAD' : 'Light CAD';
+        }
+
+        function toggleCallouts() {
+            showCallouts = !showCallouts;
+            document.getElementById('labels-container').style.display = showCallouts ? 'block' : 'none';
+            document.getElementById('leader-svg').style.display = showCallouts ? 'block' : 'none';
+            const btn = document.getElementById('btn-labels');
+            if (btn) {
+                btn.textContent = showCallouts ? 'Labels: ON' : 'Labels: OFF';
+                btn.className = showCallouts
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 transition';
+            }
+        }
+
+        function setCameraPreset(preset) {
+            if (preset === 'iso') {
+                camera.position.set(-2.8, 2.0, 3.4);
+                controls.target.set(0, 0.45, 0);
+            } else if (preset === 'front') {
+                camera.position.set(0, 0.45, 3.8);
+                controls.target.set(0, 0.45, 0);
+            } else if (preset === 'diagram') {
+                camera.position.set(-3.2, 2.6, 3.0);
+                controls.target.set(0, 0.45, 0);
+                animateExplodeTo(0.85);
+            }
+            controls.update();
+        }
+
+        // ============================================================================
+        // 6. BILL OF MATERIALS & INSPECTION
+        // ============================================================================
+        function buildBOMSidebar(parts) {
+            const listEl = document.getElementById('bom-list');
+            const countEl = document.getElementById('bom-header-count');
+            if (countEl) countEl.textContent = `Assembly BOM (${parts.length} Units)`;
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            parts.forEach((part) => {
+                const isSelected = selectedPartId === part.id;
+                const item = document.createElement('button');
+                item.className = `w-full text-left px-3 py-2 rounded-lg border transition flex items-center justify-between gap-2 ${
+                    isSelected
+                        ? 'bg-orange-500/25 border-orange-400/60 text-white'
+                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-300'
+                }`;
+                item.onclick = () => selectPart(part.id);
+                item.innerHTML = `
+                    <div class="truncate">
+                        <span class="text-[10px] font-bold text-orange-400 mono block">${part.code}</span>
+                        <span class="text-xs font-medium truncate block">${part.name}</span>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 mono shrink-0">Inspect</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function selectPart(partId) {
+            selectedPartId = partId;
+            const isolateBtn = document.getElementById('btn-isolate');
+
+            if (!partId) {
+                isIsolated = false;
+                isolateBtn.classList.add('hidden');
+                document.getElementById('part-code').textContent = 'ASSY-00';
+                document.getElementById('part-title').textContent = currentItem?.title || 'Complete Assembly';
+                document.getElementById('part-desc').textContent = currentItem?.subtitle || 'Precision marine electrical subassembly inspected via interactive 3D CAD viewport.';
+                document.getElementById('part-material').textContent = 'Marine Class Alloy / Steel';
+                document.getElementById('part-axis').textContent = 'Multi-Axis Orthogonal';
+
+                for (const pid in partMeshGroups) {
+                    if (partMeshGroups[pid]?.group) partMeshGroups[pid].group.visible = true;
+                }
+            } else {
+                const entry = partMeshGroups[partId];
+                if (entry) {
+                    const meta = entry.meta;
+                    isolateBtn.classList.remove('hidden');
+                    isolateBtn.textContent = isIsolated ? 'Show All' : 'Isolate';
+                    document.getElementById('part-code').textContent = meta.code;
+                    document.getElementById('part-title').textContent = meta.name;
+                    document.getElementById('part-desc').textContent = meta.desc;
+                    document.getElementById('part-material').textContent = meta.material;
+                    document.getElementById('part-axis').textContent = meta.axis;
+
+                    if (isIsolated) {
+                        for (const pid in partMeshGroups) {
+                            if (partMeshGroups[pid]?.group) {
+                                partMeshGroups[pid].group.visible = (pid === selectedPartId);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Refresh BOM active button styling
+            const parts = Object.values(partMeshGroups).map(e => e.meta);
+            buildBOMSidebar(parts);
+        }
+
+        function toggleIsolateSelected() {
+            if (!selectedPartId) return;
+            isIsolated = !isIsolated;
+            selectPart(selectedPartId);
+        }
+
+        // ============================================================================
+        // 7. CALLOUT BADGES & SVG LEADER LINES
+        // ============================================================================
+        function buildCalloutDOMElements(parts) {
+            const container = document.getElementById('labels-container');
+            container.innerHTML = '';
+
+            parts.forEach((part) => {
+                const div = document.createElement('div');
+                div.className = 'callout-label px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-600/80 text-[10px] font-bold tracking-wider text-slate-100 shadow-lg mono whitespace-nowrap';
+                div.textContent = part.shortLabel;
+                div.onclick = () => selectPart(part.id);
+                container.appendChild(div);
+                calloutDOMMap[part.id] = div;
+            });
+        }
+
+        function updateCalloutPositions() {
+            if (!showCallouts) return;
+            const svg = document.getElementById('leader-svg');
+            svg.innerHTML = '';
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            for (const partId in partMeshGroups) {
+                const entry = partMeshGroups[partId];
+                const domEl = calloutDOMMap[partId];
+                if (!entry || !entry.group || !domEl) continue;
+
+                if (!entry.group.visible || explodeFactor < 0.10) {
+                    domEl.style.opacity = '0';
+                    domEl.style.pointerEvents = 'none';
+                    continue;
+                }
+
+                const worldPos = entry.group.position.clone().add(entry.meta.labelAnchorOffset);
+                const projected = worldPos.clone().project(camera);
+
+                if (projected.z > 1) {
+                    domEl.style.opacity = '0';
+                    continue;
+                }
+
+                const anchorX = (projected.x * 0.5 + 0.5) * width;
+                const anchorY = (-(projected.y * 0.5) + 0.5) * height;
+
+                const labelX = Math.max(90, Math.min(width - 90, anchorX + entry.meta.labelScreenDir.x));
+                const labelY = Math.max(70, Math.min(height - 90, anchorY + entry.meta.labelScreenDir.y));
+
+                domEl.style.left = `${labelX}px`;
+                domEl.style.top = `${labelY}px`;
+                domEl.style.opacity = (selectedPartId === partId ? '1' : '0.88');
+                domEl.style.pointerEvents = 'auto';
+                domEl.style.borderColor = (selectedPartId === partId ? '#f97316' : 'rgba(100,116,139,0.7)');
+
+                // SVG Leader Line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                const elbowX = anchorX + entry.meta.labelScreenDir.x * 0.55;
+                const elbowY = labelY;
+                line.setAttribute('points', `${anchorX},${anchorY} ${elbowX},${elbowY} ${labelX},${labelY}`);
+                line.setAttribute('fill', 'none');
+                line.setAttribute('stroke', selectedPartId === partId ? '#f97316' : '#64748b');
+                line.setAttribute('stroke-width', selectedPartId === partId ? '2' : '1.2');
+                svg.appendChild(line);
+
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', anchorX);
+                dot.setAttribute('cy', anchorY);
+                dot.setAttribute('r', '3');
+                dot.setAttribute('fill', selectedPartId === partId ? '#f97316' : '#38bdf8');
+                svg.appendChild(dot);
+            }
+        }
+
+        function setupRaycasting() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let downTime = 0;
+
+            renderer.domElement.addEventListener('pointerdown', () => { downTime = performance.now(); });
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (performance.now() - downTime > 220) return;
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
+                if (intersects.length > 0) {
+                    let obj = intersects[0].object;
+                    while (obj && !obj.userData?.partId) obj = obj.parent;
+                    if (obj && obj.userData?.partId) selectPart(obj.userData.partId);
+                }
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ============================================================================
+        // 8. ANIMATION LOOP & KINEMATICS (PROPER LOCAL ROTATION ON AXIS)
+        // ============================================================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth explosion animation
+            if (isAnimatingExplode) {
+                const diff = targetExplodeFactor - explodeFactor;
+                if (Math.abs(diff) < 0.005) {
+                    explodeFactor = targetExplodeFactor;
+                    isAnimatingExplode = false;
+                } else {
+                    explodeFactor += diff * 0.12;
+                }
+                updateExplosionPositions(explodeFactor);
+            }
+
+            // PROPER LOCAL ROTATION: Each rotating mesh spins locally around its specified kinematic axis
+            if (isKinematicsRunning && kinParam1 !== 0 && currentKinematics) {
+                const axis = currentKinematics.axis || 'z';
+                const baseRpm = currentKinematics.rpm || 1750;
+                const effectiveRpm = baseRpm * kinParam1;
+                const rotDelta = (effectiveRpm * 2 * Math.PI / 60) * 0.016;
+
+                animatedMeshes.forEach((item) => {
+                    if (item.isRotating && item.mesh) {
+                        item.mesh.rotation[axis] += rotDelta;
+                    }
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+            updateCalloutPositions();
+        }
+
+        window.onload = () => {
+            initScene();
+            animate();
+        };
+    </script>
 </body>
 </html>

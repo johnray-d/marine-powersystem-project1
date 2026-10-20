@@ -67,26 +67,34 @@
     },
     "ballast": {
       "id": "ballast",
-      "title": "Main Ballast Pump Set",
-      "subtitle": "High-Capacity 440 V Ballast Trim & Heel Pump",
-      "glb": "/marine_ballast_pump.glb",
+      "title": "Ballast Pump & Oily Water Separator (OWS) Skid",
+      "subtitle": "110 kW Centrifugal Ballast Pump · IMO MEPC 107(49) 15 ppm Separator · Oleophilic Coalescer · PLC Control Console",
+      "glb": "/ballast_ows_skid.glb",
       "electrical": {
         "voltage": "440 V",
         "ratedKw": 110,
         "powerFactor": 0.85,
         "breakerId": "ballastFeed",
-        "busId": "lvBus",
-        "priority": "non-essential",
+        "busId": "lvBusB",
+        "priority": "essential",
         "startingMethod": "Star-Delta",
         "inrushMultiplier": 2.2
       },
       "kinematics": {
-        "axis": "x",
-        "pivotY": 0.9,
-        "rpm": 1450,
-        "rotatingPrefixes": ["Impeller_", "Pump_Shaft", "Shaft_Coupling"]
+        "axis": "y",
+        "pivotY": 0.24,
+        "rpm": 1800,
+        "rotatingPrefixes": ["Pump_Impeller"]
       },
-      "inherits": "cooling"
+      "parts": {
+        "Ballast_Pump_Casing": { "label": "01 · Cast-Bronze Centrifugal Volute Casing & Skid", "explode": [-0.45, 0, 0], "description": "Heavy seawater-resistant bronze volute casing with flanged suction/discharge branches and channel skid base." },
+        "Pump_Impeller": { "label": "02 · Double-Curvature Bronze Impeller & Shaft", "explode": [-0.45, 0.35, 0.45], "description": "Enclosed multi-vane bronze impeller keyed to stainless steel pump shaft for high-flow ballast transfer." },
+        "440V_Drive_Motor": { "label": "03 · 110 kW 440 V Vertical Drive Motor", "explode": [-0.45, 0.65, 0], "description": "Vertical flange-mounted induction motor with cooling fins and moisture-sealed terminal box." },
+        "OWS_Pressure_Vessel": { "label": "04 · Two-Stage Bilge OWS Coalescer Vessel", "explode": [0.45, 0, 0], "description": "Pressure vessel separating oil and water mixtures down to < 15 ppm conforming to IMO MEPC.107(49)." },
+        "Coalescer_Filter": { "label": "05 · Oleophilic High-Efficiency Coalescer Pack", "explode": [0.45, 0.55, 0.35], "description": "Removable oleophilic coalescing matrix filter element aggregating microscopic oil droplets." },
+        "Oil_Content_Monitor": { "label": "06 · 15 PPM Bilge Alarm Monitor (OCM) & 3-Way Valve", "explode": [0.75, 0.25, 0.45], "description": "Optical measuring sensor analyzing effluent oil content with automatic 3-way discharge diversion valve." },
+        "Control_Panel": { "label": "07 · Automated PLC Skid Control Console", "explode": [0.15, 0.75, 0.30], "description": "Microprocessor control panel managing automated bilge oil discharge, level switches, and data logging." }
+      }
     },
     "bilge": {
       "id": "bilge",
@@ -234,6 +242,328 @@
         "priority": "essential",
         "startingMethod": "VFD",
         "inrushMultiplier": 1.0
+      }
+    },
+    "eBus": {
+      "id": "eBus",
+      "title": "440 V Emergency Switchboard Cubicle & Interlock Panel",
+      "subtitle": "SOLAS 3-Bay Emergency Switchboard · Bus-Tie Interlock ACB · Digital Metering · 3-Phase Copper Busbars",
+      "glb": "/esb_cubicle.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 350,
+        "powerFactor": 0.85,
+        "breakerId": "edgBreaker",
+        "busId": "eBus",
+        "priority": "emergency",
+        "startingMethod": "Busbar",
+        "inrushMultiplier": 1.0
+      },
+      "parts": {
+        "ESB_Frame": { "label": "01 · 3-Bay Switchboard Cubicle & Plinth Frame", "explode": [0, 0, 0], "description": "Heavy structural steel switchboard cubicle with IP22 top drip canopy, side louvers, and foundation skid." },
+        "ESB_Door": { "label": "02 · Hinged Inspection Doors & Polycarbonate Windows", "explode": [0, 0, 0.85], "description": "Neoprene-gasketed front access doors (Bay 1 open for inspection) with interlock latches and mimic lines." },
+        "ESB_Busbar_A": { "label": "03 · 440 V Emergency Copper Busbar Section A", "explode": [-0.45, 0.35, 0.35], "description": "Electrolytic copper busbars (L1/L2/L3 with Red/Yellow/Blue phase sleeves) supplying emergency steering and fire pump." },
+        "ESB_Busbar_B": { "label": "04 · 440 V Emergency Copper Busbar Section B", "explode": [0.45, 0.35, 0.35], "description": "Secondary emergency distribution copper busbars feeding navigation bridge and 24 V DC battery chargers." },
+        "ESB_Tie_ACB": { "label": "05 · Draw-Out Bus-Tie Air Circuit Breaker (ACB)", "explode": [0, -0.15, 0.65], "description": "Withdrawable air circuit breaker with racking cradle, mechanical charge indicator, and solid-state trip unit." },
+        "ESB_Metering_Panel": { "label": "06 · Digital Multifunction Metering & Synchro Fascia", "explode": [0, 0.55, 0.75], "description": "Analog white-dial meters, cyan LCD protection relays, synchroscope dial, and Red/Green/Amber status lamps." },
+        "ESB_Control_Wiring": { "label": "07 · DIN Terminal Rail, Molded MCCBs & Wiring Harness", "explode": [0.35, -0.35, 0.45], "description": "Halogen-free control wiring trunking, outgoing feeder MCCBs, DIN rail terminal blocks, and earth bar." }
+      }
+    },
+    "eRadio": {
+      "id": "eRadio",
+      "title": "24 V DC Battery Bank & GMDSS/UPS Charger Cabinet",
+      "subtitle": "SOLAS Emergency Radio Battery Bank · 12 × 2V VRLA Cells · Dual Thyristor Float/Boost Charger Cubicle",
+      "glb": "/battery_system.glb",
+      "electrical": {
+        "voltage": "24 V DC / 440 V AC",
+        "ratedKw": 15,
+        "powerFactor": 0.90,
+        "breakerId": "radioFeed",
+        "busId": "eBus",
+        "priority": "emergency",
+        "startingMethod": "Rectifier",
+        "inrushMultiplier": 1.2
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.76,
+        "rpm": 0,
+        "rotatingPrefixes": ["Ammeter_Gauge"]
+      },
+      "parts": {
+        "Battery_Rack_Frame": { "label": "01 · Acid-Resistant 2-Tier Seismic Battery Rack", "explode": [0, 0, 0], "description": "Heavy epoxy-coated steel rack with yellow seismic retaining bars and overhead ATEX extraction hood." },
+        "Battery_Cell_01_12": { "label": "02 · 12 × 2V VRLA Deep-Cycle Marine Battery Cells", "explode": [0, 0.25, 0.50], "description": "12 valve-regulated lead-acid cells connected in series with electrolyte sight glasses and brass terminals." },
+        "DC_Busbar_Positive": { "label": "03 · Positive DC Inter-Cell Copper Busbar & HRC Fuse", "explode": [-0.35, 0.45, 0.65], "description": "Tinned copper inter-cell link bars with red insulation sleeves and main HRC fuse holder." },
+        "DC_Busbar_Negative": { "label": "04 · Negative DC Inter-Cell Copper Busbar & Shunt", "explode": [0.35, 0.45, 0.65], "description": "Negative copper collector busbar with black insulation boots and calibrated brass ammeter shunt." },
+        "Charger_Cabinet": { "label": "05 · Dual Automatic Float/Boost Charger Cubicle", "explode": [0, 0.65, -0.35], "description": "Switchboard-grade ventilated steel enclosure with digital rectifier LCD and status pilot lamps." },
+        "Rectifier_Transformer": { "label": "06 · Galvanic Isolation Transformer & SCR Heatsink", "explode": [-0.25, 0.65, 0.25], "description": "Step-down isolation transformer with twin copper coils, finned aluminum SCR heatsink, and filter capacitor." },
+        "Ammeter_Gauge": { "label": "07 · Center-Zero Charge/Discharge DC Ammeter", "explode": [0.25, 0.75, 0.35], "description": "Analog charge/discharge ammeter with white dial face and deflecting red indicator needle." }
+      }
+    },
+    "airCompressor": {
+      "id": "airCompressor",
+      "title": "Main Starting Air Compressor & Air Receiver Skid",
+      "subtitle": "30 bar V-Twin Two-Stage Starting Air Compressor · 30 kW Finned Motor · Cu-Ni Intercooler · Air Receiver Bottle",
+      "glb": "/air_compressor_skid.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 30,
+        "powerFactor": 0.84,
+        "breakerId": "airCompFeed",
+        "busId": "lvBusA",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 5.0
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.35,
+        "rpm": 1200,
+        "rotatingPrefixes": ["V_Belt_Drive"]
+      },
+      "parts": {
+        "Compressor_Frame": { "label": "01 · Welded Steel Skid Base, Mounts & Belt Guard", "explode": [0, 0, 0], "description": "Rigid steel bedplate with anti-vibration rubber mounts, oil drip coaming, and perforated yellow belt guard." },
+        "Electric_Motor_440V": { "label": "02 · 30 kW 440 V Finned Marine Induction Motor", "explode": [-0.55, 0.25, 0.35], "description": "30 kW TEFC squirrel-cage induction motor with circumferential cooling fins and IP56 terminal box." },
+        "V_Belt_Drive": { "label": "03 · Spoked Cast-Iron Compressor Flywheel Sheave", "explode": [-0.15, 0.30, 0.65], "description": "Dynamically balanced 6-spoke cast-iron flywheel pulley driven by the V-belt transmission." },
+        "Two_Stage_Cylinder": { "label": "04 · V-Twin LP & HP Finned Compression Cylinders", "explode": [0.35, 0.40, 0.35], "description": "Cast-iron crankcase with oil sight glass and angled LP (6 bar) and HP (30 bar) finned cylinders." },
+        "Intercooler_Coil": { "label": "05 · Copper-Nickel Finned Intercooler & Piping", "explode": [0.35, 0.65, 0.55], "description": "Multi-pass finned copper intercooler shell and delivery piping reducing air temperature between stages." },
+        "Pressure_Receiver_Bottle": { "label": "06 · 30-Bar Vertical Starting Air Receiver Bottle", "explode": [0.85, 0.20, -0.45], "description": "Seamless forged steel 30-bar pressure vessel with red dome, brass stop valve, relief valve, and pressure gauge." },
+        "Solenoid_Unloader_Valve": { "label": "07 · Automatic Unloader Solenoid & Local Starter Box", "explode": [0.45, -0.20, 0.55], "description": "Brass/blue solenoid unloader valve, moisture separator trap, and local pressure switch starter box." }
+      }
+    },
+    "ventFan": {
+      "id": "ventFan",
+      "title": "Engine Room Heavy Axial Ventilation Fan & Starter Box",
+      "subtitle": "45 kW Reversible High-Pressure Axial Fan · 8-Blade Aerofoil Impeller · Star-Delta Starter · Fire Damper",
+      "glb": "/vent_fan_assembly.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 45,
+        "powerFactor": 0.85,
+        "breakerId": "ventFanFeed",
+        "busId": "lvBusB",
+        "priority": "essential",
+        "startingMethod": "Star-Delta",
+        "inrushMultiplier": 2.2
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.44,
+        "rpm": 1750,
+        "rotatingPrefixes": ["Axial_Impeller_Blades"]
+      },
+      "parts": {
+        "Fan_Cylindrical_Casing": {
+          "code": "PRT-01",
+          "label": "Fan Cylindrical Casing & Saddles",
+          "shortLabel": "FAN CYLINDRICAL CASING",
+          "material": "Galvanized Heavy Marine Steel Trunking",
+          "axisName": "Fixed Reference Datum (0,0,0)",
+          "explode": [0, 0, 0],
+          "labelAnchorOffset": [0, 0.15, 0],
+          "labelScreenDir": { "x": -145, "y": 45 },
+          "description": "Cylindrical steel fan housing on saddle mounting legs with stiffening ribs, intake bellmouth, and top inspection access hatch."
+        },
+        "Flange_Rings": {
+          "code": "PRT-02",
+          "label": "Companion Flange Rings & Bolts",
+          "shortLabel": "FLANGE RINGS & BOLTS",
+          "material": "Forged DIN PN16 Companion Flanges",
+          "axisName": "+Y Vertical (+0.70m)",
+          "explode": [0, 0.70, 0],
+          "labelAnchorOffset": [0, 0.40, 0],
+          "labelScreenDir": { "x": -140, "y": -60 },
+          "description": "Front and rear companion flanges with 12-bolt rings connecting securely to the vessel's engine room ventilation trunking."
+        },
+        "Axial_Impeller_Blades": {
+          "code": "PRT-03",
+          "label": "8-Blade Aerofoil Impeller & Hub",
+          "shortLabel": "AXIAL IMPELLER BLADES",
+          "material": "Cu3 Cast-Aluminum Bronze Aerofoils",
+          "axisName": "+Z Forward Axial (+0.75m)",
+          "explode": [0, 0, 0.75],
+          "labelAnchorOffset": [0, 0.22, 0.45],
+          "labelScreenDir": { "x": 135, "y": -55 },
+          "description": "Dynamically balanced 8-blade pitched aerofoil impeller with concentric nose spinner cap rotating at 1750 RPM."
+        },
+        "440V_Drive_Motor": {
+          "code": "PRT-04",
+          "label": "440 V In-Stream Drive Motor",
+          "shortLabel": "440V DRIVE MOTOR",
+          "material": "Class H Marine IP56 TEFC Motor",
+          "axisName": "-Z Aft Axial (-0.65m)",
+          "explode": [0, 0, -0.65],
+          "labelAnchorOffset": [0, 0.20, -0.35],
+          "labelScreenDir": { "x": -140, "y": -45 },
+          "description": "45 kW marine flange induction motor cooled directly by supply airflow, supported on 4 aerodynamic guide-vane struts."
+        },
+        "Local_Starter_Enclosure": {
+          "code": "PRT-05",
+          "label": "Local Star-Delta Starter & Meter Box",
+          "shortLabel": "LOCAL STARTER ENCLOSURE",
+          "material": "Switchboard-Grade IP56 Cubicle",
+          "axisName": "+X Transverse (+0.65m)",
+          "explode": [0.65, 0, 0],
+          "labelAnchorOffset": [0.45, 0.15, 0],
+          "labelScreenDir": { "x": 145, "y": 15 },
+          "description": "Local control cubicle equipped with Star-Delta contactors, ammeter gauge, cyan LCD, isolator switch, and pilot lamps."
+        },
+        "Fire_Damper_Actuator": {
+          "code": "PRT-06",
+          "label": "SOLAS Fire Damper Actuator & Linkage",
+          "shortLabel": "FIRE DAMPER ACTUATOR",
+          "material": "SOLAS Spring-Return Pneumatic Actuator",
+          "axisName": "-X Transverse (-0.65m)",
+          "explode": [-0.65, 0, 0],
+          "labelAnchorOffset": [-0.43, 0.15, 0],
+          "labelScreenDir": { "x": -150, "y": 80 },
+          "description": "High-visibility safety red pneumatic spring-return actuator that snaps fire dampers shut upon engine room fire alarm."
+        }
+      }
+    },
+    "galley440": {
+      "id": "galley440",
+      "title": "440 V Galley Primary Board (Ovens, Deep Fryers) & Shunt Trip",
+      "subtitle": "2-Bay 440 V Switchboard Cubicle · Stainless Roasting Ovens, Hotplates & Deep Fryers · Outdoor SOLAS Shunt Trip",
+      "glb": "/galley_board_assembly.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 120,
+        "powerFactor": 0.95,
+        "breakerId": "galley440Feed",
+        "busId": "lvBusA",
+        "priority": "essential",
+        "startingMethod": "Direct",
+        "inrushMultiplier": 1.1
+      },
+      "parts": {
+        "Galley_Panel_Enclosure": { "label": "01 · 2-Bay 440 V Galley Switchboard & Cooking Range", "explode": [0, 0, 0], "description": "Left: 2-bay marine switchboard with meters, LCDs, and open inspection door. Right: Stainless ovens, 4 hotplates, and twin deep fryers." },
+        "Feeder_MCCB_Bank": { "label": "02 · 3-Phase Copper Busbars & 6 Feeder MCCBs", "explode": [0, 0.20, 0.45], "description": "Electrolytic copper busbars (Red/Yellow/Blue phase sleeves), 400 A Incomer MCCB, and 6 branch MCCBs." },
+        "Shunt_Trip_Relay": { "label": "03 · SOLAS 24 V DC Magnetic Shunt Trip Release", "explode": [-0.35, 0.35, 0.55], "description": "Electromagnetic shunt trip coil mounted beside the main incomer to instantaneously trip all galley power." },
+        "Outdoor_Shunt_Trip_Box": { "label": "04 · Outdoor Weatherproof Shunt Trip Station", "explode": [-0.45, 0.10, 0.35], "description": "Safety yellow SOLAS emergency trip station mounted outside the galley entrance with armored conduit." },
+        "Red_Mushroom_Button": { "label": "05 · 40mm Latching Emergency Stop Mushroom Button", "explode": [-0.45, 0.10, 0.65], "description": "Twist-to-reset red mushroom pushbutton opening control circuit to trigger the galley feeder shunt trip." },
+        "Safety_Cover_Flap": { "label": "06 · Hinged Protective Safety Guard Flap", "explode": [-0.45, 0.25, 0.85], "description": "Yellow flip-up safety guard frame preventing accidental actuation during rough seas." }
+      }
+    },
+    "shore": {
+      "id": "shore",
+      "title": "6.6 kV High-Voltage Shore Connection (HVSC) Box & Cable Reel",
+      "subtitle": "IEC/ISO/IEEE 80005-1 Cold Ironing Interface · Spoked Motorized Reel · 6.6 kV Switchboard Cubicle · CME Earth Switch",
+      "glb": "/shore_power_reel.glb",
+      "electrical": {
+        "voltage": "6.6 kV",
+        "ratedKw": 2500,
+        "powerFactor": 0.90,
+        "breakerId": "shoreBreaker",
+        "busId": "busA",
+        "priority": "essential",
+        "startingMethod": "Shore Grid Synchronized",
+        "inrushMultiplier": 1.0
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.44,
+        "rpm": 8,
+        "rotatingPrefixes": ["Cable_Reel_Drum", "HV_Flexible_Cable"]
+      },
+      "parts": {
+        "Cable_Reel_Drum": { "label": "01 · Motorized Flanged Spoked Cable Reel Drum", "explode": [0, 0, 0], "description": "Heavy flanged steel drum with 6 radial stiffening spokes and slip-ring collector core." },
+        "HV_Flexible_Cable": { "label": "02 · 6.6 kV Heavy Flexible Cold-Ironing Cable Coils", "explode": [0, 0.25, 0.45], "description": "Multi-turn coiled EPR-insulated 6.6 kV trailing cable with red high-voltage phase collar." },
+        "HV_Connector_Plug": { "label": "03 · IEC 80005-1 Shore Power Plug, Fairlead & Skid", "explode": [-0.25, -0.20, 0.45], "description": "High-voltage shore coupling plug with copper pilot pins, roller fairlead, A-frame supports, and skid base." },
+        "Motorized_Drive": { "label": "04 · Planetary Electric Spooling Gearmotor", "explode": [-0.55, 0, 0], "description": "Finned electric gearmotor and planetary gearbox maintaining constant cable tension during tidal changes." },
+        "Junction_Box": { "label": "05 · 6.6 kV HVSC Switchboard Terminal Cubicle", "explode": [0.55, 0.25, -0.20], "description": "Switchboard-style cubicle with 3 synchro gauges, cyan protection LCD, pilot lamps, and inspection window." },
+        "Mechanical_Interlock_Pin": { "label": "06 · Castell/Kirk Key Mechanical Interlock Assembly", "explode": [0.55, 0.45, 0.35], "description": "Trapped-key mechanical interlock preventing access or disconnection while the 6.6 kV shore breaker is closed." },
+        "Earth_Blade": { "label": "07 · 3-Pole Copper CME Earthing Switch & Insulators", "explode": [0.55, 0.15, 0.35], "description": "Three-pole copper knife-blade earthing switch mounted on red HV standoff insulators inside the cubicle." }
+      }
+    },
+    "nav": {
+      "id": "nav",
+      "title": "Navigation Bridge COLREG Console & S-Band Radar Suite",
+      "subtitle": "Integrated Wheelhouse Console · Dual 27-inch ARPA/ECDIS Displays · COLREG Light Panel · 24 RPM S-Band Scanner",
+      "glb": "/bridge_navcom_suite.glb",
+      "electrical": {
+        "voltage": "220 V AC / 24 V DC",
+        "ratedKw": 25,
+        "powerFactor": 0.92,
+        "breakerId": "navFeed",
+        "busId": "lvBusA",
+        "priority": "essential",
+        "startingMethod": "Direct",
+        "inrushMultiplier": 1.2
+      },
+      "kinematics": {
+        "axis": "y",
+        "pivotY": 0.80,
+        "rpm": 24,
+        "rotatingPrefixes": ["Rotating_S-Band_Scanner_Bar"]
+      },
+      "parts": {
+        "NavLight_Console_Panel": {
+          "code": "PRT-01",
+          "label": "Integrated Bridge Console & ARPA Displays",
+          "shortLabel": "BRIDGE CONSOLE & HELM",
+          "material": "Marine Powder-Coated Steel & Walnut Trim",
+          "axisName": "Fixed Reference Datum (0,0,0)",
+          "explode": [0, 0, 0],
+          "labelAnchorOffset": [-0.15, 0.35, 0.05],
+          "labelScreenDir": { "x": -150, "y": 35 },
+          "description": "Sloped wheelhouse console with dual 27-inch cyan ARPA/ECDIS displays, stainless grab rail, helm wheel, and engine telegraph."
+        },
+        "Dual_Selector_Switches": {
+          "code": "PRT-02",
+          "label": "COLREG 72 Navigation Light Mimic & Selector Bank",
+          "shortLabel": "COLREG SELECTOR PANEL",
+          "material": "Anodized Aluminum Mimic & Toggle Switches",
+          "axisName": "Forward / Up (-0.20m, +0.35m, +0.35m)",
+          "explode": [-0.20, 0.35, 0.35],
+          "labelAnchorOffset": [-0.22, 0.42, 0.12],
+          "labelScreenDir": { "x": -140, "y": -45 },
+          "description": "Vessel silhouette mimic plate with port/starboard LEDs and 10 Main/Standby dual-filament toggle switches."
+        },
+        "Alarm_Buzzer": {
+          "code": "PRT-03",
+          "label": "Audible Failure Sounder & BNWAS Beacon",
+          "shortLabel": "ALARM SOUNDER & BEACON",
+          "material": "Industrial Piezo Siren & Xenon Strobe",
+          "axisName": "Transverse / Up (+0.15m, +0.40m, +0.30m)",
+          "explode": [0.15, 0.40, 0.30],
+          "labelAnchorOffset": [0.08, 0.44, 0.15],
+          "labelScreenDir": { "x": 130, "y": -45 },
+          "description": "Acoustic navigation light filament failure alarm buzzer and dual flashing red/amber watch safety beacons."
+        },
+        "Radar_Pedestal": {
+          "code": "PRT-04",
+          "label": "Tapered Masthead Radar Scanner Pedestal",
+          "shortLabel": "RADAR MAST PEDESTAL",
+          "material": "Marine White-Enamel Cast Aluminum Column",
+          "axisName": "Fixed Mast Datum (0,0,0)",
+          "explode": [0, 0, 0],
+          "labelAnchorOffset": [0.38, 0.30, -0.06],
+          "labelScreenDir": { "x": 140, "y": 30 },
+          "description": "Marine white-enamel tapered pedestal column with bolted 8-hole deck flange and service access door."
+        },
+        "Gearbox_Housing": {
+          "code": "PRT-05",
+          "label": "S-Band Transceiver & Harmonic Turning Gearbox",
+          "shortLabel": "TRANSCEIVER GEARBOX",
+          "material": "Sealed Cast-Aluminum IP56 Gearcase",
+          "axisName": "+Y Vertical Along Mast (+0.45m)",
+          "explode": [0, 0.45, 0],
+          "labelAnchorOffset": [0.38, 0.65, -0.06],
+          "labelScreenDir": { "x": 140, "y": -20 },
+          "description": "Finned transceiver reduction gearbox with yellow safety lock-out switch, cooling ribs, and optical rotary joint."
+        },
+        "Rotating_S-Band_Scanner_Bar": {
+          "code": "PRT-06",
+          "label": "12-Foot Aerodynamic S-Band Waveguide Scanner",
+          "shortLabel": "S-BAND SCANNER BAR",
+          "material": "Slotted Waveguide Array & Carbon Shell",
+          "axisName": "+Y Vertical Along Mast (+0.90m)",
+          "explode": [0, 0.90, 0],
+          "labelAnchorOffset": [0.38, 0.85, -0.06],
+          "labelScreenDir": { "x": 130, "y": -65 },
+          "description": "12-foot aerodynamic S-Band slotted waveguide antenna array with safety red tips rotating at 24 RPM for target detection."
+        }
       }
     }
   }

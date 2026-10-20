@@ -9,3 +9,5 @@ Thumbs.db
 __pycache__/
 .vscode/
 *.pyc
+session.txt
+add-workspace.py

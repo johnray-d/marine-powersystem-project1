@@ -10,8 +10,37 @@ import { motorAssembly } from './motor-assembly';
 import { steeringAssembly } from './steering-assembly';
 import { reeferAssembly } from './reefer-assembly';
 import { pumpAssembly } from './pump-assembly';
+import {
+  esbCubicleAssembly,
+  batterySystemAssembly,
+  airCompressorAssembly,
+  ventFanAssembly,
+  ballastOwsAssembly,
+  galleyBoardAssembly,
+  shorePowerAssembly,
+  bridgeNavComAssembly
+} from './consumer-assemblies';
 import { resolveAssemblyUrl } from './assets';
 import { simEngine, LOAD_SPECS } from './sim-engine';
+
+// Stroke icons (24px grid, drawn with currentColor) used in place of unicode glyphs.
+const ICON_PATHS={
+  panelLeft:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  panelRight:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+  chevronLeft:'<path d="M15 6l-6 6 6 6"/>',
+  chevronRight:'<path d="M9 6l6 6-6 6"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18"/>',
+  external:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  maximize:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  minimize:'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
+  warning:'<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.01"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  reset:'<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/>',
+  book:'<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/>',
+  grid:'<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+  mark:'<path d="M3 15c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M3 19c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M12 3v7M8.5 6.5L12 3l3.5 3.5"/>',
+} as const;
+function icon(name:keyof typeof ICON_PATHS){return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[name]}</svg>`;}
 
 type View='vessel'|'schematic';
 let state:SimState=initialState();
@@ -31,117 +60,110 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
   <header class="topbar">
     <div class="brand-cluster">
-      <button class="drawer-toggle-btn active" id="toggleLeftPanel" type="button" aria-expanded="true" title="Toggle Left Switchboard & Scenario Drawer ([)">
-        <span class="drawer-toggle-icon" id="leftToggleIcon">⇤</span>
-        <span class="drawer-toggle-text" id="leftToggleText">Controls</span>
+      <button class="drawer-toggle-btn active" id="toggleLeftPanel" type="button" aria-expanded="true" title="Show or hide controls ([)">
+        <span class="drawer-toggle-icon">${icon('panelLeft')}</span>
+        <span class="drawer-toggle-text">Controls</span>
       </button>
       <div class="brand">
-        <span class="brand-symbol">◈</span>
-        <div>
-          <div class="eyebrow">MARITIME POWER MANAGEMENT SYSTEM · PMS V2</div>
-          <h1>Marine Power System <span>Simulator</span></h1>
-        </div>
+        <span class="brand-symbol">${icon('mark')}</span>
+        <h1>Marine Power System <span>Simulator</span></h1>
       </div>
     </div>
-    <div class="top-telemetry" id="topTelemetry">
-      <div class="telemetry-pill"><span class="telemetry-label">GEN</span><strong id="topGenCount">1 / 4</strong></div>
-      <div class="telemetry-pill"><span class="telemetry-label">6.6 kV BUS</span><strong id="topBusFreq">60.00 Hz · 6.56 kV</strong></div>
-      <div class="telemetry-pill"><span class="telemetry-label">LOAD</span><strong id="topTotalKw">0 kW · PF 0.89</strong></div>
-      <div class="telemetry-pill"><span class="telemetry-label">TIE</span><strong id="topTieState" class="is-closed">CLOSED</strong></div>
-      <div class="telemetry-pill"><span class="telemetry-label">EARTHING / IMD</span><strong id="topImdState" class="is-closed">IT · 15.0 MΩ OK</strong></div>
+    <div class="top-telemetry" id="topTelemetry" aria-label="Plant summary">
+      <div class="telemetry-pill"><span class="telemetry-label">Generators</span><strong id="topGenCount">1 / 4</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">6.6 kV bus</span><strong id="topBusFreq">60.00 Hz · 6.56 kV</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">Total load</span><strong id="topTotalKw">0 kW · PF 0.89</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">Bus tie</span><strong id="topTieState" class="is-closed">CLOSED</strong></div>
+      <div class="telemetry-pill"><span class="telemetry-label">Earthing / IMD</span><strong id="topImdState" class="is-closed">IT · 15.0 MΩ OK</strong></div>
     </div>
     <div class="top-actions">
-      <button class="button button-quiet" id="openTutorialBtn" type="button" title="Open Step-by-Step ETO Simulation Tutorial">📖 Tutorial</button>
-      <button class="button button-quiet" id="openUniversalCatalog" type="button" title="Open Universal 3D CAD & Electrical Spec Catalog">🗂 Catalog</button>
-      <button class="button button-quiet" id="resetAll" type="button">↺ Reset</button>
-      <button class="drawer-toggle-btn active" id="toggleRightPanel" type="button" aria-expanded="true" title="Toggle Right Equipment Inspector (])">
-        <span class="drawer-toggle-text" id="rightToggleText">Inspector</span>
-        <span class="drawer-toggle-icon" id="rightToggleIcon">⇥</span>
+      <button class="button button-quiet" id="openTutorialBtn" type="button" title="Open the tutorial">${icon('book')}<span class="button-label">Tutorial</span></button>
+      <button class="button button-quiet" id="openUniversalCatalog" type="button" title="Open the equipment catalog">${icon('grid')}<span class="button-label">Catalog</span></button>
+      <button class="button button-quiet" id="resetAll" type="button" title="Reset the simulation">${icon('reset')}<span class="button-label">Reset</span></button>
+      <button class="drawer-toggle-btn active" id="toggleRightPanel" type="button" aria-expanded="true" title="Show or hide the inspector (])">
+        <span class="drawer-toggle-text">Inspector</span>
+        <span class="drawer-toggle-icon">${icon('panelRight')}</span>
       </button>
     </div>
   </header>
   <main class="workspace" id="workspace">
-    <aside class="left-panel panel" id="leftPanel" aria-label="System Controls and Learning Path">
+    <aside class="left-panel panel" id="leftPanel" aria-label="Scenarios and switchboard controls">
       <div class="panel-heading">
-        <div>
-          <div class="eyebrow">LEARNING PATH & PMS</div>
-          <h2>Switchboard Controls</h2>
-        </div>
+        <h2>Scenarios</h2>
         <div class="panel-heading-right">
           <span class="small-index">01 / 06</span>
-          <button class="panel-expand-btn" id="expandLeftPanel" type="button" title="Expand left panel into wide 2-column simulation console (E)" aria-expanded="false">⤢ Expand</button>
-          <button class="panel-collapse-btn" id="closeLeftPanel" type="button" title="Collapse left panel ([)" aria-label="Collapse left panel">⇤</button>
+          <button class="panel-expand-btn" id="expandLeftPanel" type="button" title="Widen to two columns (E)" aria-expanded="false">${icon('maximize')}<span>Widen</span></button>
+          <button class="panel-collapse-btn" id="closeLeftPanel" type="button" title="Hide controls ([)" aria-label="Hide controls">${icon('chevronLeft')}</button>
         </div>
       </div>
       <div class="scenario-list" id="scenarios"></div>
-      <section class="control-section" id="secGenerators"><div class="section-heading"><h3>Generation & Shore</h3><span class="subtle">${VOLTAGES.hv} Droop & Relays</span></div><div id="generators"></div></section>
-      <section class="control-section" id="secSync"><div class="section-heading"><h3>Synchroscope & Paralleling</h3><span class="subtle">ANSI 25 / 25A</span></div><div id="synchroscopeSection"></div></section>
-      <section class="control-section" id="secThrottle"><div class="section-heading"><h3>Propulsion & Sea Load</h3><span class="subtle">VFD Throttle</span></div><div id="throttleSection"></div></section>
-      <section class="control-section" id="secPms"><div class="section-heading"><h3>PMS, HRE & Fault Switchboard</h3><span class="subtle">IT / HRE · ANSI 67N</span></div><div id="pmsSection"></div></section>
-      <section class="control-section" id="secTie"><div class="section-heading"><h3>Bus section tie</h3><span class="subtle">A ↔ B</span></div><div id="tieControl"></div></section>
+      <section class="control-section" id="secGenerators"><div class="section-heading"><h3>Generation and shore</h3><span class="subtle">${VOLTAGES.hv} · droop</span></div><div id="generators"></div></section>
+      <section class="control-section" id="secSync"><div class="section-heading"><h3>Synchroscope</h3><span class="subtle">ANSI 25</span></div><div id="synchroscopeSection"></div></section>
+      <section class="control-section" id="secThrottle"><div class="section-heading"><h3>Propulsion load</h3><span class="subtle">VFD order</span></div><div id="throttleSection"></div></section>
+      <section class="control-section" id="secPms"><div class="section-heading"><h3>PMS, earthing and faults</h3><span class="subtle">ANSI 67N</span></div><div id="pmsSection"></div></section>
+      <section class="control-section" id="secTie"><div class="section-heading"><h3>Bus ties</h3><span class="subtle">A ↔ B</span></div><div id="tieControl"></div></section>
       <section class="control-section" id="secEmergency"><div class="section-heading"><h3>Emergency supply</h3><span class="subtle">SOLAS 440 V</span></div><div id="emergencyControls"></div></section>
-      <section class="control-section" id="secFeeders"><div class="section-heading"><h3>Representative feeders</h3><span class="subtle">Tap to switch</span></div><div id="feeders"></div></section>
+      <section class="control-section" id="secFeeders"><div class="section-heading"><h3>Feeders</h3><span class="subtle">Click a state to switch</span></div><div id="feeders"></div></section>
     </aside>
     <section class="center-panel">
-      <button class="left-edge-handle" id="leftEdgeHandle" type="button" title="Toggle Switchboard & Controls Drawer ([)" aria-label="Toggle Left Controls Drawer">
-        <span class="handle-arrow" id="leftHandleArrow">◂</span>
-        <span class="handle-label">CONTROLS</span>
+      <button class="left-edge-handle" id="leftEdgeHandle" type="button" title="Show controls ([)" aria-label="Show controls">
+        <span class="handle-arrow" id="leftHandleArrow">${icon('chevronRight')}</span>
+        <span class="handle-label">Controls</span>
       </button>
       <div class="view-header">
         <div class="view-title-group">
-          <div class="eyebrow">POWER FLOW EXPLORER</div>
           <h2 id="viewTitle">Vessel overview</h2>
         </div>
         <div class="tabs" role="tablist" aria-label="System views">
-          <button class="tab active" data-view="vessel" role="tab" aria-selected="true">◈ 3D vessel</button>
-          <button class="tab" data-view="schematic" role="tab" aria-selected="false">⌁ Single-line</button>
+          <button class="tab active" data-view="vessel" role="tab" aria-selected="true">3D vessel</button>
+          <button class="tab" data-view="schematic" role="tab" aria-selected="false">Single-line</button>
         </div>
       </div>
       <div class="visual-stage" id="visualStage">
         <div class="vessel-host" id="vesselHost" aria-label="Interactive 3D vessel view"></div>
         <div class="schematic-host hidden" id="schematicHost" aria-label="Interactive single-line diagram"></div>
         <div class="arc-flash-stage-banner hidden" id="arcFlashBanner" role="alert">
-          <span class="arc-flash-icon">⚡</span>
+          <span class="arc-flash-icon">${icon('warning')}</span>
           <div class="arc-flash-copy">
-            <strong>ARC-FLASH VIOLATION WARNING — HV PANEL NOT ISOLATED</strong>
-            <span id="arcFlashBannerText">Complete the mandatory 5-step 6.6 kV LOTO &amp; Permit-to-Work sequence in the Equipment Inspector before opening or exploding HV enclosures.</span>
+            <strong>HV panel not isolated</strong>
+            <span id="arcFlashBannerText">Complete the 6.6 kV lockout / tagout steps in the inspector before opening or exploding an HV enclosure.</span>
           </div>
-          <button type="button" class="arc-flash-dismiss" id="dismissArcFlashBanner" aria-label="Dismiss Arc-Flash Warning">✕</button>
+          <button type="button" class="arc-flash-dismiss" id="dismissArcFlashBanner" aria-label="Dismiss warning">${icon('close')}</button>
         </div>
         <div class="view-tools" id="viewTools">
-          <button id="resetCamera" type="button">⌖ Reset view</button>
-          <button id="focusEquipment" type="button">◎ Focus item</button>
-          <button id="toggleShell" type="button">▧ Shell on</button>
-          <button id="toggleLabels" type="button">T Labels on</button>
+          <button id="resetCamera" type="button">Reset view</button>
+          <button id="focusEquipment" type="button">Focus selection</button>
+          <button id="toggleShell" type="button" aria-pressed="true">Hull</button>
+          <button id="toggleLabels" type="button" aria-pressed="true">Labels</button>
         </div>
         <div class="view-tools hidden" id="schematicTools">
-          <button id="schematicFit" type="button" title="Fit Single-Line Diagram to screen">⤢ Fit</button>
-          <button id="schematicZoomIn" type="button" title="Zoom In">＋</button>
-          <button id="schematicZoomOut" type="button" title="Zoom Out">－</button>
-          <button id="schematicReset" type="button" title="Reset Zoom">100%</button>
+          <button id="schematicFit" type="button" title="Fit diagram to view">Fit</button>
+          <button id="schematicZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="schematicZoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+          <button id="schematicReset" type="button" title="Reset zoom">100%</button>
         </div>
       </div>
       <div class="bottom-hud">
-        <div class="solas-waterfall-hud hidden" id="solasWaterfallHud" aria-label="SOLAS Blackout Recovery 5-Stage Sequential Waterfall"></div>
-        <div class="bus-telemetry-strip" id="busTelemetryStrip" aria-label="Live switchboard bus telemetry"></div>
+        <div class="solas-waterfall-hud hidden" id="solasWaterfallHud" aria-label="SOLAS blackout recovery progress"></div>
+        <div class="bus-telemetry-strip" id="busTelemetryStrip" aria-label="Switchboard bus readings"></div>
         <div class="status-strip">
           <div class="legend">
-            <span><i class="legend-line live"></i> Energized (Red Line + Yellow Flow)</span>
+            <span><i class="legend-line live"></i> Energized</span>
             <span><i class="legend-line dead"></i> De-energized</span>
-            <span><i class="legend-line open"></i> Open / disconnected</span>
+            <span><i class="legend-line open"></i> Open</span>
           </div>
           <div class="status-count" id="statusCount"></div>
         </div>
         <div class="hud-cards-row">
           <div class="lesson-banner">
-            <span class="lesson-icon">i</span>
+            <span class="lesson-icon"></span>
             <div>
               <strong id="lessonTitle">Current lesson</strong>
               <p id="lessonText"></p>
             </div>
           </div>
           <div class="notice-card">
-            <span class="notice-tag">PMS / EVENT LOG</span>
+            <span class="notice-tag">Last event</span>
             <div class="notice" id="notice" role="status" aria-live="polite"></div>
           </div>
         </div>
@@ -149,28 +171,46 @@ app.innerHTML=`
     </section>
     <aside class="right-panel panel" id="inspector"></aside>
   </main>
-  <footer class="footer"><span>MARINE POWER SYSTEM SIMULATOR · QUASI-STEADY-STATE PMS & PROTECTION ENGINE</span><span>Interactive 3D Digital Twin · IEC 60092 Single-Line · Shortcuts: [ Left Drawer · E Expand Panel · ] Inspector</span></footer>
+  <footer class="footer"><span>Quasi-steady-state PMS and protection model · for training, not for operational use</span><span><kbd>[</kbd> controls <kbd>E</kbd> widen <kbd>]</kbd> inspector <kbd>Esc</kbd> close</span></footer>
   <div id="assemblyModal" class="assembly-modal hidden" role="dialog" aria-modal="true" aria-labelledby="assemblyModalTitle">
     <div class="assembly-modal-backdrop" id="assemblyBackdrop"></div>
     <div class="assembly-modal-dialog">
       <div class="assembly-modal-header">
         <div class="assembly-modal-title-group">
-          <div class="assembly-modal-badge" id="assemblyModalBadge">3D CAD ASSEMBLY & SPECIFICATION</div>
+          <div class="assembly-modal-badge" id="assemblyModalBadge">Assembly</div>
           <h2 id="assemblyModalTitle" class="assembly-modal-title"></h2>
           <p id="assemblyModalSubtitle" class="assembly-modal-subtitle"></p>
         </div>
         <div class="assembly-modal-actions">
-          <a id="assemblyNewTab" href="#" target="_blank" rel="noopener noreferrer" class="assembly-tab-link" title="Open full assembly in dedicated browser tab">
-            ↗ Open in new tab
+          <a id="assemblyNewTab" href="#" target="_blank" rel="noopener noreferrer" class="assembly-tab-link" title="Open in a new tab">
+            ${icon('external')}New tab
           </a>
-          <button id="assemblyClose" type="button" class="assembly-close-btn" aria-label="Close CAD assembly dialog">
-            ✕ Close
+          <button id="assemblyClose" type="button" class="assembly-close-btn" aria-label="Close">
+            ${icon('close')}Close
           </button>
         </div>
       </div>
       <div class="assembly-modal-body">
-        <iframe id="assemblyFrame" src="about:blank" title="3D CAD Technical Assembly Viewer" allow="fullscreen"></iframe>
+        <iframe id="assemblyFrame" src="about:blank" title="Equipment assembly viewer" allow="fullscreen"></iframe>
       </div>
+    </div>
+  </div>
+  <div id="lotoModal" class="loto-modal hidden" role="dialog" aria-modal="true" aria-labelledby="lotoModalTitle">
+    <div class="loto-modal-backdrop" id="lotoModalBackdrop"></div>
+    <div class="loto-modal-dialog">
+      <div class="loto-modal-header">
+        <div class="loto-modal-title-group">
+          <div class="loto-modal-badge" id="lotoModalBadge">6.6 kV permit to work</div>
+          <h2 id="lotoModalTitle" class="loto-modal-title">Lockout / tagout</h2>
+          <p id="lotoModalSubtitle" class="loto-modal-subtitle"></p>
+        </div>
+        <div class="loto-modal-actions">
+          <button id="lotoModalClose" type="button" class="loto-modal-close-btn" aria-label="Close">
+            ${icon('close')}Close
+          </button>
+        </div>
+      </div>
+      <div class="loto-modal-body" id="lotoModalBody"></div>
     </div>
   </div>`;
 
@@ -289,7 +329,7 @@ function reset(){
   setMessage('Simulation reset. DG 1 and the main bus are energized.');
 }
 
-function renderScenarios(){const el=document.querySelector('#scenarios')!;el.innerHTML=scenarios.map(s=>`<button type="button" class="scenario ${activeScenario===s.id?'active':''}" data-scenario="${s.id}"><span class="scenario-number">${s.title.slice(0,2)}</span><span>${s.title.slice(5)}</span><span class="scenario-arrow">↗</span></button>`).join('');el.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach(b=>b.onclick=()=>scenario(b.dataset.scenario!));}
+function renderScenarios(){const el=document.querySelector('#scenarios')!;el.innerHTML=scenarios.map(s=>`<button type="button" class="scenario ${activeScenario===s.id?'active':''}" data-scenario="${s.id}"><span class="scenario-number">${s.title.slice(0,2)}</span><span>${s.title.slice(5)}</span></button>`).join('');el.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach(b=>b.onclick=()=>scenario(b.dataset.scenario!));}
 function sourceRow(id:string){
   const e=byId[id],breaker=id==='eg'?'egBreaker':id==='shore'?'shoreBreaker':`gb${id.slice(2)}`;
   const g=simEngine.generators[id];
@@ -306,7 +346,7 @@ function sourceRow(id:string){
         <span class="gen-metrics-text" id="genMetrics-${id}">${g.status} · ${Math.round(g.kw)} kW (${g.loadPercent}%) · ${g.frequencyHz.toFixed(1)} Hz</span>
         ${isMainDg?`<span class="gov-trim-group" title="Adjust governor speed reference (ANSI 32 reverse power) or inject AVR field loss (ANSI 40)">
           <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="-0.15" title="Decrease Governor Speed Reference (Motorize / Test ANSI 32 Reverse Power)">Gov −</button>
-          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="0.15" title="Increase Governor Speed Reference">Gov ＋</button>
+          <button type="button" class="gov-btn" data-gov-id="${id}" data-gov-delta="0.15" title="Increase Governor Speed Reference">Gov +</button>
           <button type="button" class="gov-btn ${g.relays.fieldLossInjected?'fault-active':''}" data-field-loss="${id}" title="Simulate Loss of Excitation / Field (ANSI 40)">AVR 40</button>
         </span>`:''}
       </div>
@@ -330,9 +370,9 @@ function renderControls(){
             <circle cx="60" cy="60" r="52" class="sync-dial-bg"/>
             <path d="M 44 10.5 A 52 52 0 0 1 76 10.5" class="sync-window-arc"/>
             <line x1="60" y1="6" x2="60" y2="16" class="sync-twelve-mark"/>
-            <text x="24" y="26" class="sync-dir-label">← SLOW</text>
-            <text x="96" y="26" text-anchor="end" class="sync-dir-label">FAST →</text>
-            <text x="60" y="106" text-anchor="middle" class="sync-twelve-label">12 O'CLOCK SYNC</text>
+            <text x="24" y="26" class="sync-dir-label">Slow</text>
+            <text x="96" y="26" text-anchor="end" class="sync-dir-label">Fast</text>
+            <text x="60" y="100" text-anchor="middle" class="sync-twelve-label">In phase at 12</text>
             <g id="syncNeedleGroup" transform="rotate(${s.phaseAngleDeg.toFixed(1)} 60 60)">
               <line x1="60" y1="66" x2="60" y2="15" class="sync-needle"/>
               <polygon points="60,10 56,20 64,20" class="sync-needle-tip"/>
@@ -341,16 +381,16 @@ function renderControls(){
           </svg>
         </div>
         <div class="sync-readouts">
-          <div class="sync-stat-row"><span>BUS</span><strong id="syncBusVal">${s.busFreqHz.toFixed(2)} Hz · ${s.busVoltageKv.toFixed(2)} kV</strong></div>
-          <div class="sync-stat-row"><span>GEN (${byId[s.targetGenId].short})</span><strong id="syncGenVal">${s.genFreqHz.toFixed(2)} Hz · ${s.genVoltageKv.toFixed(2)} kV</strong></div>
-          <div class="sync-stat-row"><span>SLIP / Δθ</span><strong id="syncSlipVal">${s.slipHz>=0?'+':''}${s.slipHz.toFixed(2)} Hz · ${Math.round(s.phaseAngleDeg)}°</strong></div>
+          <div class="sync-stat-row"><span>Bus</span><strong id="syncBusVal">${s.busFreqHz.toFixed(2)} Hz · ${s.busVoltageKv.toFixed(2)} kV</strong></div>
+          <div class="sync-stat-row"><span>${byId[s.targetGenId].short}</span><strong id="syncGenVal">${s.genFreqHz.toFixed(2)} Hz · ${s.genVoltageKv.toFixed(2)} kV</strong></div>
+          <div class="sync-stat-row"><span>Slip / Δθ</span><strong id="syncSlipVal">${s.slipHz>=0?'+':''}${s.slipHz.toFixed(2)} Hz · ${Math.round(s.phaseAngleDeg)}°</strong></div>
           <div class="sync-badge ${s.alreadyClosed?'online':s.inSyncWindow?'ok':'wait'}" id="syncStatusBadge">
             ${s.alreadyClosed?'PARALLELED ON BUS':s.inSyncWindow?'ANSI 25 PERMISSIVE OK':'OUT OF SYNC WINDOW'}
           </div>
         </div>
       </div>
       <div class="sync-actions">
-        <button type="button" class="button button-primary sync-auto-btn" id="btnAutoSync">⚡ ${s.autoSyncActive?'Auto-Syncing...':'Auto-Sync & Close'}</button>
+        <button type="button" class="button button-primary sync-auto-btn" id="btnAutoSync">${s.autoSyncActive?'Synchronizing…':'Auto-sync and close'}</button>
         <button type="button" class="mini-toggle ${simEngine.checkSyncInterlock?'closed':''}" id="btnCheckSyncToggle" title="Toggle ANSI 25 Check-Synchronizer Interlock">ANSI 25 ${simEngine.checkSyncInterlock?'ON':'BYPASS'}</button>
       </div>
     </div>`;
@@ -361,15 +401,15 @@ function renderControls(){
   document.querySelector('#throttleSection')!.innerHTML=`
     <div class="throttle-card">
       <div class="throttle-header">
-        <span>Telegraph / VFD Order</span>
+        <span>Telegraph order</span>
         <strong id="propThrottleVal">${pct}% · ${propKw} kW</strong>
       </div>
       <input type="range" id="propThrottleSlider" min="0" max="1.15" step="0.01" value="${simEngine.propulsionThrottle}" aria-label="Propulsion Load Throttle">
       <div class="throttle-presets">
-        <button type="button" class="preset-btn" data-throttle="0.25">25% Harbor</button>
-        <button type="button" class="preset-btn" data-throttle="0.55">55% Cruise</button>
-        <button type="button" class="preset-btn" data-throttle="0.85">85% Sea</button>
-        <button type="button" class="preset-btn" data-throttle="1.08">108% Flank</button>
+        <button type="button" class="preset-btn" data-throttle="0.25">25% harbour</button>
+        <button type="button" class="preset-btn" data-throttle="0.55">55% cruise</button>
+        <button type="button" class="preset-btn" data-throttle="0.85">85% sea</button>
+        <button type="button" class="preset-btn" data-throttle="1.08">108% flank</button>
       </div>
     </div>`;
 
@@ -379,36 +419,49 @@ function renderControls(){
   document.querySelector('#pmsSection')!.innerHTML=`
     <div class="pms-card">
       <div class="pms-toggles-row">
-        <button type="button" class="mini-toggle ${simEngine.pmsAutoStandby?'closed':''}" id="btnPmsStandby">Auto-Standby (&gt;82%)</button>
-        <button type="button" class="mini-toggle ${simEngine.pmsAutoLoadShed?'closed':''}" id="btnPmsLoadShed">Pref. Trip (&gt;94%)</button>
+        <button type="button" class="mini-toggle ${simEngine.pmsAutoStandby?'closed':''}" id="btnPmsStandby">Auto standby &gt;82%</button>
+        <button type="button" class="mini-toggle ${simEngine.pmsAutoLoadShed?'closed':''}" id="btnPmsLoadShed">Preferential trip &gt;94%</button>
       </div>
       <div class="pms-action-grid">
-        <button type="button" class="button button-danger" id="btnTriggerBlackout">🚨 Simulate Blackout</button>
-        <button type="button" class="button button-primary" id="btnStartRecovery">🔄 SOLAS Waterfall</button>
+        <button type="button" class="button button-danger" id="btnTriggerBlackout">Simulate blackout</button>
+        <button type="button" class="button button-primary" id="btnStartRecovery">Run SOLAS recovery</button>
       </div>
       <div class="pms-recovery-banner ${simEngine.recoveryStage?'':'hidden'}" id="pmsRecoveryBanner">${simEngine.recoveryStage||''}</div>
       <div class="earthing-arch-box">
-        <div class="earthing-arch-label">6.6 kV BUSBAR EARTHING ARCHITECTURE</div>
+        <div class="earthing-arch-label">6.6 kV busbar earthing</div>
         <div class="earthing-arch-toggle" role="group" aria-label="Busbar earthing architecture">
-          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='IT'?'active':''}" data-earthing-arch="IT">Unearthed IT System</button>
-          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='HRE'?'active':''}" data-earthing-arch="HRE">High-Resistance Earthed (HRE) System</button>
+          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='IT'?'active':''}" data-earthing-arch="IT">Unearthed (IT)</button>
+          <button type="button" class="earthing-arch-btn ${simEngine.earthingArchitecture==='HRE'?'active':''}" data-earthing-arch="HRE">High-resistance earthed (HRE)</button>
         </div>
         <div class="hre-telemetry-grid" id="hreTelemetryBox">
-          <div><span>NEUTRAL DISPLACEMENT (V_N)</span><strong id="hreVnVal">${earthing.neutralDisplacementV.toLocaleString()} V</strong></div>
-          <div><span>EARTH FAULT CURRENT (I_ef)</span><strong id="hreIefVal">${earthing.groundFaultCurrentAmps.toFixed(2)} A ${simEngine.earthingArchitecture==='HRE'?'(381 Ω NER)':'(Capacitive)'}</strong></div>
+          <div><span>Neutral displacement V<sub>N</sub></span><strong id="hreVnVal">${earthing.neutralDisplacementV.toLocaleString()} V</strong></div>
+          <div><span>Earth-fault current I<sub>ef</sub></span><strong id="hreIefVal">${earthing.groundFaultCurrentAmps.toFixed(2)} A ${simEngine.earthingArchitecture==='HRE'?'(381 Ω NER)':'(Capacitive)'}</strong></div>
         </div>
         <div class="ansi67n-alarm-badge ${earthing.ansi67nActive?'active':'hidden'}" id="ansi67nBadge">
-          ⚡ ${ansi67nMsg}
+          ${ansi67nMsg}
+        </div>
+      </div>
+      <div class="galley-shunt-box">
+        <div class="galley-shunt-header">
+          <span class="galley-shunt-title">Galley remote shunt trip</span>
+          <span class="galley-shunt-pill ${simEngine.galleyShuntTripped?'tripped':'armed'}">${simEngine.galleyShuntTripped?'TRIPPED':'ARMED'}</span>
+        </div>
+        <p class="micro-copy">
+          The trip station outside the galley de-energizes the 440 V galley board and its ventilation in a galley fire (SOLAS II-2).
+        </p>
+        <div class="galley-shunt-actions">
+          <button type="button" class="button button-danger" id="btnGalleyShuntTrip">Trip</button>
+          <button type="button" class="button button-secondary" id="btnGalleyShuntReset" ${simEngine.galleyShuntTripped?'':'disabled'}>Reset</button>
         </div>
       </div>
       <div class="pms-fault-row">
-        <button type="button" class="mini-toggle ${simEngine.earthFaultHv?'fault-active':''}" id="btnFaultHv">⚡ 6.6 kV Earth Fault</button>
-        <button type="button" class="mini-toggle ${simEngine.earthFaultLv?'fault-active':''}" id="btnFaultLv">⚡ 440 V Earth Fault</button>
+        <button type="button" class="mini-toggle ${simEngine.earthFaultHv?'fault-active':''}" id="btnFaultHv">6.6 kV earth fault</button>
+        <button type="button" class="mini-toggle ${simEngine.earthFaultLv?'fault-active':''}" id="btnFaultLv">440 V earth fault</button>
       </div>
       <div class="alarm-log-wrap">
         <div class="alarm-log-header">
-          <span>ALARM & PMS LOGBOOK</span>
-          <button type="button" class="ack-btn" id="btnAckAlarms">Ack All</button>
+          <span>Alarm log</span>
+          <button type="button" class="ack-btn" id="btnAckAlarms">Acknowledge all</button>
         </div>
         <div class="alarm-log-list" id="alarmLogList"></div>
       </div>
@@ -417,17 +470,17 @@ function renderControls(){
   document.querySelector('#tieControl')!.innerHTML=`
     <div class="tie-control-group">
       <div class="tie-row">
-        <button class="item-name" data-select="tie" type="button">6.6 kV Bus Tie (A ↔ B)</button>
+        <button class="item-name" data-select="tie" type="button">6.6 kV bus tie</button>
         <button class="switch ${state.closed.tie?'on':''}" id="tieSwitch" type="button" role="switch" aria-checked="${state.closed.tie}" aria-label="6.6 kV Bus tie breaker"><span></span></button>
         <strong>${state.closed.tie?'CLOSED':'OPEN'}</strong>
       </div>
-      <div class="tie-row" style="margin-top:6px;">
-        <button class="item-name" data-select="lvTie" type="button">440 V Bus Tie (A ↔ B)</button>
+      <div class="tie-row">
+        <button class="item-name" data-select="lvTie" type="button">440 V bus tie</button>
         <button class="switch ${state.closed.lvTie?'on':''}" id="lvTieSwitch" type="button" role="switch" aria-checked="${state.closed.lvTie}" aria-label="440 V Bus tie breaker"><span></span></button>
         <strong>${state.closed.lvTie?'CLOSED':'OPEN'}</strong>
       </div>
-      <div class="tie-row" style="margin-top:6px;">
-        <button class="item-name" data-select="consumerTie" type="button">220 V Bus Tie (A ↔ B)</button>
+      <div class="tie-row">
+        <button class="item-name" data-select="consumerTie" type="button">220 V bus tie</button>
         <button class="switch ${state.closed.consumerTie?'on':''}" id="consumerTieSwitch" type="button" role="switch" aria-checked="${state.closed.consumerTie}" aria-label="220 V Bus tie breaker"><span></span></button>
         <strong>${state.closed.consumerTie?'CLOSED':'OPEN'}</strong>
       </div>
@@ -435,32 +488,40 @@ function renderControls(){
 
   const groups = [
     [
-      `${VOLTAGES.hv} Feeders (Port & Starboard)`,
-      'propFeed', 'bowFeed', 'txAFeed', 'txBFeed', 'reeferAFeed', 'reeferBFeed'
+      `${VOLTAGES.hv} feeders`,
+      'propFeed', 'reeferAFeed', 'txAFeed', 'txBFeed', 'reeferBFeed', 'bowFeed'
     ],
     [
-      `${VOLTAGES.lv} Port Bus A Feeders`,
-      'conAAcb', 'cooling1Feed', 'steerFeed', 'fire1Feed', 'ballastFeed', 'bilgeFeed', 'esbTieFeed'
+      `${VOLTAGES.lv} bus A (port)`,
+      'galley440Feed', 'fire1Feed', 'cooling1Feed', 'craneFeed', 'conAAcb', 'esbTieFeed'
     ],
     [
-      `${VOLTAGES.lv} Starboard Bus B Feeders`,
-      'conBAcb', 'cooling2Feed', 'craneFeed', 'fire2Feed'
+      `${VOLTAGES.lv} bus B (starboard)`,
+      'conBAcb', 'fire2Feed', 'cooling2Feed', 'ballastFeed', 'bilgeFeed'
     ],
     [
-      `${VOLTAGES.consumer} Accommodation & Hotel`,
-      'navFeed', 'lightAFeed', 'galleyFeed', 'lightBFeed', 'txConAEsbTie'
+      `${VOLTAGES.consumer} accommodation and bridge`,
+      'lightAFeed', 'galleySmallFeed', 'navFeed'
     ],
     [
-      '440 V SOLAS Emergency Feeders',
-      'eFireFeed', 'eSteerFeed', 'eLightFeed', 'eRadioFeed'
+      '440 V emergency switchboard',
+      'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed'
     ]
   ];
-  document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>{const closedCount=ids.filter(id=>state.closed[id]).length;return `<div class="feeder-group"><div class="feeder-label"><span>${title}</span><span class="feeder-count">${closedCount}/${ids.length} CLOSED</span></div>${ids.map(id=>{const c=edgeById[id];const spec=Object.values(LOAD_SPECS).find(ls=>ls.breakerId===id);return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}${spec?` <small class="feeder-kw-tag">${spec.ratedKw}kW</small>`:''}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`;}).join('');
-  document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">SOLAS automatic standby: Starts & closes onto 440 V Emergency Bus automatically on main switchboard blackout.</p>`;
+  document.querySelector('#feeders')!.innerHTML=groups.map(([title,...ids])=>{const closedCount=ids.filter(id=>state.closed[id]).length;return `<div class="feeder-group"><div class="feeder-label"><span>${title}</span><span class="feeder-count">${closedCount}/${ids.length} closed</span></div>${ids.map(id=>{const c=edgeById[id];const spec=Object.values(LOAD_SPECS).find(ls=>ls.breakerId===id);return `<div class="feeder-row"><button class="feeder-name" data-select="${id}" type="button">${c.name.replace(' feeder breaker','').replace(' breaker','')}${spec?` <small class="feeder-kw-tag">${spec.ratedKw} kW</small>`:''}</button><button class="feeder-state ${state.closed[id]?'closed':''}" data-breaker="${id}" type="button" aria-label="${state.closed[id]?'Open':'Close'} ${c.name}">${state.closed[id]?'CLOSED':'OPEN'}</button></div>`;}).join('')}</div>`;}).join('');
+  document.querySelector('#emergencyControls')!.innerHTML=sourceRow('eg')+`<p class="micro-copy">Starts and closes onto the 440 V emergency bus automatically if the main switchboard blacks out.</p>`;
 
   document.querySelector('#tieSwitch')!.addEventListener('click',()=>toggleBreaker('tie'));
   document.querySelector('#lvTieSwitch')?.addEventListener('click',()=>toggleBreaker('lvTie'));
   document.querySelector('#consumerTieSwitch')?.addEventListener('click',()=>toggleBreaker('consumerTie'));
+  document.querySelector<HTMLButtonElement>('#btnGalleyShuntTrip')?.addEventListener('click',()=>{
+    setMessage(simEngine.tripGalleyShunt(state));
+    refresh();
+  });
+  document.querySelector<HTMLButtonElement>('#btnGalleyShuntReset')?.addEventListener('click',()=>{
+    setMessage(simEngine.resetGalleyShunt());
+    refresh();
+  });
   document.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(b=>b.onclick=()=>toggleSource(b.dataset.source!));
   document.querySelectorAll<HTMLButtonElement>('[data-breaker]').forEach(b=>b.onclick=()=>toggleBreaker(b.dataset.breaker!));
   document.querySelectorAll<HTMLButtonElement>('[data-select]').forEach(b=>b.onclick=()=>select(b.dataset.select!));
@@ -555,192 +616,191 @@ const SVG_BASE_WIDTH = 1500;
 const SVG_BASE_HEIGHT = 960;
 
 const ORTHOGONAL_ROUTES: Record<string, RouteDef> = {
-  // --- 6.6 kV Generation Sources (Straight vertical lines down from circles to 6.6 kV bus) ---
+  // --- 6.6 kV Generation Sources (Straight vertical lines down to 6.6 kV bus) ---
   gb1: {
-    points: [[160, 159], [160, 220]],
-    breaker: { pos: [160, 185], orientation: 'v' }
+    points: [[110, 134], [110, 180]],
+    breaker: { pos: [110, 155], orientation: 'v' }
   },
   gb2: {
-    points: [[310, 159], [310, 220]],
-    breaker: { pos: [310, 185], orientation: 'v' }
+    points: [[240, 134], [240, 180]],
+    breaker: { pos: [240, 155], orientation: 'v' }
   },
   shoreBreaker: {
-    points: [[460, 159], [460, 220]],
-    breaker: { pos: [460, 185], orientation: 'v' }
+    points: [[380, 134], [380, 180]],
+    breaker: { pos: [380, 155], orientation: 'v' }
   },
   gb3: {
-    points: [[1190, 159], [1190, 220]],
-    breaker: { pos: [1190, 185], orientation: 'v' }
+    points: [[1190, 134], [1190, 180]],
+    breaker: { pos: [1190, 155], orientation: 'v' }
   },
   gb4: {
-    points: [[1340, 159], [1340, 220]],
-    breaker: { pos: [1340, 185], orientation: 'v' }
+    points: [[1320, 134], [1320, 180]],
+    breaker: { pos: [1320, 155], orientation: 'v' }
   },
 
   // --- 6.6 kV Bus Tie ---
   tie: {
-    points: [[660, 220], [840, 220]],
-    breaker: { pos: [750, 220], orientation: 'h' }
+    points: [[710, 180], [790, 180]],
+    breaker: { pos: [750, 180], orientation: 'h' }
   },
 
   // --- 6.6 kV Feeders & Heavy Machinery ---
   propFeed: {
-    points: [[520, 220], [520, 321]],
-    breaker: { pos: [520, 270], orientation: 'v' }
+    points: [[480, 180], [480, 251]],
+    breaker: { pos: [480, 215], orientation: 'v' }
   },
   driveMotor: {
-    points: [[520, 368], [520, 374]]
+    points: [[480, 299], [480, 324]]
   },
   shaft: {
-    points: [[520, 396], [520, 407]]
-  },
-  bowFeed: {
-    points: [[980, 220], [980, 321]],
-    breaker: { pos: [980, 270], orientation: 'v' }
-  },
-
-  // Main Step-Down Transformers A & B (6.6 kV / 440 V, 2.5 MVA)
-  // Clean, single vertical path passing through the breaker and transformer circles
-  txAFeed: {
-    points: [[180, 220], [180, 345]],
-    breaker: { pos: [180, 275], orientation: 'v' }
-  },
-  txAOut: {
-    points: [[180, 375], [180, 440]]
-  },
-  txBFeed: {
-    points: [[1320, 220], [1320, 345]],
-    breaker: { pos: [1320, 275], orientation: 'v' }
-  },
-  txBOut: {
-    points: [[1320, 375], [1320, 440]]
+    points: [[480, 356], [480, 383]]
   },
 
   // Reefer Distribution Transformers A & B (6.6 kV / 440 V, 1.5 MVA)
-  // Single vertical path from 6.6 kV bus straight to Reefer Panels
   reeferAFeed: {
-    points: [[330, 220], [330, 345]],
-    breaker: { pos: [330, 275], orientation: 'v' }
+    points: [[580, 180], [580, 246]],
+    breaker: { pos: [580, 215], orientation: 'v' }
   },
   txReeferAOut: {
-    points: [[330, 375], [330, 530]]
+    points: [[580, 274], [580, 326]]
   },
+  reeferPlugA: {
+    points: [[580, 354], [580, 381]]
+  },
+
+  // Main Step-Down Transformers A & B (6.6 kV / 440 V, 2.5 MVA)
+  txAFeed: {
+    points: [[680, 180], [680, 246]],
+    breaker: { pos: [680, 215], orientation: 'v' }
+  },
+  txAOut: {
+    points: [[680, 274], [680, 440]],
+    breaker: { pos: [680, 350], orientation: 'v' }
+  },
+
+  txBFeed: {
+    points: [[820, 180], [820, 246]],
+    breaker: { pos: [820, 215], orientation: 'v' }
+  },
+  txBOut: {
+    points: [[820, 274], [820, 440]],
+    breaker: { pos: [820, 350], orientation: 'v' }
+  },
+
   reeferBFeed: {
-    points: [[1170, 220], [1170, 345]],
-    breaker: { pos: [1170, 275], orientation: 'v' }
+    points: [[920, 180], [920, 246]],
+    breaker: { pos: [920, 215], orientation: 'v' }
   },
   txReeferBOut: {
-    points: [[1170, 375], [1170, 530]]
+    points: [[920, 274], [920, 326]]
+  },
+  reeferPlugB: {
+    points: [[920, 354], [920, 381]]
+  },
+
+  bowFeed: {
+    points: [[1250, 180], [1250, 251]],
+    breaker: { pos: [1250, 215], orientation: 'v' }
   },
 
   // --- 440 V Bus Tie ---
   lvTie: {
-    points: [[660, 440], [840, 440]],
+    points: [[710, 440], [790, 440]],
     breaker: { pos: [750, 440], orientation: 'h' }
   },
 
   // --- 440 V Bus A Feeders & Control TX A ---
-  conAAcb: {
-    points: [[110, 440], [110, 550]],
-    breaker: { pos: [110, 495], orientation: 'v' }
-  },
-  txConAOut: {
-    points: [[110, 580], [110, 640]]
+  galley440Feed: {
+    points: [[110, 440], [110, 514]],
+    breaker: { pos: [110, 478], orientation: 'v' }
   },
   fire1Feed: {
-    points: [[210, 440], [210, 530]],
-    breaker: { pos: [210, 495], orientation: 'v' }
+    points: [[230, 440], [230, 514]],
+    breaker: { pos: [230, 478], orientation: 'v' }
   },
   cooling1Feed: {
-    points: [[430, 440], [430, 530]],
-    breaker: { pos: [430, 495], orientation: 'v' }
+    points: [[350, 440], [350, 514]],
+    breaker: { pos: [350, 478], orientation: 'v' }
   },
-  ballastFeed: {
-    points: [[515, 440], [515, 530]],
-    breaker: { pos: [515, 495], orientation: 'v' }
+  craneFeed: {
+    points: [[470, 440], [470, 514]],
+    breaker: { pos: [470, 478], orientation: 'v' }
   },
-  steerFeed: {
-    points: [[595, 440], [595, 530]],
-    breaker: { pos: [595, 495], orientation: 'v' }
+  conAAcb: {
+    points: [[600, 440], [600, 546]],
+    breaker: { pos: [600, 492], orientation: 'v' }
   },
-  bilgeFeed: {
-    points: [[665, 440], [665, 530]],
-    breaker: { pos: [665, 495], orientation: 'v' }
+  txConAOut: {
+    points: [[600, 574], [600, 650]]
+  },
+  esbTieFeed: {
+    points: [[80, 440], [80, 840]],
+    breaker: { pos: [80, 640], orientation: 'v' }
   },
 
   // --- 440 V Bus B Feeders & Control TX B ---
   conBAcb: {
-    points: [[1390, 440], [1390, 550]],
-    breaker: { pos: [1390, 495], orientation: 'v' }
+    points: [[900, 440], [900, 546]],
+    breaker: { pos: [900, 492], orientation: 'v' }
   },
   txConBOut: {
-    points: [[1390, 580], [1390, 640]]
+    points: [[900, 574], [900, 650]]
   },
   fire2Feed: {
-    points: [[870, 440], [870, 530]],
-    breaker: { pos: [870, 495], orientation: 'v' }
+    points: [[1030, 440], [1030, 514]],
+    breaker: { pos: [1030, 478], orientation: 'v' }
   },
   cooling2Feed: {
-    points: [[970, 440], [970, 530]],
-    breaker: { pos: [970, 495], orientation: 'v' }
+    points: [[1150, 440], [1150, 514]],
+    breaker: { pos: [1150, 478], orientation: 'v' }
   },
-  craneFeed: {
-    points: [[1270, 440], [1270, 530]],
-    breaker: { pos: [1270, 495], orientation: 'v' }
+  ballastFeed: {
+    points: [[1270, 440], [1270, 514]],
+    breaker: { pos: [1270, 478], orientation: 'v' }
+  },
+  bilgeFeed: {
+    points: [[1390, 440], [1390, 514]],
+    breaker: { pos: [1390, 478], orientation: 'v' }
   },
 
-  // --- 220 V Bus Tie ---
+  // --- 220 V Bus Tie & Feeders ---
   consumerTie: {
-    points: [[660, 640], [840, 640]],
-    breaker: { pos: [750, 640], orientation: 'h' }
-  },
-
-  // --- 220 V Sub-Board Feeders ---
-  navFeed: {
-    points: [[240, 640], [240, 710]],
-    breaker: { pos: [240, 678], orientation: 'v' }
+    points: [[710, 650], [790, 650]],
+    breaker: { pos: [750, 650], orientation: 'h' }
   },
   lightAFeed: {
-    points: [[460, 640], [460, 710]],
-    breaker: { pos: [460, 678], orientation: 'v' }
+    points: [[520, 650], [520, 706]],
+    breaker: { pos: [520, 678], orientation: 'v' }
   },
-  galleyFeed: {
-    points: [[1040, 640], [1040, 710]],
-    breaker: { pos: [1040, 678], orientation: 'v' }
+  galleySmallFeed: {
+    points: [[650, 650], [650, 706]],
+    breaker: { pos: [650, 678], orientation: 'v' }
   },
-  lightBFeed: {
-    points: [[1260, 640], [1260, 710]],
-    breaker: { pos: [1260, 678], orientation: 'v' }
+  navFeed: {
+    points: [[900, 650], [900, 706]],
+    breaker: { pos: [900, 678], orientation: 'v' }
   },
 
   // --- 440 V SOLAS Emergency Switchboard (ESB) Connections ---
   egBreaker: {
-    points: [[750, 816], [750, 730]],
-    breaker: { pos: [750, 775], orientation: 'v' }
-  },
-  eFireFeed: {
-    points: [[570, 730], [570, 825]],
-    breaker: { pos: [570, 785], orientation: 'v' }
+    points: [[150, 804], [150, 840]],
+    breaker: { pos: [150, 818], orientation: 'v' }
   },
   eSteerFeed: {
-    points: [[660, 730], [660, 825]],
-    breaker: { pos: [660, 785], orientation: 'v' }
+    points: [[260, 840], [260, 901]],
+    breaker: { pos: [260, 870], orientation: 'v' }
+  },
+  eFireFeed: {
+    points: [[400, 840], [400, 899]],
+    breaker: { pos: [400, 870], orientation: 'v' }
   },
   eLightFeed: {
-    points: [[840, 730], [840, 825]],
-    breaker: { pos: [840, 785], orientation: 'v' }
+    points: [[540, 840], [540, 901]],
+    breaker: { pos: [540, 870], orientation: 'v' }
   },
   eRadioFeed: {
-    points: [[930, 730], [930, 825]],
-    breaker: { pos: [930, 785], orientation: 'v' }
-  },
-  esbTieFeed: {
-    points: [[530, 440], [530, 730]],
-    breaker: { pos: [530, 585], orientation: 'v' }
-  },
-  txConAEsbTie: {
-    points: [[530, 730], [50, 730], [50, 640], [95, 640]],
-    breaker: { pos: [50, 685], orientation: 'v' }
+    points: [[680, 840], [680, 901]],
+    breaker: { pos: [680, 870], orientation: 'v' }
   }
 };
 
@@ -883,13 +943,13 @@ interface BusbarDef {
 }
 
 const BUSBARS: BusbarDef[] = [
-  { id: 'busA', x1: 110, x2: 660, y: 220, label: '6.6 kV MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'hv' },
-  { id: 'busB', x1: 840, x2: 1390, y: 220, label: '6.6 kV MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'hv' },
-  { id: 'lvBusA', x1: 95, x2: 660, y: 440, label: '440 V MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'lv' },
-  { id: 'lvBusB', x1: 840, x2: 1405, y: 440, label: '440 V MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'lv' },
-  { id: 'consumerA', x1: 95, x2: 660, y: 640, label: '220 V SUB-BOARD - BUS A (PORT)', voltageType: 'consumer' },
-  { id: 'consumerB', x1: 840, x2: 1405, y: 640, label: '220 V SUB-BOARD - BUS B (STARBOARD)', voltageType: 'consumer' },
-  { id: 'eBus', x1: 530, x2: 970, y: 730, label: '440 V EMERGENCY SWITCHBOARD (ESB)', voltageType: 'emergency' }
+  { id: 'busA', x1: 80, x2: 710, y: 180, label: '6.6 kV MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'hv' },
+  { id: 'busB', x1: 790, x2: 1420, y: 180, label: '6.6 kV MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'hv' },
+  { id: 'lvBusA', x1: 80, x2: 710, y: 440, label: '440 V MAIN SWITCHBOARD - BUS A (PORT)', voltageType: 'lv' },
+  { id: 'lvBusB', x1: 790, x2: 1420, y: 440, label: '440 V MAIN SWITCHBOARD - BUS B (STARBOARD)', voltageType: 'lv' },
+  { id: 'consumerA', x1: 480, x2: 710, y: 650, label: '220 V SUB-BOARD - BUS A (PORT)', voltageType: 'consumer' },
+  { id: 'consumerB', x1: 790, x2: 1020, y: 650, label: '220 V SUB-BOARD - BUS B (STARBOARD)', voltageType: 'consumer' },
+  { id: 'eBus', x1: 80, x2: 800, y: 840, label: '440 V EMERGENCY SWITCHBOARD (ESB)', voltageType: 'emergency' }
 ];
 
 const GENERATOR_IDS = ['dg1', 'dg2', 'dg3', 'dg4', 'eg'];
@@ -904,9 +964,9 @@ interface TxDef {
 
 const TRANSFORMERS: TxDef[] = [
   { id: 'txA', name: 'TX A', ratio: '(6.6kV/440V)', rating: '2.5 MVA', labelSide: 'left' },
-  { id: 'txB', name: 'TX B', ratio: '(6.6kV/440V)', rating: '2.5 MVA', labelSide: 'left' },
+  { id: 'txB', name: 'TX B', ratio: '(6.6kV/440V)', rating: '2.5 MVA', labelSide: 'right' },
   { id: 'txReeferA', name: 'TX REEFER A', ratio: '(6.6kV/440V)', rating: '1.5 MVA', labelSide: 'left' },
-  { id: 'txReeferB', name: 'TX REEFER B', ratio: '(6.6kV/440V)', rating: '1.5 MVA', labelSide: 'left' },
+  { id: 'txReeferB', name: 'TX REEFER B', ratio: '(6.6kV/440V)', rating: '1.5 MVA', labelSide: 'right' },
   { id: 'txConA', name: 'TX CON A', ratio: '(440V/220V)', rating: '500 kVA', labelSide: 'left' },
   { id: 'txConB', name: 'TX CON B', ratio: '(440V/220V)', rating: '500 kVA', labelSide: 'right' }
 ];
@@ -915,22 +975,56 @@ const BREAKER_LABELS: Record<string, { label: string; offset: [number, number]; 
   tie: { label: '6.6kV BUS TIE', offset: [0, -16], anchor: 'middle' },
   lvTie: { label: '440V BUS TIE', offset: [0, -16], anchor: 'middle' },
   consumerTie: { label: '220V BUS TIE', offset: [0, -16], anchor: 'middle' },
-  txAFeed: { label: 'TX A VCB', offset: [16, 4], anchor: 'start' },
+  txAFeed: { label: 'TX A VCB', offset: [-14, 4], anchor: 'end' },
+  txAOut: { label: 'TX A 440V ACB', offset: [16, 4], anchor: 'start' },
   txBFeed: { label: 'TX B VCB', offset: [16, 4], anchor: 'start' },
-  reeferAFeed: { label: 'REEFER A VCB', offset: [16, 4], anchor: 'start' },
+  txBOut: { label: 'TX B 440V ACB', offset: [16, 4], anchor: 'start' },
+  reeferAFeed: { label: 'REEFER A VCB', offset: [-14, 4], anchor: 'end' },
   reeferBFeed: { label: 'REEFER B VCB', offset: [16, 4], anchor: 'start' },
   propFeed: { label: 'DRIVE 1 VCB', offset: [16, 4], anchor: 'start' },
   bowFeed: { label: 'THRUSTER VCB', offset: [16, 4], anchor: 'start' },
-  conAAcb: { label: 'CON A ACB', offset: [16, 4], anchor: 'start' },
+  galley440Feed: { label: 'GALLEY 440V ACB', offset: [-14, 4], anchor: 'end' },
+  conAAcb: { label: 'CON A ACB', offset: [-14, 4], anchor: 'end' },
   conBAcb: { label: 'CON B ACB', offset: [16, 4], anchor: 'start' },
-  egBreaker: { label: 'EDG CB', offset: [16, 4], anchor: 'start' },
-  txConAEsbTie: { label: 'TX CON A ESB TIE CB (Norm. Open)', offset: [16, 4], anchor: 'start' }
+  esbTieFeed: { label: 'ESB TIE ACB (Norm. Closed)', offset: [16, 4], anchor: 'start' },
+  egBreaker: { label: 'EDG CB', offset: [16, 4], anchor: 'start' }
 };
+
+function connectionVoltageType(c: Connection): 'hv' | 'lv' | 'consumer' | 'emergency' {
+  if (['esbTieFeed', 'egBreaker', 'eSteerFeed', 'eFireFeed', 'eLightFeed', 'eRadioFeed'].includes(c.id)) {
+    return 'emergency';
+  }
+  if (['txConAOut', 'txConBOut', 'consumerTie', 'lightAFeed', 'galleySmallFeed', 'navFeed'].includes(c.id)) {
+    return 'consumer';
+  }
+  if (['txAOut', 'txBOut', 'lvTie', 'galley440Feed', 'fire1Feed', 'cooling1Feed', 'craneFeed', 'conAAcb', 'conBAcb', 'fire2Feed', 'cooling2Feed', 'ballastFeed', 'bilgeFeed'].includes(c.id)) {
+    return 'lv';
+  }
+  return 'hv';
+}
 
 function renderSchematic(){
   const host=document.querySelector('#schematicHost')!;
 
-  // 1. Busbars (Bold horizontal lines matching blue image)
+  // 1. Compartment / Fire Bulkhead Enclosures (Rev A Architecture)
+  const compartmentsSvg = `
+    <g class="compartment-boundaries">
+      <rect x="50" y="145" width="1400" height="495" class="boundary-box a60" rx="8" />
+      <text x="750" y="162" class="boundary-label a60" text-anchor="middle">[A-60 FIRE BULKHEAD] ENGINE CONTROL ROOM &amp; MAIN SWITCHBOARD ENCLOSURE</text>
+
+      <path d="M 750 145 L 750 88" class="arc-duct-line" />
+      <rect x="715" y="68" width="70" height="20" class="arc-cowl-box" rx="3" />
+      <text x="750" y="82" class="arc-cowl-label" text-anchor="middle">[ARC DUCT] → OPEN AIR</text>
+
+      <rect x="1185" y="215" width="135" height="150" class="boundary-box watertight" rx="6" />
+      <text x="1252" y="232" class="boundary-label watertight" text-anchor="middle">[WATERTIGHT] BOW THRUSTER</text>
+
+      <rect x="50" y="745" width="780" height="200" class="boundary-box solas-eg" rx="8" />
+      <text x="440" y="762" class="boundary-label solas-eg" text-anchor="middle">EMERGENCY GENERATOR ROOM (ABOVE BULKHEAD DECK · SOLAS II-1)</text>
+    </g>
+  `;
+
+  // 2. Busbars (Bold horizontal lines matching Rev A standard)
   const busbarSvg = BUSBARS.map(b => {
     const isLive = live.has(b.id);
     const isSel = selected === b.id;
@@ -946,7 +1040,7 @@ function renderSchematic(){
     `;
   }).join('');
 
-  // 2. Generators (Circular symbols with sine waves matching blue image)
+  // 3. Generators (Circular symbols with sine waves)
   const genSvg = GENERATOR_IDS.map(gid => {
     const e = byId[gid];
     if (!e) return '';
@@ -967,7 +1061,7 @@ function renderSchematic(){
     `;
   }).join('');
 
-  // 3. Shore Connection (Purple header & symbol matching blue image)
+  // 4. Shore Connection (Purple header & symbol)
   const shoreEq = byId['shore'];
   const isShoreLive = live.has('shore');
   const isShoreRunning = !!state.running['shore'];
@@ -980,7 +1074,7 @@ function renderSchematic(){
     </g>
   `;
 
-  // 4. Transformers (Dual interlocking circles with amber ratings matching blue image)
+  // 5. Transformers (Dual interlocking circles with ratings)
   const txSvg = TRANSFORMERS.map(t => {
     const e = byId[t.id];
     if (!e) return '';
@@ -1006,7 +1100,7 @@ function renderSchematic(){
     `;
   }).join('');
 
-  // 5. Equipment Nodes (Boxes matching blue image)
+  // 6. Equipment Nodes: Motor (M) circles for Pumps/Cranes, Boxes for Boards, Shunt Trip Station for Galley
   const skipEquipmentIds = new Set([
     ...BUSBARS.map(b => b.id),
     ...GENERATOR_IDS,
@@ -1014,13 +1108,45 @@ function renderSchematic(){
     ...TRANSFORMERS.map(t => t.id)
   ]);
 
+  let shuntStationSvg = '';
+
   const equipmentSvg = equipment.filter(e => !skipEquipmentIds.has(e.id)).map(e => {
     const isLive = live.has(e.id);
     const isSel = selected === e.id;
+    const isPumpOrCrane = e.kind === 'pump' || e.id === 'crane';
+
+    // Pumps & Cranes: Circular motor symbol (M) with ~ wave per standard single-line CAD
+    if (isPumpOrCrane) {
+      const r = 16;
+      const vType = e.id === 'eFire' ? 'emergency' : 'lv';
+      return `
+        <g class="diagram-node motor-symbol ${vType} ${isLive ? 'live' : 'dead'} ${isSel ? 'selected' : ''}" data-select="${e.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(e.name)}">
+          <circle cx="${e.sx}" cy="${e.sy}" r="${r}" />
+          <text class="motor-symbol-m" x="${e.sx}" y="${e.sy + 2}" text-anchor="middle">M</text>
+          <text class="motor-symbol-tilde" x="${e.sx}" y="${e.sy + 8}" text-anchor="middle">~</text>
+          <text class="node-single-label" x="${e.sx}" y="${e.sy + 28}" text-anchor="middle">${svgEsc(e.short)}</text>
+          <title>${svgEsc(e.name)} · ${isLive ? 'POWERED' : 'NOT POWERED'}</title>
+        </g>
+      `;
+    }
+
+    // 440 V Galley Primary Board: Include adjacent Emergency Remote Shunt Trip Pushbutton
+    if (e.id === 'galley440') {
+      shuntStationSvg = `
+        <g class="sld-shunt-station ${simEngine.galleyShuntTripped ? 'tripped' : 'armed'}" id="sldShuntTripBtn" data-select="galley440Feed" tabindex="0" role="button" aria-label="Emergency Shunt Trip Pushbutton (SOLAS II-2 Reg 9.2)">
+          <rect x="156" y="508" width="46" height="44" rx="5" class="shunt-station-housing" />
+          <circle cx="179" cy="526" r="12" class="shunt-mushroom-btn" />
+          <circle cx="179" cy="526" r="7" class="shunt-mushroom-center" />
+          <text x="179" y="546" text-anchor="middle" class="shunt-station-label">${simEngine.galleyShuntTripped ? 'RESET' : 'TRIP'}</text>
+          <title>440 V Galley Emergency Remote Shunt Trip (SOLAS II-2 Reg 9.2 / BV NR467) · Click to ${simEngine.galleyShuntTripped ? 'Reset' : 'Trip'}</title>
+        </g>
+      `;
+    }
+
     const isDriveOrBow = e.id === 'drive' || e.id === 'bow';
     const isMotorOrProp = e.id === 'motor' || e.id === 'prop';
-    const w = isDriveOrBow ? 116 : isMotorOrProp ? 84 : 76;
-    const h = isDriveOrBow ? 48 : isMotorOrProp ? 22 : 28;
+    const w = isDriveOrBow ? 116 : isMotorOrProp ? 84 : 88;
+    const h = isDriveOrBow ? 48 : isMotorOrProp ? 24 : 32;
     const rx = 4;
     const x = e.sx - w / 2;
     const y = e.sy - h / 2;
@@ -1073,13 +1199,14 @@ function renderSchematic(){
     `;
   }).join('');
 
-  // 6. Power Paths and Breakers (Single clean line per equipment)
+  // 7. Power Paths and Breakers (Single clean line per equipment, color-coded by voltage)
   const paths = connections.map(c => {
     const a = byId[c.from], b = byId[c.to];
     const status = connectionState(c, state, live);
     const route = getRoute(c, a, b);
     const d = 'M ' + route.points.map(p => `${p[0]} ${p[1]}`).join(' L ');
-    const isDashed = c.id === 'esbTieFeed' || c.id === 'txConAEsbTie';
+    const vType = connectionVoltageType(c);
+    const isDashed = vType === 'emergency';
 
     let breaker = '';
     if (c.breaker && route.breaker) {
@@ -1104,7 +1231,7 @@ function renderSchematic(){
       }
 
       breaker = `
-        <g class="breaker-symbol ${status} ${isClosed ? 'closed' : 'open'} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+        <g class="breaker-symbol ${status} ${vType} ${isClosed ? 'closed' : 'open'} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
           <rect x="${bx - 10}" y="${by - 10}" width="20" height="20" rx="3" />
           ${symbolContent}
           ${labelSvg}
@@ -1114,7 +1241,7 @@ function renderSchematic(){
     }
 
     return `
-      <g class="diagram-path ${status} ${isDashed ? 'dashed-tie' : ''} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
+      <g class="diagram-path ${status} ${vType} ${isDashed ? 'dashed-tie' : ''} ${selected === c.id ? 'selected' : ''}" data-select="${c.id}" tabindex="0" role="button" aria-label="Inspect ${svgEsc(c.name)}">
         <path class="power-line-base" d="${d}" />
         ${status === 'live' && !isDashed ? `<path class="power-flow-anim" d="${d}" />` : ''}
         <title>${svgEsc(c.name)} · ${status}</title>
@@ -1123,29 +1250,38 @@ function renderSchematic(){
     `;
   }).join('');
 
-  // 7. Header and Legend
+  // 8. Header
   const headerSvg = `
     <g class="diagram-header">
-      <text class="diagram-main-title" x="750" y="44" text-anchor="middle">DUAL-BUS REDUNDANT MARINE POWER SYSTEM (SINGLE LINE DIAGRAM)</text>
-      <text class="diagram-subtitle" x="750" y="66" text-anchor="middle">Symmetrical Dual-Transformer Topology (Left Bus A / Right Bus B Redundancy)</text>
+      <text class="diagram-main-title" x="750" y="44" text-anchor="middle">Main power distribution — single-line diagram</text>
+      <text class="diagram-subtitle" x="750" y="66" text-anchor="middle">Split 6.6 kV / 440 V / 220 V switchboards with SOLAS emergency supply</text>
     </g>
   `;
 
+  // 9. Rev A Legend Card at Bottom Right
   const legendSvg = `
-    <g class="diagram-legend-box" transform="translate(40 890)">
-      <rect width="1420" height="52" rx="6" />
-      <text class="legend-header" x="25" y="22">SYSTEM VOLTAGE RATINGS &amp; REDUNDANCY LEGEND:</text>
-      
-      <line x1="420" y1="18" x2="465" y2="18" class="legend-sample-line hv" />
-      <text class="legend-text" x="475" y="22">6.6 kV HV Main Grid</text>
+    <g class="diagram-legend-box rev-a-legend" transform="translate(860, 745)">
+      <rect width="590" height="200" rx="8" />
+      <text class="legend-header" x="18" y="24">Legend</text>
+      <text class="legend-subhead" x="18" y="40">DWG NO: MPS-SLD-2026-REV-A · CLASS: DNV / BV / SOLAS II-1 &amp; II-2</text>
+      <line x1="18" y1="48" x2="572" y2="48" stroke="rgba(148, 163, 184, 0.25)" stroke-width="1" />
 
-      <line x1="710" y1="18" x2="755" y2="18" class="legend-sample-line lv" />
-      <text class="legend-text" x="765" y="22">440 V LV Distribution</text>
+      <line x1="22" y1="68" x2="55" y2="68" class="legend-sample-line hv" />
+      <text class="legend-text" x="65" y="72">6.6 kV main distribution</text>
 
-      <line x1="1000" y1="18" x2="1045" y2="18" class="legend-sample-line consumer" />
-      <text class="legend-text" x="1055" y="22">220 V Control/Lighting</text>
+      <line x1="22" y1="92" x2="55" y2="92" class="legend-sample-line lv" />
+      <text class="legend-text" x="65" y="96">440 V distribution</text>
 
-      <text class="legend-subtext" x="420" y="42">✓ 2x Main Step-Down Transformers (TX A &amp; TX B) | 2x Reefer Transformers (TX REEFER A &amp; B) | 2x Control Transformers (TX CON A &amp; B)</text>
+      <line x1="22" y1="116" x2="55" y2="116" class="legend-sample-line consumer" />
+      <text class="legend-text" x="65" y="120">220 V control and domestic sub-boards</text>
+
+      <line x1="22" y1="140" x2="55" y2="140" class="legend-sample-line emergency" />
+      <text class="legend-text" x="65" y="144">440 V SOLAS emergency</text>
+
+      <line x1="22" y1="164" x2="55" y2="164" class="legend-sample-line bulkhead" />
+      <text class="legend-text" x="65" y="168">A-60 / watertight bulkheads</text>
+
+      <text class="legend-subtext" x="18" y="188">Dual transformers per side · galley shunt trip · HRE 381 Ω NER with 67N</text>
     </g>
   `;
 
@@ -1156,12 +1292,14 @@ function renderSchematic(){
       <svg viewBox="${schematicState.panX} ${schematicState.panY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dual-Bus Redundant Marine Power System Single Line Diagram">
         <rect width="${SVG_BASE_WIDTH}" height="${SVG_BASE_HEIGHT}" fill="#071220" />
         ${headerSvg}
+        ${compartmentsSvg}
         ${paths}
         ${busbarSvg}
         ${txSvg}
         ${genSvg}
         ${shoreSvg}
         ${equipmentSvg}
+        ${shuntStationSvg}
         ${legendSvg}
       </svg>
     </div>
@@ -1177,6 +1315,16 @@ function renderSchematic(){
     });
   });
 
+  // Wire interactive Emergency Shunt Trip Pushbutton on SLD
+  host.querySelector('#sldShuntTripBtn')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (simEngine.galleyShuntTripped) {
+      setMessage(simEngine.resetGalleyShunt());
+    } else {
+      setMessage(simEngine.tripGalleyShunt(state));
+    }
+    refresh();
+  });
 }
 function relatedControls(id:string){const related=connections.filter(c=>c.from===id||c.to===id).filter(c=>c.breaker);if(!related.length)return '';return `<div class="inspector-related"><h4>Connected breakers</h4>${related.map(c=>`<div class="related-row"><button data-select="${c.id}" type="button">${c.name}</button><button class="feeder-state ${state.closed[c.id]?'closed':''}" data-breaker="${c.id}" type="button">${state.closed[c.id]?'CLOSED':'OPEN'}</button></div>`).join('')}</div>`;}
 interface AssemblyPageInfo {
@@ -1245,7 +1393,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'STEERING GEAR CAD ASSEMBLY & SPECS'
     };
   }
-  if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selectedId) || model === 'reefer') {
+  if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed', 'reeferUnitA', 'reeferUnitB'].includes(selectedId) || model === 'reefer') {
     return {
       url: resolveAssemblyUrl('3d_marine_reefer_distribution_assembly.html'),
       title: 'Reefer Distribution Panel — 3D Explodable CAD Assembly',
@@ -1253,8 +1401,72 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
       tag: 'REEFER DISTRIBUTION CAD ASSEMBLY & SPECS'
     };
   }
-  if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
-    const pumpVariant = (['fire', 'fire1', 'fire2', 'eFire'].includes(selectedId)) ? 'fire' : selectedId === 'ballast' ? 'ballast' : selectedId === 'bilge' ? 'bilge' : 'cooling';
+  if (['esb', 'eBus'].includes(selectedId)) {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=eBus'),
+      title: '440 V Emergency Switchboard Cubicle & Interlock Panel',
+      subtitle: 'SOLAS Emergency Bus Section · Bus-Tie Interlock ACB · Automatic Bus Transfer (ABT) · Generator Incomer',
+      tag: 'SOLAS EMERGENCY SWITCHBOARD CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (['eRadio', 'battery'].includes(selectedId)) {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=eRadio'),
+      title: '24 V DC Battery Bank & GMDSS/UPS Charger Cabinet',
+      subtitle: 'SOLAS Emergency Radio Battery Bank · Dual Thyristor Float/Boost Rectifier · Acid-Resistant Marine Rack',
+      tag: 'BATTERY & CHARGER CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'airCompressor') {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=airCompressor'),
+      title: 'Main Starting Air Compressor & Air Receiver Skid',
+      subtitle: '30 bar Two-Stage Water-Cooled Starting Air Compressor · 30 kW Induction Motor · Vertical Receiver Bottle',
+      tag: 'COMPRESSOR SKID CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'ventFan') {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=ventFan'),
+      title: 'Engine Room Heavy Axial Ventilation Fan & Starter Box',
+      subtitle: '45 kW Reversible High-Pressure Axial Fan · Aerofoil Impeller · Star-Delta Starter · Fire Damper Flange',
+      tag: 'VENTILATION FAN CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'ballast') {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=ballast'),
+      title: 'Ballast Pump & Oily Water Separator (OWS) Skid',
+      subtitle: '110 kW Centrifugal Ballast Pump · IMO MEPC 107(49) 15 ppm Separator · Turbidity Coalescer · Tri-Lobe Bilge Pump',
+      tag: 'BALLAST & OWS CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (['galley440', 'galley'].includes(selectedId)) {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=galley440'),
+      title: '440 V Galley Primary Board & Emergency Shunt Trip Box',
+      subtitle: 'SOLAS Ch. II-2 Galley Power Feeder · Dual Heavy Cooking Ranges · Remote Shunt Trip Pushbutton Box',
+      tag: 'GALLEY 440 V CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'shore') {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=shore'),
+      title: '6.6 kV High-Voltage Shore Connection (HVSC) Box & Cable Reel',
+      subtitle: 'IEC/ISO/IEEE 80005-1 Cold Ironing Interface · Motorized Reel · Safety Interlock Earthing Switch · Pilot Wire Pin',
+      tag: 'SHORE POWER HVSC CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (selectedId === 'nav') {
+    return {
+      url: resolveAssemblyUrl('universal_viewer.html?eq=nav'),
+      title: 'Navigation Bridge COLREG Console & S-Band Radar Suite',
+      subtitle: 'SOLAS Bridge NavCom & Wheelhouse Distribution Console · 24 RPM Slotted Waveguide Scanner · Dual Feed',
+      tag: 'BRIDGE NAVCOM CAD ASSEMBLY & SPECS'
+    };
+  }
+  if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
+    const pumpVariant = (['fire', 'fire1', 'fire2', 'eFire'].includes(selectedId)) ? 'fire' : selectedId === 'bilge' ? 'bilge' : 'cooling';
     return {
       url: resolveAssemblyUrl(`3d_marine_pump_assembly.html?pump=${pumpVariant}`),
       title: 'Marine Centrifugal Pump Set — 3D Explodable CAD Assembly',
@@ -1295,6 +1507,130 @@ function closeAssemblyModal() {
 document.querySelector('#assemblyClose')?.addEventListener('click', closeAssemblyModal);
 document.querySelector('#assemblyBackdrop')?.addEventListener('click', closeAssemblyModal);
 
+let lotoModalTarget: string | null = null;
+
+function renderLotoModalContent(targetId: string) {
+  const modal = document.querySelector<HTMLElement>('#lotoModal');
+  if (!modal || modal.classList.contains('hidden')) return;
+
+  const body = document.querySelector<HTMLElement>('#lotoModalBody');
+  const subtitle = document.querySelector<HTMLElement>('#lotoModalSubtitle');
+  const badge = document.querySelector<HTMLElement>('#lotoModalBadge');
+  if (!body || !subtitle || !badge) return;
+
+  const e = byId[targetId];
+  const map = HV_EQUIPMENT_VCB_MAP[targetId];
+  if (!map) return;
+
+  const lotoRec = hvLotoManager.getRecord(targetId);
+  const vcbIds = map.vcbIds;
+  const anyVcbClosed = vcbIds.some(id => !!state.closed[id]);
+  const vcbNames = vcbIds.map(id => edgeById[id]?.name || id).join(', ');
+  const isIsolated = hvLotoManager.isFullyIsolated(targetId, state.closed);
+
+  subtitle.textContent = `${map.label} (${e?.name || targetId}) · interlocked with ${vcbNames}`;
+  badge.textContent = `Permit ${lotoRec.ptwNumber} · ${isIsolated ? 'isolated and earthed, safe to work' : `step ${lotoRec.completedSteps} of 5`}`;
+
+  body.innerHTML = `
+    <div class="loto-status-strip">
+      <div><span>Feeder VCB (${vcbIds.join('/')})</span><strong class="${anyVcbClosed ? 'is-live' : 'is-safe'}">${anyVcbClosed ? 'CLOSED · LIVE' : 'OPEN / TRIPPED'}</strong></div>
+      <div><span>VCB truck</span><strong>${lotoRec.completedSteps >= 2 ? 'TEST / ISOLATED' : 'SERVICE'}</strong></div>
+      <div><span>Voltage test</span><strong class="${lotoRec.completedSteps >= 4 ? 'is-safe' : 'is-warn'}">${lotoRec.completedSteps >= 4 ? '0.00 kV · DEAD' : 'NOT PROVEN'}</strong></div>
+      <div><span>Circuit main earth</span><strong class="${lotoRec.completedSteps >= 5 ? 'is-safe' : ''}">${lotoRec.completedSteps >= 5 ? 'EARTHED TO HULL' : 'OPEN'}</strong></div>
+    </div>
+
+    ${lotoRec.arcFlashViolation ? `
+      <div class="arc-flash-violation-badge">
+        <span class="arc-flash-badge-icon">${icon('warning')}</span>
+        <div>
+          <strong>Enclosure not isolated</strong>
+          <p>${lotoRec.violationMessage || 'Complete all five LOTO steps before opening or exploding a 6.6 kV enclosure.'}</p>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="loto-modal-steps-grid">
+      ${HV_LOTO_STEPS.map(st => {
+        const done = lotoRec.completedSteps >= st.stepNumber;
+        const isNext = lotoRec.completedSteps === st.stepNumber - 1;
+        return `
+          <div class="loto-modal-step-card ${done ? 'done' : isNext ? 'next' : 'locked'}">
+            <div class="loto-modal-step-left">
+              <span class="loto-modal-step-num">${done ? icon('check') : st.stepNumber}</span>
+              <div>
+                <h4 class="loto-modal-step-title">${st.shortLabel}</h4>
+                <p class="loto-modal-step-desc">${st.detail}</p>
+              </div>
+            </div>
+            <div class="loto-modal-step-action">
+              <button type="button" class="loto-step-btn ${done ? 'done' : isNext ? 'primary' : ''}" data-modal-loto-step="${st.stepNumber}" ${done ? 'disabled' : ''}>
+                ${done ? 'Completed' : st.actionLabel}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    <div class="loto-card-footer">
+      <span class="loto-vcb-ref">Interlocked: ${vcbNames}</span>
+      <button type="button" class="button button-quiet" id="btnModalResetLoto">Reset permit</button>
+    </div>
+  `;
+
+  body.querySelectorAll<HTMLButtonElement>('[data-modal-loto-step]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stepNum = parseInt(btn.dataset.modalLotoStep || '0', 10);
+      const res = hvLotoManager.executeStep(targetId, stepNum, state.closed);
+      if (res.success) {
+        document.querySelector('#arcFlashBanner')?.classList.add('hidden');
+        simEngine.pushAlarm('INFO', 'HV LOTO', res.message);
+      } else {
+        simEngine.pushAlarm('WARNING', 'HV LOTO', res.message);
+      }
+      setMessage(res.message);
+      refresh();
+      renderLotoModalContent(targetId);
+    });
+  });
+
+  body.querySelector<HTMLButtonElement>('#btnModalResetLoto')?.addEventListener('click', () => {
+    const msg = hvLotoManager.resetEquipmentLoto(targetId);
+    document.querySelector('#arcFlashBanner')?.classList.add('hidden');
+    const model = modelForSelection();
+    if (['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(targetId) || model === 'transformer') transformerAssembly.setExplosionFactor(0);
+    if (targetId === 'drive' || model === 'drive') driveAssembly.setExplosionFactor(0);
+    if (targetId === 'motor' || model === 'motor') motorAssembly.setExplosionFactor(0);
+    if (targetId === 'shore') shorePowerAssembly.setExplosionFactor(0);
+    if (exploded.isExploded()) exploded.setExploded(false);
+    setMessage(msg);
+    refresh();
+    renderLotoModalContent(targetId);
+  });
+}
+
+function openLotoModal(targetId: string) {
+  lotoModalTarget = targetId;
+  const modal = document.querySelector<HTMLElement>('#lotoModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    document.body.classList.add('has-loto-modal');
+    renderLotoModalContent(targetId);
+  }
+}
+
+function closeLotoModal() {
+  const modal = document.querySelector<HTMLElement>('#lotoModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.classList.remove('has-loto-modal');
+    lotoModalTarget = null;
+  }
+}
+
+document.querySelector('#lotoModalClose')?.addEventListener('click', closeLotoModal);
+document.querySelector('#lotoModalBackdrop')?.addEventListener('click', closeLotoModal);
+
 function modelForSelection():ModelType|undefined {return byId[selected]?.model||edgeById[selected]?.model;}
 
 function verifyHvIsolationOrWarn(equipmentId: string): boolean {
@@ -1302,7 +1638,7 @@ function verifyHvIsolationOrWarn(equipmentId: string): boolean {
   const banner = document.querySelector<HTMLElement>('#arcFlashBanner');
   const bannerText = document.querySelector<HTMLElement>('#arcFlashBannerText');
   if (!access.allowed) {
-    const warnMsg = access.violationMessage || 'ARC-FLASH VIOLATION WARNING: Complete the mandatory 5-step 6.6 kV LOTO isolation sequence before opening or exploding HV panels!';
+    const warnMsg = access.violationMessage || 'Complete the five-step 6.6 kV lockout / tagout before opening or exploding an HV panel.';
     simEngine.pushAlarm('CRITICAL', 'ARC-FLASH', warnMsg);
     if (banner && bannerText) {
       bannerText.textContent = warnMsg;
@@ -1315,6 +1651,71 @@ function verifyHvIsolationOrWarn(equipmentId: string): boolean {
   }
   banner?.classList.add('hidden');
   return true;
+}
+
+function renderAssemblyControlsCard(
+  title: string,
+  microCopy: string,
+  targetFactor: number,
+  prefix: string,
+  isHv: boolean = false
+): string {
+  const pct = Math.round(targetFactor * 100);
+  return `
+    <div class="cad-card ${prefix}-controls-card">
+      <div class="card-header">
+        <div>
+          <div class="eyebrow">3D assembly${isHv ? ' · LOTO required to explode' : ''}</div>
+          <h4>${title}</h4>
+        </div>
+        <span id="${prefix}-explosion-val" class="cad-val">${pct}%</span>
+      </div>
+      <p class="micro-copy">${microCopy}</p>
+      <div class="cad-slider-row">
+        <label for="${prefix}-explosion-slider">Explode</label>
+        <input type="range" id="${prefix}-explosion-slider" min="0" max="1" step="0.01" value="${targetFactor}">
+      </div>
+      <div class="cad-presets">
+        <button type="button" class="preset-btn" data-${prefix}-preset="0">Assembled</button>
+        <button type="button" class="preset-btn" data-${prefix}-preset="0.45">Partial</button>
+        <button type="button" class="preset-btn" data-${prefix}-preset="1.0">Exploded</button>
+      </div>
+    </div>`;
+}
+
+function wireAssemblyControls(
+  pane: Element,
+  prefix: string,
+  assembly: { setExplosionFactor: (f: number) => void; targetExplosionFactor: number },
+  isHv: boolean = false,
+  selectedId: string = ''
+) {
+  const slider = pane.querySelector<HTMLInputElement>(`#${prefix}-explosion-slider`);
+  const label = pane.querySelector<HTMLElement>(`#${prefix}-explosion-val`);
+  slider?.addEventListener('input', (ev) => {
+    const factor = parseFloat((ev.target as HTMLInputElement).value);
+    if (isHv && factor > 0 && !verifyHvIsolationOrWarn(selectedId)) {
+      slider.value = '0';
+      assembly.setExplosionFactor(0);
+      return;
+    }
+    assembly.setExplosionFactor(factor);
+    if (label) label.textContent = `${Math.round(factor * 100)}%`;
+  });
+
+  pane.querySelectorAll<HTMLButtonElement>(`[data-${prefix}-preset]`).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const factor = parseFloat(btn.getAttribute(`data-${prefix}-preset`) || '0');
+      if (isHv && factor > 0 && !verifyHvIsolationOrWarn(selectedId)) {
+        if (slider) slider.value = '0';
+        assembly.setExplosionFactor(0);
+        return;
+      }
+      assembly.setExplosionFactor(factor);
+      if (slider) slider.value = String(factor);
+      if (label) label.textContent = `${Math.round(factor * 100)}%`;
+    });
+  });
 }
 
 function renderInspector(){
@@ -1343,23 +1744,23 @@ function renderInspector(){
     const activeAmps=isPowered?Math.round((Math.hypot(activeKw,activeKvar)*1000)/(Math.sqrt(3)*loadSpec.nominalVoltageV)):0;
     electricalSpecCard=`
       <div class="eto-elec-card">
-        <div class="eyebrow">ETO ELECTRICAL RATING & TELEMETRY</div>
+        <h3 class="block-title">Electrical rating</h3>
         <div class="eto-elec-grid">
-          <div><span>RATED POWER</span><strong>${loadSpec.ratedKw} kW · PF ${loadSpec.powerFactor}</strong></div>
-          <div><span>LIVE DRAW</span><strong>${activeKw} kW / ${activeKvar} kVAr (${activeAmps} A)</strong></div>
-          <div><span>STARTING / INRUSH</span><strong>${loadSpec.startingMethod} (${loadSpec.inrushMultiplier}× Iₙ)</strong></div>
-          <div><span>PMS PRIORITY</span><strong>${loadSpec.priority.toUpperCase()}${loadSpec.preferentialTripStage?` (Shed Stage ${loadSpec.preferentialTripStage})`:''}</strong></div>
+          <div><span>Rated power</span><strong>${loadSpec.ratedKw} kW · PF ${loadSpec.powerFactor}</strong></div>
+          <div><span>Present draw</span><strong>${activeKw} kW / ${activeKvar} kVAr (${activeAmps} A)</strong></div>
+          <div><span>Starting / inrush</span><strong>${loadSpec.startingMethod} (${loadSpec.inrushMultiplier}× Iₙ)</strong></div>
+          <div><span>PMS priority</span><strong>${loadSpec.priority}${loadSpec.preferentialTripStage?` (shed stage ${loadSpec.preferentialTripStage})`:''}</strong></div>
         </div>
       </div>`;
   } else if(genSpec){
     electricalSpecCard=`
       <div class="eto-elec-card">
-        <div class="eyebrow">GENERATOR GOVERNOR & AVR TELEMETRY</div>
+        <h3 class="block-title">Governor and AVR</h3>
         <div class="eto-elec-grid">
-          <div><span>RATED CAPACITY</span><strong>${genSpec.ratedKw} kW / ${genSpec.ratedKva} kVA</strong></div>
-          <div><span>LIVE OUTPUT</span><strong>${Math.round(genSpec.kw)} kW · ${Math.round(genSpec.kvar)} kVAr (${genSpec.loadPercent}%)</strong></div>
-          <div><span>TERMINAL V / Hz</span><strong>${Math.round(genSpec.voltageV)} V · ${genSpec.frequencyHz.toFixed(2)} Hz</strong></div>
-          <div><span>DROOP / AVR REF</span><strong>Gov ${genSpec.govSetpointHz.toFixed(2)} Hz · AVR ${genSpec.relays.fieldLossInjected?'FIELD LOSS':`${Math.round(genSpec.avrSetpointPu*100)}%`}</strong></div>
+          <div><span>Rating</span><strong>${genSpec.ratedKw} kW / ${genSpec.ratedKva} kVA</strong></div>
+          <div><span>Output</span><strong>${Math.round(genSpec.kw)} kW · ${Math.round(genSpec.kvar)} kVAr (${genSpec.loadPercent}%)</strong></div>
+          <div><span>Terminal V / Hz</span><strong>${Math.round(genSpec.voltageV)} V · ${genSpec.frequencyHz.toFixed(2)} Hz</strong></div>
+          <div><span>Governor / AVR reference</span><strong>Gov ${genSpec.govSetpointHz.toFixed(2)} Hz · AVR ${genSpec.relays.fieldLossInjected?'FIELD LOSS':`${Math.round(genSpec.avrSetpointPu*100)}%`}</strong></div>
         </div>
       </div>`;
   } else if(busSpec){
@@ -1367,12 +1768,12 @@ function renderInspector(){
     const earthing=simEngine.hvEarthing;
     electricalSpecCard=`
       <div class="eto-elec-card">
-        <div class="eyebrow">SWITCHBOARD BUS TELEMETRY</div>
+        <h3 class="block-title">Bus readings</h3>
         <div class="eto-elec-grid">
-          <div><span>BUS VOLTAGE / Hz</span><strong>${Math.round(busSpec.voltageV)} V · ${busSpec.frequencyHz.toFixed(2)} Hz</strong></div>
-          <div><span>TOTAL LOAD</span><strong>${busSpec.kw} kW · ${busSpec.kvar} kVAr (PF ${busSpec.powerFactor})</strong></div>
-          <div><span>CURRENT / THD</span><strong>${busSpec.currentAmps} A · THD ${busSpec.thdPercent}%</strong></div>
-          <div><span>${isHvBus?`EARTHING (${simEngine.earthingArchitecture})`:'IT INSULATION (IMD)'}</span><strong>${isHvBus&&simEngine.earthingArchitecture==='HRE'?(simEngine.earthFaultHv?`V_N=${earthing.neutralDisplacementV}V · I_ef=${earthing.groundFaultCurrentAmps.toFixed(1)}A`:'381 Ω NER (V_N=0V)'):(busSpec.insulationKohm>=1000?`${(busSpec.insulationKohm/1000).toFixed(1)} MΩ`:`${busSpec.insulationKohm} kΩ FAULT`)}</strong></div>
+          <div><span>Voltage / frequency</span><strong>${Math.round(busSpec.voltageV)} V · ${busSpec.frequencyHz.toFixed(2)} Hz</strong></div>
+          <div><span>Load</span><strong>${busSpec.kw} kW · ${busSpec.kvar} kVAr (PF ${busSpec.powerFactor})</strong></div>
+          <div><span>Current / THD</span><strong>${Math.round(busSpec.currentAmps)} A · THD ${busSpec.thdPercent}%</strong></div>
+          <div><span>${isHvBus?`Earthing (${simEngine.earthingArchitecture})`:'Insulation (IMD)'}</span><strong>${isHvBus&&simEngine.earthingArchitecture==='HRE'?(simEngine.earthFaultHv?`V_N=${earthing.neutralDisplacementV}V · I_ef=${earthing.groundFaultCurrentAmps.toFixed(1)}A`:'381 Ω NER (V_N=0V)'):(busSpec.insulationKohm>=1000?`${(busSpec.insulationKohm/1000).toFixed(1)} MΩ`:`${busSpec.insulationKohm} kΩ FAULT`)}</strong></div>
         </div>
       </div>`;
   }
@@ -1387,51 +1788,51 @@ function renderInspector(){
     const tripped51=r.lastTripCode==='ANSI-51';
     protectionRelayCard=`
       <div class="relay-engine-card">
-        <div class="eyebrow">MULTIFUNCTION PROTECTION RELAY (ANSI 32 / 40 / 51)</div>
+        <h3 class="block-title">Generator protection</h3>
         <div class="relay-functions-list">
           <div class="relay-fn-row ${tripped32?'tripped':r.reversePowerTimer>0?'pickup':''}">
             <div class="relay-fn-head">
-              <strong>ANSI 32 · Reverse Power Protection</strong>
+              <strong>32 · Reverse power</strong>
               <span class="relay-pill">${tripped32?'TRIPPED':r.reversePowerTimer>0?`PICKUP ${r.reversePowerTimer.toFixed(1)}s / 3.0s`:'NORMAL'}</span>
             </div>
             <div class="relay-fn-sub">Pickup: P &lt; −5% P_rated (−${Math.round(genSpec.ratedKw*0.05)} kW) for &gt; 3.0 s · Live P: ${Math.round(genSpec.kw)} kW</div>
           </div>
           <div class="relay-fn-row ${tripped40?'tripped':r.lossOfFieldTimer>0||r.fieldLossInjected?'pickup':''}">
             <div class="relay-fn-head">
-              <strong>ANSI 40 · Loss of Excitation / Field</strong>
+              <strong>40 · Loss of field</strong>
               <span class="relay-pill">${tripped40?'TRIPPED':r.lossOfFieldTimer>0?`PICKUP ${r.lossOfFieldTimer.toFixed(1)}s / 1.5s`:r.fieldLossInjected?'ARMED':'NORMAL'}</span>
             </div>
             <div class="relay-fn-sub">Pickup: Q &lt; −20% Q_rated (−${Math.round(ratedQ*0.20)} kVAr) &amp; V &lt; 85% (5.61 kV) for 1.5 s · Live Q: ${Math.round(genSpec.kvar)} kVAr, V: ${(genSpec.voltageV/1000).toFixed(2)} kV</div>
           </div>
           <div class="relay-fn-row ${tripped51?'tripped':r.idmtProgress>0?'pickup':''}">
             <div class="relay-fn-head">
-              <strong>ANSI 51 · IDMT Overcurrent Curve</strong>
+              <strong>51 · IDMT overcurrent</strong>
               <span class="relay-pill">${tripped51?'TRIPPED':r.idmtProgress>0?`DIAL ${(r.idmtProgress*100).toFixed(0)}%`:'NORMAL'}</span>
             </div>
-            <div class="relay-fn-sub">IEC Standard Inverse: t = 0.14 / ((I / I_s)^0.02 − 1) · Live I: ${genSpec.currentAmps} A</div>
+            <div class="relay-fn-sub">IEC Standard Inverse: t = 0.14 / ((I / I_s)^0.02 − 1) · Live I: ${Math.round(genSpec.currentAmps)} A</div>
           </div>
         </div>
         <div class="relay-test-actions">
-          <button type="button" class="button button-secondary relay-test-btn ${r.fieldLossInjected?'fault-active':''}" id="btnInspectorFieldLoss">⚡ ${r.fieldLossInjected?'Restore AVR Field':'Inject Field Loss (ANSI 40)'}</button>
-          <button type="button" class="button button-secondary relay-test-btn" id="btnInspectorMotorize">↙ Motorize Gov −0.4 Hz (ANSI 32)</button>
+          <button type="button" class="button button-secondary relay-test-btn ${r.fieldLossInjected?'fault-active':''}" id="btnInspectorFieldLoss">${r.fieldLossInjected?'Restore field':'Inject field loss (40)'}</button>
+          <button type="button" class="button button-secondary relay-test-btn" id="btnInspectorMotorize">Lower governor 0.4 Hz (32)</button>
         </div>
       </div>`;
   } else if(feederRelay && c){
     const fTripped=Boolean(feederRelay.lastTripReason);
     protectionRelayCard=`
       <div class="relay-engine-card">
-        <div class="eyebrow">FEEDER PROTECTION RELAY (ANSI 51 IDMT CURVE)</div>
+        <h3 class="block-title">Feeder protection</h3>
         <div class="relay-functions-list">
           <div class="relay-fn-row ${fTripped?'tripped':feederRelay.idmtProgress>0?'pickup':''}">
             <div class="relay-fn-head">
-              <strong>ANSI 51 · IEC Standard Inverse IDMT</strong>
+              <strong>51 · IEC standard inverse</strong>
               <span class="relay-pill">${fTripped?'TRIPPED':feederRelay.idmtProgress>0?`DIAL ${(feederRelay.idmtProgress*100).toFixed(0)}%`:'NORMAL'}</span>
             </div>
-            <div class="relay-fn-sub">Curve: t = k / ((I / I_s)^α − 1) [k=0.14, α=0.02] · Pickup I_s = ${feederRelay.pickupAmps} A · Live I = ${feederRelay.currentAmps} A</div>
+            <div class="relay-fn-sub">Curve: t = k / ((I / I_s)^α − 1) [k=0.14, α=0.02] · Pickup I_s = ${feederRelay.pickupAmps} A · Live I = ${Math.round(feederRelay.currentAmps)} A</div>
           </div>
         </div>
         <div class="relay-test-actions">
-          <button type="button" class="button button-secondary relay-test-btn ${feederRelay.overcurrentInjected?'fault-active':''}" id="btnInspectorFeederOverload">⚡ ${feederRelay.overcurrentInjected?'Clear Feeder Overload':'Inject 185% Feeder Overload (ANSI 51)'}</button>
+          <button type="button" class="button button-secondary relay-test-btn ${feederRelay.overcurrentInjected?'fault-active':''}" id="btnInspectorFeederOverload">${feederRelay.overcurrentInjected?'Clear overload':'Inject 185% overload (51)'}</button>
         </div>
       </div>`;
   }
@@ -1449,24 +1850,24 @@ function renderInspector(){
     hvLotoCard=`
       <div class="hv-loto-card ${isIsolated?'is-safe':lotoRec.arcFlashViolation?'is-violation':''}" id="hvLotoCard">
         <div class="hv-loto-header">
-          <div>
-            <div class="eyebrow">6.6 kV HIGH-VOLTAGE PERMIT TO WORK (PTW)</div>
-            <h4>Mandatory 5-Step LOTO Safety Isolation</h4>
+          <h4>Lockout / tagout</h4>
+          <div class="hv-loto-meta">
+            <span class="ptw-badge ${isIsolated?'safe':'live'}">${lotoRec.ptwNumber} · ${isIsolated?'isolated and earthed':`step ${lotoRec.completedSteps} of 5`}</span>
+            <button type="button" class="btn-expand-ptw" id="btnExpandLoto" title="Open the full permit-to-work view">${icon('maximize')}Full view</button>
           </div>
-          <span class="ptw-badge ${isIsolated?'safe':'live'}">${lotoRec.ptwNumber} · ${isIsolated?'ISOLATED & EARTHED':`${lotoRec.completedSteps} / 5 STEPS`}</span>
         </div>
         <div class="arc-flash-violation-badge ${lotoRec.arcFlashViolation?'':'hidden'}" id="inspectorArcFlashBadge" role="alert">
-          <span class="arc-flash-badge-icon">⚡</span>
+          <span class="arc-flash-badge-icon">${icon('warning')}</span>
           <div>
-            <strong>ARC-FLASH VIOLATION WARNING</strong>
-            <p>${lotoRec.violationMessage||'Un-isolated 6.6 kV enclosure access attempted! Complete all 5 LOTO steps before opening or exploding 3D HV models.'}</p>
+            <strong>Enclosure not isolated</strong>
+            <p>${lotoRec.violationMessage||'Complete all five LOTO steps before opening or exploding a 6.6 kV enclosure.'}</p>
           </div>
         </div>
         <div class="loto-status-strip">
-          <div><span>FEEDER VCB (${vcbIds.join('/')})</span><strong>${anyVcbClosed?'CLOSED (LIVE)':'OPEN'}</strong></div>
-          <div><span>VCB TRUCK</span><strong>${lotoRec.completedSteps>=2?'TEST / ISOLATED':'SERVICE'}</strong></div>
-          <div><span>6.6 kV WAND</span><strong>${lotoRec.completedSteps>=4?'0.0 kV DEAD':'UNVERIFIED'}</strong></div>
-          <div><span>CME SWITCH</span><strong>${lotoRec.completedSteps>=5?'EARTHED TO HULL':'OPEN'}</strong></div>
+          <div><span>Feeder VCB (${vcbIds.join('/')})</span><strong class="${anyVcbClosed?'is-live':'is-safe'}">${anyVcbClosed?'CLOSED · LIVE':'OPEN'}</strong></div>
+          <div><span>VCB truck</span><strong>${lotoRec.completedSteps>=2?'TEST / ISOLATED':'SERVICE'}</strong></div>
+          <div><span>Voltage test</span><strong class="${lotoRec.completedSteps>=4?'is-safe':'is-warn'}">${lotoRec.completedSteps>=4?'0.0 kV · DEAD':'NOT PROVEN'}</strong></div>
+          <div><span>Circuit main earth</span><strong class="${lotoRec.completedSteps>=5?'is-safe':''}">${lotoRec.completedSteps>=5?'EARTHED':'OPEN'}</strong></div>
         </div>
         <div class="loto-steps-list">
           ${HV_LOTO_STEPS.map(st=>{
@@ -1474,7 +1875,7 @@ function renderInspector(){
             const isNext=lotoRec.completedSteps===st.stepNumber-1;
             return `<div class="loto-step-row ${done?'done':isNext?'next':'locked'}">
               <div class="loto-step-info">
-                <span class="loto-step-num">${done?'✓':st.stepNumber}</span>
+                <span class="loto-step-num">${done?icon('check'):st.stepNumber}</span>
                 <div>
                   <strong>${st.shortLabel}</strong>
                   <p>${st.detail}</p>
@@ -1487,205 +1888,58 @@ function renderInspector(){
           }).join('')}
         </div>
         <div class="loto-card-footer">
-          <span class="loto-vcb-ref">Associated VCB: ${vcbNames}</span>
-          <button type="button" class="button button-quiet loto-reset-btn" id="btnResetLoto">↺ De-Isolate &amp; Reset PTW</button>
+          <span class="loto-vcb-ref">Interlocked: ${vcbNames}</span>
+          <button type="button" class="button button-quiet loto-reset-btn" id="btnResetLoto">Reset permit</button>
         </div>
       </div>`;
   }
 
-  pane.innerHTML=`<div class="inspector-header"><div class="eyebrow">EQUIPMENT INSPECTOR</div><span class="inspector-icon">◈</span><h2>${title}</h2><div class="zone">${sub}</div><span class="status-pill ${status.startsWith('POWERED')||status==='ENERGIZED'?'live':status.startsWith('OPEN')?'open':'dead'}">${status}</span></div>
-    <div class="inspector-scroll"><div class="facts"><div><span>VOLTAGE / TYPE</span><strong>${e?.voltage||'Vacuum circuit breaker'}</strong></div><div><span>NORMAL STATE</span><strong>${normal}</strong></div></div>
+  // Galley 440 V Emergency Remote Shunt Trip Pushbutton Card (SOLAS II-2 Reg 9.2)
+  let galleyShuntCard = '';
+  if (selected === 'galley440' || selected === 'galley440Feed') {
+    galleyShuntCard = `
+      <div class="galley-shunt-card ${simEngine.galleyShuntTripped ? 'is-tripped' : 'is-armed'}">
+        <div class="hv-loto-header">
+          <h4>Galley remote shunt trip</h4>
+          <span class="ptw-badge ${simEngine.galleyShuntTripped ? 'live' : 'safe'}">SOLAS II-2 Reg 9.2 · ${simEngine.galleyShuntTripped ? 'TRIPPED' : 'ARMED'}</span>
+        </div>
+        <p class="micro-copy">
+          A trip station at the galley entrance de-energizes cooking appliances, fryers and exhaust ventilation in a fire (SOLAS II-2 Reg 9.2, BV NR467).
+        </p>
+        <div class="galley-shunt-actions">
+          <button type="button" class="button button-danger" id="btnInspectorGalleyTrip">Press trip button</button>
+          <button type="button" class="button button-secondary" id="btnInspectorGalleyReset" ${simEngine.galleyShuntTripped ? '' : 'disabled'}>Reset to armed</button>
+        </div>
+      </div>`;
+  }
+
+  pane.innerHTML=`<div class="inspector-header"><h2>${title}</h2><div class="zone">${sub}</div><span class="status-pill ${status.startsWith('POWERED')||status==='ENERGIZED'?'live':status.startsWith('OPEN')?'open':'dead'}">${status}</span></div>
+    <div class="inspector-scroll"><div class="facts"><div><span>Voltage / type</span><strong>${e?.voltage||'Vacuum circuit breaker'}</strong></div><div><span>Normal state</span><strong>${normal}</strong></div></div>
     ${electricalSpecCard}
     ${protectionRelayCard}
     ${hvLotoCard}
-    <div class="detail-copy"><h3>Purpose</h3><p>${purpose}</p><h3>Power path</h3><p>${path}</p><h3>Understand it</h3><p>${lesson}</p></div>
+    ${galleyShuntCard}
+    <div class="detail-copy"><h3>Purpose</h3><p>${purpose}</p><h3>Power path</h3><p>${path}</p><h3>How it works</h3><p>${lesson}</p></div>
     ${e&&allSupplyIds.includes(e.id)?`<div class="inspector-actions"><button class="button button-primary" data-source="${e.id}" type="button">${state.running[e.id]?'Stop':'Start'} ${e.id==='shore'?'shore supply':'generator'}</button></div>`:''}
     ${c?.breaker?`<div class="inspector-actions"><button class="button button-primary" data-breaker="${c.id}" type="button">${state.closed[c.id]?'Open':'Close'} breaker</button></div>`:''}
     ${e?relatedControls(e.id):''}
-    ${assemblyInfo?`<div class="inspector-actions" style="margin-top:14px;"><button id="openCadAssembly" type="button" class="button button-primary open-cad-btn" style="width:100%;">⚡ Open 3D Engineering Assembly & Specs ↗</button></div>`:''}
-    ${selected === 'prop' || e?.kind === 'propeller' ? `
-      <div class="propeller-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Propeller & Stern Tube Assembly</h4>
-          </div>
-          <span id="propeller-explosion-val" class="propeller-val-badge">${Math.round(propellerAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the nickel-aluminum bronze hub, 4 slender Kaplan blades, thrust washer, retaining nut, multi-stage seals, aft gland, and stern tube cutaway.
-        </p>
-        <div class="propeller-slider-row">
-          <label for="propeller-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="propeller-explosion-slider" min="0" max="1" step="0.01" value="${propellerAssembly.targetExplosionFactor}">
-        </div>
-        <div class="propeller-presets">
-          <button type="button" class="preset-btn" data-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selected) || e?.kind === 'transformer' || model === 'transformer' ? `
-      <div class="transformer-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">6.6 kV / 440 V Distribution Transformer</h4>
-          </div>
-          <span id="transformer-explosion-val" class="transformer-val-badge">${Math.round(transformerAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the CRGO laminated silicon steel core, concentric 440 V LV and 6.6 kV HV resin coils, dielectric Nomex barriers, porcelain bushings, and radiator fin banks.
-        </p>
-        <div class="transformer-slider-row">
-          <label for="transformer-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="transformer-explosion-slider" min="0" max="1" step="0.01" value="${transformerAssembly.targetExplosionFactor}">
-        </div>
-        <div class="transformer-presets">
-          <button type="button" class="preset-btn" data-tx-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-tx-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-tx-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${selected === 'drive' || e?.kind === 'drive' || model === 'drive' ? `
-      <div class="drive-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Propulsion Frequency Converter</h4>
-          </div>
-          <span id="drive-explosion-val" class="drive-val-badge">${Math.round(driveAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the MV input switchgear, DC link capacitor bank, water-cooled IGBT inverter stacks, closed-loop cooling system, and digital control rack.
-        </p>
-        <div class="drive-slider-row">
-          <label for="drive-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="drive-explosion-slider" min="0" max="1" step="0.01" value="${driveAssembly.targetExplosionFactor}">
-        </div>
-        <div class="drive-presets">
-          <button type="button" class="preset-btn" data-drive-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-drive-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-drive-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${selected === 'motor' || e?.kind === 'motor' || model === 'motor' ? `
-      <div class="motor-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL · 6.6 kV LOTO ENFORCED</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Electric Propulsion Motor</h4>
-          </div>
-          <span id="motor-explosion-val" class="motor-val-badge">${Math.round(motorAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the cast ribbed stator frame, 6.6 kV form-wound coils, squirrel-cage rotor, alloy drive shaft, heavy roller bearings, and aft cooling fan.
-        </p>
-        <div class="motor-slider-row">
-          <label for="motor-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="motor-explosion-slider" min="0" max="1" step="0.01" value="${motorAssembly.targetExplosionFactor}">
-        </div>
-        <div class="motor-presets">
-          <button type="button" class="preset-btn" data-motor-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-motor-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-motor-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${selected === 'steering' || selected === 'eSteer' || e?.id === 'steering' || e?.id === 'eSteer' ? `
-      <div class="steering-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Electro-Hydraulic Steering Gear</h4>
-          </div>
-          <span id="steering-explosion-val" class="steering-val-badge">${Math.round(steeringAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the heavy cast bedplate, vertical rudder stock, crosshead tiller arm, port and starboard hydraulic rams, reciprocating pistons, and hydraulic power pack.
-        </p>
-        <div class="steering-slider-row">
-          <label for="steering-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="steering-explosion-slider" min="0" max="1" step="0.01" value="${steeringAssembly.targetExplosionFactor}">
-        </div>
-        <div class="steering-presets">
-          <button type="button" class="preset-btn" data-steering-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-steering-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-steering-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selected) || e?.id === 'reefer' || model === 'reefer' ? `
-      <div class="reefer-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#38bdf8;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Reefer Distribution Panel</h4>
-          </div>
-          <span id="reefer-explosion-val" class="reefer-val-badge">${Math.round(reeferAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the watertight marine steel cabinet, incoming 440 V supply module, MCCB circuit breaker panel, four 32 A container sockets, deck cable transit, and copper earth bar.
-        </p>
-        <div class="reefer-slider-row">
-          <label for="reefer-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="reefer-explosion-slider" min="0" max="1" step="0.01" value="${reeferAssembly.targetExplosionFactor}">
-        </div>
-        <div class="reefer-presets">
-          <button type="button" class="preset-btn" data-reefer-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-reefer-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-reefer-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump' ? `
-      <div class="pump-controls-card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow" style="color:#2dd4bf;font-size:10px;font-weight:700;">HYBRID 3D CAD MODEL</div>
-            <h4 style="margin:2px 0 0 0;font-size:13px;color:#f8fafc;">Marine Centrifugal Pump Assembly</h4>
-          </div>
-          <span id="pump-explosion-val" class="pump-val-badge">${Math.round(pumpAssembly.targetExplosionFactor * 100)}%</span>
-        </div>
-        <p class="micro-copy" style="margin:0;color:#94a3b8;font-size:11px;">
-          Explode the heavy steel bedplate, foundation bolts, 440 V induction motor, cooling fins, flexible shaft coupling, volute casing, vaned impeller, suction/discharge flanges, and mechanical seal.
-        </p>
-        <div class="pump-slider-row">
-          <label for="pump-explosion-slider" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#cbd5e1;">
-            <span>Explosion Displacement</span>
-            <span style="color:#64748b;font-weight:normal;">0.0 – 1.0</span>
-          </label>
-          <input type="range" id="pump-explosion-slider" min="0" max="1" step="0.01" value="${pumpAssembly.targetExplosionFactor}">
-        </div>
-        <div class="pump-presets">
-          <button type="button" class="preset-btn" data-pump-preset="0">0% Assembled</button>
-          <button type="button" class="preset-btn" data-pump-preset="0.45">45% Sub-Assy</button>
-          <button type="button" class="preset-btn" data-pump-preset="1.0">100% Full Exploded View</button>
-        </div>
-      </div>
-    ` : ''}
-    ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D CAD ENGINEERING MODEL':'INTERACTIVE 3D MODEL'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'⤢ Enlarge & Specs':explodedExpanded?'✕ Close':'⤢ Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()} · ${modelParts[model].length} selectable subassemblies. Click Enlarge to open full interactive assembly with BOM and specifications.`:`Reference-inspired teaching model · ${modelParts[model].length} selectable assemblies. Explode, select a name or a 3D part, then focus to inspect it.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">↗ Explode view</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate · Scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
+    ${assemblyInfo?`<div class="inspector-actions"><button id="openCadAssembly" type="button" class="button button-secondary">${icon('external')}Open assembly and specs</button></div>`:''}
+    ${selected === 'prop' || e?.kind === 'propeller' ? renderAssemblyControlsCard('Propeller and stern tube', 'Nickel-aluminium bronze hub, four blades, thrust washer, retaining nut, seals, aft gland and stern tube cutaway.', propellerAssembly.targetExplosionFactor, 'propeller') : ''}
+    ${['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selected) || e?.kind === 'transformer' || model === 'transformer' ? renderAssemblyControlsCard('6.6 kV / 440 V distribution transformer', 'CRGO laminated core, concentric LV and HV resin coils, Nomex barriers, bushings and radiator banks.', transformerAssembly.targetExplosionFactor, 'transformer', true) : ''}
+    ${selected === 'drive' || e?.kind === 'drive' || model === 'drive' ? renderAssemblyControlsCard('Propulsion frequency converter', 'MV input switchgear, DC-link capacitor bank, water-cooled IGBT stacks, cooling loop and control rack.', driveAssembly.targetExplosionFactor, 'drive', true) : ''}
+    ${selected === 'motor' || e?.kind === 'motor' || model === 'motor' ? renderAssemblyControlsCard('Propulsion motor', 'Ribbed stator frame, form-wound 6.6 kV coils, squirrel-cage rotor, shaft, bearings and cooling fan.', motorAssembly.targetExplosionFactor, 'motor', true) : ''}
+    ${selected === 'steering' || selected === 'eSteer' || e?.id === 'steering' || e?.id === 'eSteer' ? renderAssemblyControlsCard('Electro-hydraulic steering gear', 'Bedplate, rudder stock, crosshead tiller, port and starboard rams, pistons and hydraulic power pack.', steeringAssembly.targetExplosionFactor, 'steering') : ''}
+    ${['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed', 'reeferUnitA', 'reeferUnitB'].includes(selected) || e?.id === 'reefer' || model === 'reefer' ? renderAssemblyControlsCard('Reefer distribution panel', 'Steel cabinet, 440 V incomer, MCCB panel, four 32 A container sockets, cable transit and earth bar.', reeferAssembly.targetExplosionFactor, 'reefer') : ''}
+    ${['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'bilge', 'eFire'].includes(selected) || (selected !== 'ballast' && (e?.kind === 'pump' || model === 'pump')) ? renderAssemblyControlsCard('Centrifugal pump set', 'Bedplate, 440 V induction motor, flexible coupling, volute casing, impeller, flanges and mechanical seal.', pumpAssembly.targetExplosionFactor, 'pump') : ''}
+    ${selected === 'eBus' || selected === 'esb' ? renderAssemblyControlsCard('Emergency switchboard cubicle', 'IP44 steel frame, 440 V draw-out ACB, three-phase busbars, ABT contactor, protection relay, earth meter and gland plate.', esbCubicleAssembly.targetExplosionFactor, 'esb') : ''}
+    ${selected === 'eRadio' || selected === 'battery' ? renderAssemblyControlsCard('24 V DC battery bank and charger', 'Battery rack, 24 V VRLA cells, charger door, float/boost rectifier, DC busbars and centre-zero ammeter.', batterySystemAssembly.targetExplosionFactor, 'battery') : ''}
+    ${selected === 'airCompressor' ? renderAssemblyControlsCard('Starting air compressor skid', 'I-beam skid, two-stage crankcase, 30 kW motor, V-belt drive, intercooler, 30 bar receiver and unloader valve.', airCompressorAssembly.targetExplosionFactor, 'aircomp') : ''}
+    ${selected === 'ventFan' ? renderAssemblyControlsCard('Engine room ventilation fan', 'Steel casing, aerofoil impeller, 45 kW motor, inlet bellmouth, fire damper and local starter.', ventFanAssembly.targetExplosionFactor, 'ventfan') : ''}
+    ${selected === 'ballast' ? renderAssemblyControlsCard('Ballast pump and OWS skid', 'Drip-tray baseplate, bronze volute, impeller, coalescing vessel, 15 ppm oil monitor, three-way valve and 110 kW motor.', ballastOwsAssembly.targetExplosionFactor, 'ballastows') : ''}
+    ${selected === 'galley440' || selected === 'galley' ? renderAssemblyControlsCard('440 V galley board', 'Stainless panel, 400 A incomer MCCB with shunt-trip coil, remote trip station, latching pushbutton and range sub-MCCBs.', galleyBoardAssembly.targetExplosionFactor, 'galleyboard') : ''}
+    ${selected === 'shore' ? renderAssemblyControlsCard('6.6 kV shore power reel', 'Reel chassis, motorised drum, 6.6 kV flexible cable, slip-ring collector, terminal box and key-interlocked earthing switch.', shorePowerAssembly.targetExplosionFactor, 'shorereel', true) : ''}
+    ${selected === 'nav' ? renderAssemblyControlsCard('Bridge navigation console', 'Console desk, navigation-light panel, radar and ECDIS displays, GMDSS station, mast and S-band scanner.', bridgeNavComAssembly.targetExplosionFactor, 'bridgenav') : ''}
+    ${model?`<div class="exploded-section${explodedExpanded?' expanded':''}"><div class="section-heading"><div><div class="eyebrow">${assemblyInfo?'3D model':'Generic 3D model'}</div><h3>${assemblyInfo?assemblyInfo.title.split('—')[0].trim():model==='generator'?'Marine diesel generator':model==='breaker'?'Vacuum circuit breaker':model==='hv-board'?'6.6 kV main switchboard':model==='lv-board'?'Low-voltage switchboard':'Inside the equipment'}</h3></div><div class="heading-tools"><span class="generic-tag ${assemblyInfo?'cad-badge':''}">${assemblyInfo?'CAD MODEL':'GENERIC'}</span><button id="explodeExpand" type="button" class="button button-secondary expand-button" aria-expanded="${explodedExpanded}" aria-label="Enlarge the equipment viewer">${assemblyInfo?'Enlarge':explodedExpanded?'Close':'Enlarge'}</button></div></div><p class="micro-copy">${assemblyInfo?`${assemblyInfo.subtitle.split('·')[0].trim()}. ${modelParts[model].length} parts; Enlarge opens the full assembly with its bill of materials.`:`Simplified teaching model with ${modelParts[model].length} parts. Explode it, pick a part, then focus to inspect.`}</p><div class="exploded-host" id="explodedHost"></div><div class="exploded-actions"><button id="explodeToggle" type="button" class="button button-secondary">Explode</button><button id="focusPart" type="button" class="button button-secondary" disabled>Focus part</button><button id="resetModelView" type="button" class="button button-secondary">Fit all</button><span>Drag to rotate, scroll to zoom</span></div><div class="parts-list" id="partsList"></div><div id="partDescription" class="part-description">Select a part to see what it does.</div></div>`:''}
     </div>`;
 
   pane.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(b=>b.onclick=()=>toggleSource(b.dataset.source!));
@@ -1732,8 +1986,21 @@ function renderInspector(){
     if(['txA','txB','txReeferA','txReeferB','txConA','txConB'].includes(selected)||model==='transformer')transformerAssembly.setExplosionFactor(0);
     if(selected==='drive'||model==='drive')driveAssembly.setExplosionFactor(0);
     if(selected==='motor'||model==='motor')motorAssembly.setExplosionFactor(0);
+    if(selected==='shore')shorePowerAssembly.setExplosionFactor(0);
     if(exploded.isExploded())exploded.setExploded(false);
     setMessage(msg);
+    refresh();
+  });
+  pane.querySelector<HTMLButtonElement>('#btnExpandLoto')?.addEventListener('click',()=>{
+    openLotoModal(selected);
+  });
+
+  pane.querySelector<HTMLButtonElement>('#btnInspectorGalleyTrip')?.addEventListener('click',()=>{
+    setMessage(simEngine.tripGalleyShunt(state));
+    refresh();
+  });
+  pane.querySelector<HTMLButtonElement>('#btnInspectorGalleyReset')?.addEventListener('click',()=>{
+    setMessage(simEngine.resetGalleyShunt());
     refresh();
   });
 
@@ -1744,175 +2011,21 @@ function renderInspector(){
     });
   }
 
-  if (selected === 'prop' || e?.kind === 'propeller') {
-    const propSlider = document.getElementById('propeller-explosion-slider') as HTMLInputElement;
-    propSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      propellerAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('propeller-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.preset || '0');
-        propellerAssembly.setExplosionFactor(factor);
-        if (propSlider) propSlider.value = String(factor);
-        const label = document.getElementById('propeller-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selected) || e?.kind === 'transformer' || model === 'transformer') {
-    const txSlider = document.getElementById('transformer-explosion-slider') as HTMLInputElement;
-    txSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-        txSlider.value = '0';
-        transformerAssembly.setExplosionFactor(0);
-        return;
-      }
-      transformerAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('transformer-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-tx-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.txPreset || '0');
-        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-          if (txSlider) txSlider.value = '0';
-          transformerAssembly.setExplosionFactor(0);
-          return;
-        }
-        transformerAssembly.setExplosionFactor(factor);
-        if (txSlider) txSlider.value = String(factor);
-        const label = document.getElementById('transformer-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (selected === 'drive' || e?.kind === 'drive' || model === 'drive') {
-    const driveSlider = document.getElementById('drive-explosion-slider') as HTMLInputElement;
-    driveSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-        driveSlider.value = '0';
-        driveAssembly.setExplosionFactor(0);
-        return;
-      }
-      driveAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('drive-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-drive-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.drivePreset || '0');
-        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-          if (driveSlider) driveSlider.value = '0';
-          driveAssembly.setExplosionFactor(0);
-          return;
-        }
-        driveAssembly.setExplosionFactor(factor);
-        if (driveSlider) driveSlider.value = String(factor);
-        const label = document.getElementById('drive-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (selected === 'motor' || e?.kind === 'motor' || model === 'motor') {
-    const motorSlider = document.getElementById('motor-explosion-slider') as HTMLInputElement;
-    motorSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-        motorSlider.value = '0';
-        motorAssembly.setExplosionFactor(0);
-        return;
-      }
-      motorAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('motor-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-motor-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.motorPreset || '0');
-        if (factor > 0 && !verifyHvIsolationOrWarn(selected)) {
-          if (motorSlider) motorSlider.value = '0';
-          motorAssembly.setExplosionFactor(0);
-          return;
-        }
-        motorAssembly.setExplosionFactor(factor);
-        if (motorSlider) motorSlider.value = String(factor);
-        const label = document.getElementById('motor-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (selected === 'steering' || selected === 'eSteer' || e?.id === 'steering' || e?.id === 'eSteer') {
-    const steerSlider = document.getElementById('steering-explosion-slider') as HTMLInputElement;
-    steerSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      steeringAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('steering-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-steering-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.steeringPreset || '0');
-        steeringAssembly.setExplosionFactor(factor);
-        if (steerSlider) steerSlider.value = String(factor);
-        const label = document.getElementById('steering-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed'].includes(selected) || e?.id === 'reefer' || model === 'reefer') {
-    const reeferSlider = document.getElementById('reefer-explosion-slider') as HTMLInputElement;
-    reeferSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      reeferAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('reefer-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-reefer-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.reeferPreset || '0');
-        reeferAssembly.setExplosionFactor(factor);
-        if (reeferSlider) reeferSlider.value = String(factor);
-        const label = document.getElementById('reefer-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
-
-  if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'ballast', 'bilge', 'eFire'].includes(selected) || e?.kind === 'pump' || model === 'pump') {
-    const pumpSlider = document.getElementById('pump-explosion-slider') as HTMLInputElement;
-    pumpSlider?.addEventListener('input', (ev) => {
-      const factor = parseFloat((ev.target as HTMLInputElement).value);
-      pumpAssembly.setExplosionFactor(factor);
-      const label = document.getElementById('pump-explosion-val');
-      if (label) label.textContent = `${Math.round(factor * 100)}%`;
-    });
-
-    pane.querySelectorAll<HTMLButtonElement>('[data-pump-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const factor = parseFloat(btn.dataset.pumpPreset || '0');
-        pumpAssembly.setExplosionFactor(factor);
-        if (pumpSlider) pumpSlider.value = String(factor);
-        const label = document.getElementById('pump-explosion-val');
-        if (label) label.textContent = `${Math.round(factor * 100)}%`;
-      });
-    });
-  }
+  wireAssemblyControls(pane, 'propeller', propellerAssembly);
+  wireAssemblyControls(pane, 'transformer', transformerAssembly, true, selected);
+  wireAssemblyControls(pane, 'drive', driveAssembly, true, selected);
+  wireAssemblyControls(pane, 'motor', motorAssembly, true, selected);
+  wireAssemblyControls(pane, 'steering', steeringAssembly);
+  wireAssemblyControls(pane, 'reefer', reeferAssembly);
+  wireAssemblyControls(pane, 'pump', pumpAssembly);
+  wireAssemblyControls(pane, 'esb', esbCubicleAssembly);
+  wireAssemblyControls(pane, 'battery', batterySystemAssembly);
+  wireAssemblyControls(pane, 'aircomp', airCompressorAssembly);
+  wireAssemblyControls(pane, 'ventfan', ventFanAssembly);
+  wireAssemblyControls(pane, 'ballastows', ballastOwsAssembly);
+  wireAssemblyControls(pane, 'galleyboard', galleyBoardAssembly);
+  wireAssemblyControls(pane, 'shorereel', shorePowerAssembly, true, selected);
+  wireAssemblyControls(pane, 'bridgenav', bridgeNavComAssembly);
 
   if(model){
     pane.querySelector<HTMLButtonElement>('#explodeExpand')!.onclick=()=>{
@@ -1932,7 +2045,7 @@ function renderInspector(){
     button.onclick=()=>{
       if(!exploded.isExploded() && needsLoto && !verifyHvIsolationOrWarn(selected))return;
       exploded.setExploded(!exploded.isExploded());
-      button.textContent=exploded.isExploded()?'↙ Assemble view':'↗ Explode view';
+      button.textContent=exploded.isExploded()?'Assemble':'Explode';
     };
     pane.querySelector<HTMLButtonElement>('#focusPart')!.onclick=()=>exploded.focusPart();
     pane.querySelector<HTMLButtonElement>('#resetModelView')!.onclick=()=>exploded.resetView();
@@ -1953,7 +2066,7 @@ function setExpanded(value:boolean){
   document.querySelector('.exploded-section')?.classList.toggle('expanded',value);
   const button=document.querySelector<HTMLButtonElement>('#explodeExpand');
   if(button){
-    button.textContent=value?'✕ Close':'⤢ Enlarge';
+    button.textContent=value?'Close':'Enlarge';
     button.setAttribute('aria-expanded',String(value));
     button.setAttribute('aria-label',value?'Close the enlarged equipment viewer':'Enlarge the equipment viewer');
   }
@@ -1969,14 +2082,10 @@ function setLeftPanel(open:boolean){
   const ws=document.querySelector('#workspace');
   ws?.classList.toggle('left-collapsed',!open);
   const topBtn=document.querySelector<HTMLButtonElement>('#toggleLeftPanel');
-  const icon=document.querySelector('#leftToggleIcon');
-  const handleArrow=document.querySelector('#leftHandleArrow');
   if(topBtn){
     topBtn.classList.toggle('active',open);
     topBtn.setAttribute('aria-expanded',String(open));
   }
-  if(icon)icon.textContent=open?'⇤':'⇥';
-  if(handleArrow)handleArrow.textContent=open?'◂':'▸';
   window.dispatchEvent(new Event('resize'));
   setTimeout(()=>window.dispatchEvent(new Event('resize')),260);
 }
@@ -1990,7 +2099,7 @@ function setLeftPanelExpanded(expanded:boolean){
   if(expBtn){
     expBtn.classList.toggle('active',expanded);
     expBtn.setAttribute('aria-expanded',String(expanded));
-    expBtn.textContent=expanded?'⤡ Compact':'⤢ Expand';
+    expBtn.innerHTML=expanded?`${icon('minimize')}<span>Narrow</span>`:`${icon('maximize')}<span>Widen</span>`;
   }
   window.dispatchEvent(new Event('resize'));
   setTimeout(()=>window.dispatchEvent(new Event('resize')),260);
@@ -2001,12 +2110,10 @@ function setRightPanel(open:boolean){
   const ws=document.querySelector('#workspace');
   ws?.classList.toggle('right-collapsed',!open);
   const topBtn=document.querySelector<HTMLButtonElement>('#toggleRightPanel');
-  const icon=document.querySelector('#rightToggleIcon');
   if(topBtn){
     topBtn.classList.toggle('active',open);
     topBtn.setAttribute('aria-expanded',String(open));
   }
-  if(icon)icon.textContent=open?'⇥':'⇤';
   window.dispatchEvent(new Event('resize'));
   setTimeout(()=>window.dispatchEvent(new Event('resize')),260);
 }
@@ -2015,6 +2122,7 @@ document.addEventListener('keydown',e=>{
   const isInput=['INPUT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
   if(e.key==='Escape'){
     closeAssemblyModal();
+    closeLotoModal();
     if(explodedExpanded)setExpanded(false);
   } else if(e.key==='['&&!isInput){
     setLeftPanel(!leftPanelOpen);
@@ -2061,7 +2169,7 @@ function updateLiveTelemetryDOM(){
       if(r.lastTripCode==='ANSI-51')tags.push('TRIP: ANSI 51 IDMT Overcurrent');
       else if(r.idmtProgress>0)tags.push(`ANSI 51 IDMT Dial: ${(r.idmtProgress*100).toFixed(0)}%`);
       if(tags.length){
-        relayEl.textContent=`⚡ ${tags.join(' · ')}`;
+        relayEl.textContent=tags.join(' · ');
         relayEl.classList.remove('hidden');
       } else {
         relayEl.textContent='';
@@ -2088,7 +2196,7 @@ function updateLiveTelemetryDOM(){
     badge.textContent=s.alreadyClosed?'PARALLELED ON BUS':s.inSyncWindow?'ANSI 25 PERMISSIVE OK':'OUT OF SYNC WINDOW';
   }
   const autoBtn=document.getElementById('btnAutoSync');
-  if(autoBtn)autoBtn.textContent=`⚡ ${s.autoSyncActive?'Auto-Syncing...':'Auto-Sync & Close'}`;
+  if(autoBtn)autoBtn.textContent=s.autoSyncActive?'Synchronizing…':'Auto-sync and close';
 
   // 3. Update PMS Recovery Banner, HRE Telemetry & Alarm Logbook
   const recBanner=document.getElementById('pmsRecoveryBanner');
@@ -2105,7 +2213,7 @@ function updateLiveTelemetryDOM(){
   if(ansi67n){
     const ansi67nMsg=earthing.ansi67nActive?`ANSI 67N Directional Earth Fault Alarm · ${earthing.faultedPhase||'Phase A-Earth'} (V_N = ${earthing.neutralDisplacementV} V, I_ef = ${earthing.groundFaultCurrentAmps.toFixed(1)} A)`:'ANSI 67N Directional Earth Fault Relay: Normal';
     ansi67n.className=`ansi67n-alarm-badge ${earthing.ansi67nActive?'active':'hidden'}`;
-    ansi67n.textContent=`⚡ ${ansi67nMsg}`;
+    ansi67n.textContent=ansi67nMsg;
   }
 
   // 3b. Update Phase 3 SOLAS Blackout Recovery 5-Stage Sequential Waterfall HUD Progress Bar
@@ -2115,12 +2223,12 @@ function updateLiveTelemetryDOM(){
     const showWf=wf.active || wf.completed || activeScenario==='emergency';
     wfHud.classList.toggle('hidden',!showWf);
     if(showWf){
-      const curTitle=wf.currentStage?`Stage ${wf.currentStage.stageNumber}: ${wf.currentStage.shortTitle}`:(wf.completed?'All 5 SOLAS Stages Restored':'SOLAS Blackout Recovery');
+      const curTitle=wf.currentStage?`Stage ${wf.currentStage.stageNumber}: ${wf.currentStage.shortTitle}`:(wf.completed?'All five stages restored':'Waiting to start');
       wfHud.innerHTML=`
         <div class="solas-wf-header">
           <div class="solas-wf-title">
-            <span class="solas-wf-badge">${wf.active?'SOLAS SEQUENTIAL WATERFALL ACTIVE':'SOLAS WATERFALL COMPLETE'}</span>
-            <strong>${curTitle} (T = ${wf.elapsedSec.toFixed(1)}s)</strong>
+            <span class="solas-wf-badge">${wf.active?'SOLAS blackout recovery':'SOLAS recovery complete'}</span>
+            <strong>${curTitle}</strong><span class="solas-wf-badge num">T+${wf.elapsedSec.toFixed(1)} s</span>
           </div>
           <span class="solas-wf-pct">${wf.progressPercent}%</span>
         </div>
@@ -2134,9 +2242,9 @@ function updateLiveTelemetryDOM(){
             return `<div class="solas-wf-stage-pill ${isDone?'done':isCur?'active':'pending'}">
               <div class="solas-wf-stage-top">
                 <span class="solas-wf-stage-time">${st.timeWindowLabel}</span>
-                <span class="solas-wf-stage-state">${isDone?'✓ ENERGIZED':isCur?'⚡ SEQUENCING':'QUEUED'}</span>
+                <span class="solas-wf-stage-state">${isDone?'done':isCur?'running':'queued'}</span>
               </div>
-              <strong class="solas-wf-stage-name">Stage ${st.stageNumber}: ${st.shortTitle}</strong>
+              <strong class="solas-wf-stage-name" title="${st.shortTitle}">${st.stageNumber}. ${st.shortTitle}</strong>
             </div>`;
           }).join('')}
         </div>`;
@@ -2166,34 +2274,34 @@ function updateLiveTelemetryDOM(){
     const txReeferA=simEngine.transformerLoading.txReeferA, txReeferB=simEngine.transformerLoading.txReeferB;
     strip.innerHTML=`
       <button type="button" class="bus-tele-card ${bA.live?'live':'dead'}" data-bus-jump="busA">
-        <span class="bus-tele-title">6.6 kV BUS A (${simEngine.earthingArchitecture})</span>
+        <span class="bus-tele-title">6.6 kV bus A · ${simEngine.earthingArchitecture}</span>
         <strong>${bA.live?`${(bA.voltageV/1000).toFixed(2)} kV · ${bA.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
         <span>${bA.kw} kW · PF ${bA.powerFactor} · THD ${bA.thdPercent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${bB.live?'live':'dead'}" data-bus-jump="busB">
-        <span class="bus-tele-title">6.6 kV BUS B (${simEngine.earthingArchitecture})</span>
+        <span class="bus-tele-title">6.6 kV bus B · ${simEngine.earthingArchitecture}</span>
         <strong>${bB.live?`${(bB.voltageV/1000).toFixed(2)} kV · ${bB.frequencyHz.toFixed(2)} Hz`:'DEAD BUS'}</strong>
         <span>${bB.kw} kW · PF ${bB.powerFactor} · THD ${bB.thdPercent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${lvA.live?'live':'dead'}" data-bus-jump="lvBusA">
-        <span class="bus-tele-title">440 V BUS A (PORT)</span>
+        <span class="bus-tele-title">440 V bus A · port</span>
         <strong>${lvA.live?`${Math.round(lvA.voltageV)} V · ${lvA.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
         <span>${lvA.kw} kW · TxA ${txA.percent}% · RefA ${txReeferA.percent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${lvB.live?'live':'dead'}" data-bus-jump="lvBusB">
-        <span class="bus-tele-title">440 V BUS B (STBD)</span>
+        <span class="bus-tele-title">440 V bus B · stbd</span>
         <strong>${lvB.live?`${Math.round(lvB.voltageV)} V · ${lvB.frequencyHz.toFixed(1)} Hz`:'DEAD BUS'}</strong>
         <span>${lvB.kw} kW · TxB ${txB.percent}% · RefB ${txReeferB.percent}%</span>
       </button>
       <button type="button" class="bus-tele-card ${conA.live||conB.live?'live':'dead'}" data-bus-jump="consumerA">
-        <span class="bus-tele-title">220 V SUB A &amp; B</span>
+        <span class="bus-tele-title">220 V sub-boards</span>
         <strong>${conA.live||conB.live?`${Math.round(conA.live?conA.voltageV:conB.voltageV)} V · 60 Hz`:'DEAD BUS'}</strong>
-        <span>Sub A: ${conA.kw} kW · Sub B: ${conB.kw} kW</span>
+        <span>A ${conA.kw} kW · B ${conB.kw} kW</span>
       </button>
       <button type="button" class="bus-tele-card ${bEm.live?'live':'dead'}" data-bus-jump="eBus">
-        <span class="bus-tele-title">440 V ESB (SOLAS)</span>
+        <span class="bus-tele-title">440 V emergency</span>
         <strong>${bEm.live?`${Math.round(bEm.voltageV)} V · ${bEm.frequencyHz.toFixed(1)} Hz`:'STANDBY'}</strong>
-        <span>${bEm.kw} kW · SOLAS Essential</span>
+        <span>${bEm.kw} kW · essential</span>
       </button>`;
     strip.querySelectorAll<HTMLButtonElement>('[data-bus-jump]').forEach(btn=>{
       btn.onclick=()=>select(btn.dataset.busJump!);
@@ -2248,30 +2356,31 @@ function refresh(){
   renderInspector();
   vessel.update(state,live,selected);
   updateLiveTelemetryDOM();
+  if(lotoModalTarget)renderLotoModalContent(lotoModalTarget);
   const s=scenarios.find(s=>s.id===activeScenario);
   document.querySelector('#lessonTitle')!.textContent=s?.title||'Free exploration';
   document.querySelector('#lessonText')!.textContent=s?.instruction||'Change a source or breaker and trace which loads remain connected to an active source.';
   const runningSources=allSupplyIds.filter(id=>state.running[id]).length;
   const suppliedLoads=equipment.filter(e=>['load','pump','thruster','motor','propeller'].includes(e.kind)&&live.has(e.id)).length;
   document.querySelector('#statusCount')!.textContent=`${runningSources} sources active · ${suppliedLoads} load groups supplied`;
-  document.querySelector('.small-index')!.textContent=s?`${String(scenarios.indexOf(s)+1).padStart(2,'0')} / ${String(scenarios.length).padStart(2,'0')}`:'FREE MODE';
+  document.querySelector('.small-index')!.textContent=s?`${String(scenarios.indexOf(s)+1).padStart(2,'0')} / ${String(scenarios.length).padStart(2,'0')}`:'Free mode';
   setMessage(message);
 }
 
 document.querySelector('#openTutorialBtn')?.addEventListener('click',()=>{
   openAssemblyModal({
     url: resolveAssemblyUrl('tutorial.html'),
-    title: 'Marine Power System Simulator — Interactive ETO Operations & Simulation Guide',
-    subtitle: 'Step-by-Step Guide · Generator Paralleling & Synchroscope · PMS Load Sharing · Blackout Recovery · IT Earth Faults',
-    tag: 'ETO STUDENT TRAINING MANUAL'
+    title: 'Tutorial',
+    subtitle: 'Paralleling and synchroscope · PMS load sharing · blackout recovery · earth faults',
+    tag: 'Guide'
   });
 });
 document.querySelector('#openUniversalCatalog')?.addEventListener('click',()=>{
   openAssemblyModal({
     url: resolveAssemblyUrl('universal_viewer.html?eq=pump_cooling'),
-    title: 'Universal Marine Equipment 3D CAD & Electrical Spec Viewer',
-    subtitle: 'Unified Manifest-Driven Viewer · Interactive Exploded Views · ETO Electrical Ratings & BOM',
-    tag: 'UNIVERSAL ETO EQUIPMENT CATALOG'
+    title: 'Equipment catalog',
+    subtitle: 'Exploded 3D assemblies, electrical ratings and bills of materials',
+    tag: 'Catalog'
   });
 });
 document.querySelector('#toggleLeftPanel')?.addEventListener('click',()=>setLeftPanel(!leftPanelOpen));
@@ -2282,8 +2391,8 @@ document.querySelector('#toggleRightPanel')?.addEventListener('click',()=>setRig
 document.querySelector('#resetAll')!.addEventListener('click',reset);
 document.querySelector('#resetCamera')!.addEventListener('click',()=>vessel.resetCamera());
 document.querySelector('#focusEquipment')!.addEventListener('click',()=>vessel.focusSelection());
-document.querySelector('#toggleShell')!.addEventListener('click',e=>{showShell=!showShell;vessel.setShell(showShell);(e.currentTarget as HTMLElement).textContent=`▧ Shell ${showShell?'on':'off'}`;});
-document.querySelector('#toggleLabels')!.addEventListener('click',e=>{showLabels=!showLabels;vessel.setLabels(showLabels);(e.currentTarget as HTMLElement).textContent=`T Labels ${showLabels?'on':'off'}`;});
+document.querySelector('#toggleShell')!.addEventListener('click',e=>{showShell=!showShell;vessel.setShell(showShell);(e.currentTarget as HTMLElement).setAttribute('aria-pressed',String(showShell));});
+document.querySelector('#toggleLabels')!.addEventListener('click',e=>{showLabels=!showLabels;vessel.setLabels(showLabels);(e.currentTarget as HTMLElement).setAttribute('aria-pressed',String(showLabels));});
 document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>b.onclick=()=>{
   view=b.dataset.view as View;
   document.querySelector('#vesselHost')!.classList.toggle('hidden',view!=='vessel');

@@ -400,7 +400,9 @@ export const HV_EQUIPMENT_VCB_MAP: Record<string, { label: string; vcbIds: strin
   gb1: { label: '6.6 kV DG 1 Generator VCB', vcbIds: ['gb1'] },
   gb2: { label: '6.6 kV DG 2 Generator VCB', vcbIds: ['gb2'] },
   gb3: { label: '6.6 kV DG 3 Generator VCB', vcbIds: ['gb3'] },
-  gb4: { label: '6.6 kV DG 4 Generator VCB', vcbIds: ['gb4'] }
+  gb4: { label: '6.6 kV DG 4 Generator VCB', vcbIds: ['gb4'] },
+  shore: { label: '6.6 kV Shore Power Connection (HVSC)', vcbIds: ['shoreBreaker'] },
+  shoreBreaker: { label: '6.6 kV Shore Incomer VCB', vcbIds: ['shoreBreaker'] }
 };
 
 export interface EquipmentLotoRecord {
