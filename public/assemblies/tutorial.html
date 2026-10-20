@@ -201,6 +201,15 @@
           <span>Glowing Yellow Flowing Animation = Active Real-Power Flow Direction</span>
         </div>
       </div>
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="https://jro-d.github.io/marine-powersystem-project1/" target="_blank" class="legend-pill" style="text-decoration:none; color:#38bdf8; border-color:rgba(56,189,248,0.4);">
+          <span class="swatch-green"></span>
+          <span>Live Simulator: jro-d.github.io/marine-powersystem-project1</span>
+        </a>
+        <a href="https://github.com/jro-d/marine-powersystem-project1" target="_blank" class="legend-pill" style="text-decoration:none; color:#cbd5e1; border-color:rgba(148,163,184,0.4);">
+          <span>GitHub Repository: github.com/jro-d/marine-powersystem-project1</span>
+        </a>
+      </div>
     </header>
 
     <section class="step-card">
@@ -209,11 +218,12 @@
         <h2>3D Vessel Overview &amp; Glowing Red / Yellow Power Flow</h2>
       </div>
       <p>
-        The simulator models a complete marine diesel-electric power plant inside a translucent hull so future ETO officers can see both physical compartment locations and live electrical power distribution simultaneously.
+        The simulator models a complete marine diesel-electric power plant inside a translucent hull set against a clean, technical white net reference floor. This engineered grid provides a stable spatial reference frame, allowing ETO trainees to inspect equipment layout, tanktop foundation chocks, and live electrical power routing without visual ocean clutter.
       </p>
       <ul>
+        <li><strong>Translucent Hull Shell:</strong> Machinery spaces, switchboard flats, and compartmental bulkheads are visible directly through the ship's skin.</li>
         <li><strong>Glowing Red Power Cables:</strong> Any feeder or bus tie that is actively energized glows bright red in both the 3D Vessel View and the Single-Line Diagram.</li>
-        <li><strong>Glowing Yellow Flowing Pulses:</strong> Animated yellow energy pulses travel from the generating source (DGs, Emergency Gen, or Shore Connection) through the switchboards, transformers, and drives to every running consumer load.</li>
+        <li><strong>Glowing Yellow Flowing Pulses:</strong> Animated yellow energy pulses travel from the generating source (DGs, Emergency Gen, or Shore Connection) through switchboards, transformers, and drives to every running consumer load.</li>
         <li><strong>Camera Navigation:</strong> Left-drag to orbit, right-drag to pan, scroll wheel to zoom, or click any 3D equipment model to focus the camera and open its ETO Inspector card on the right.</li>
       </ul>
       <div class="shot-frame">
@@ -425,6 +435,39 @@
     <section class="step-card">
       <div class="step-header">
         <span class="step-num">SECTION 11</span>
+        <h2>SOLAS II-1/42 &amp; 43 Navigation Electronics &amp; 24 V DC Battery Bridging</h2>
+      </div>
+      <p>
+        A vital rule of maritime safety: <strong>During a total ship blackout, bridge navigation electronics and radio communication MUST NEVER lose power.</strong>
+      </p>
+      <ul>
+        <li><strong>Continuous 24 V DC Battery Bridging:</strong> Under SOLAS Chapter II-1 Regulations 42 &amp; 43, the navigation suite (S-Band 24 RPM Radar, ECDIS, Gyrocompass, GPS, Navtex, VHF/GMDSS Radios, and COLREG Navigation Lights) is backed by a 24 V DC sealed battery bank and static inverter UPS.</li>
+        <li><strong>Zero Transfer Time (0 ms break):</strong> When the 6.6 kV and 440 V switchboards trip into a blackout, the battery bank instantly sustains the bridge electronics with zero interruption, avoiding dangerous equipment reboots while the vessel is drifting.</li>
+        <li><strong>Emergency Generator Transfer:</strong> Within 10 to 45 seconds, the autonomous Emergency Diesel Generator (EDG) starts and connects to the Emergency Switchboard (ESB) via the Automatic Bus Transfer (ABT) switch, restoring AC supply to battery chargers and emergency steering units.</li>
+      </ul>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 12</span>
+        <h2>Unified Universal CAD Twin Viewer (universal_viewer.html)</h2>
+      </div>
+      <p>
+        The simulator consolidates all 3D equipment inspection into a unified, high-performance CAD Twin viewer modeled after the Bow Thruster engineering template:
+      </p>
+      <ul>
+        <li><strong>Dynamic URL Routing:</strong> Launch any assembly via <code>universal_viewer.html?eq=&lt;equipment_id&gt;</code> or select from 18 equipment models using the top header dropdown (e.g., <code>bowThruster</code>, <code>propeller</code>, <code>propulsionMotor</code>, <code>propulsionDrive</code>, <code>transformer</code>, <code>steeringGear</code>, <code>coolingPump</code>, <code>firePump</code>, <code>ballastPump</code>, <code>ventFan</code>, <code>navBridge</code>, <code>eBus</code>, <code>battery</code>).</li>
+        <li><strong>Interactive BOM Sidebar:</strong> Explores detailed classification materials, part codes (<code>PRT-0X</code>), and lets you isolate (<code>Iso</code>) any individual component.</li>
+        <li><strong>3D Floating Callouts &amp; SVG Leader Lines:</strong> Badges follow the camera orbit with real-time SVG leader lines connected to 3D anchor points.</li>
+        <li><strong>Raycasting &amp; Emissive Highlighting:</strong> Clicking or hovering any 3D part highlights it with an active emissive glow (<code>#f97316</code>) and synchronizes with the inspector card.</li>
+        <li><strong>Dynamic Kinematics Controls:</strong> Adjust operational controls in real time — Bow Thruster thrust order and tunnel cutaway mode, Propeller ahead/astern RPM, Steering Gear rudder stock &amp; hydraulic ram helm slider (-35° to +35°), Pump DOL starter, and S-band Radar scan speed.</li>
+        <li><strong>Smooth LERP Explosion:</strong> Drag the explosion slider from 0% to 100% or click quick presets (0% Assembled, 45% Sub-Assy, 100% Exploded).</li>
+      </ul>
+    </section>
+
+    <section class="step-card">
+      <div class="step-header">
+        <span class="step-num">SECTION 13</span>
         <h2>Keyboard Shortcuts &amp; Quick Controls Reference</h2>
       </div>
       <div class="kbd-grid">
