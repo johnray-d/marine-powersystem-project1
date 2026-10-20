@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { connections, equipment, type SimState, type ModelType, connectionState } from './network';
-import { createModel, type ModelInstance } from './models';
+import { connections, equipment, type SimState, type ModelType, connectionState } from '../core/network';
+import { createModel, type ModelInstance } from '../assemblies/models';
 import {
   createVessel,
   createVesselEquipment,

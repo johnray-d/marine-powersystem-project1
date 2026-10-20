@@ -17,7 +17,7 @@ import {
   MAIN_BLACKOUT_SHED_BREAKERS,
   createInitialWaterfallStatus,
   type SolasWaterfallStatus
-} from './vessel-layout';
+} from '../vessel/vessel-layout';
 
 
 export type LoadPriority = 'essential' | 'non-essential' | 'emergency';

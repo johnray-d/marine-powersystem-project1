@@ -7,10 +7,9 @@ import bpy, math, os
 from mathutils import Euler
 
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-workspace_dir = os.path.abspath(os.path.join(script_dir, '..'))
-public_dir = os.path.join(workspace_dir, 'public')
-if not os.path.isdir(public_dir):
-    public_dir = script_dir
+workspace_dir = os.path.abspath(os.path.join(script_dir, '..', '..')) if os.path.basename(script_dir) == 'blender' else os.path.abspath(os.path.join(script_dir, '..'))
+public_dir = os.path.join(workspace_dir, 'public', 'models')
+os.makedirs(public_dir, exist_ok=True)
 
 EXPORT_DIR = public_dir
 AXIS_Z = 0.9  # shaft centerline height

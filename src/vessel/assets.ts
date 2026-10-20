@@ -5,7 +5,10 @@
  */
 
 export function resolvePublicAsset(assetPath: string): string {
-  const cleanPath = assetPath.replace(/^\/+/, '');
+  let cleanPath = assetPath.replace(/^\/+/, '');
+  if (cleanPath.endsWith('.glb') && !cleanPath.startsWith('models/')) {
+    cleanPath = `models/${cleanPath}`;
+  }
   const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL ? import.meta.env.BASE_URL : '';
   if (base && base.startsWith('/') && base !== '/') {
     const cleanBase = base.endsWith('/') ? base : `${base}/`;

@@ -1,15 +1,15 @@
 import './style.css';
-import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, allSupplyIds, VOLTAGES, type SimState, type Equipment, type ModelType, type Connection, type EarthingArchitecture } from './network';
-import { modelParts, HV_LOTO_STEPS, HV_EQUIPMENT_VCB_MAP, hvLotoManager, PROTECTION_RELAY_CATALOG } from './models';
-import { VesselView, ExplodedView } from './scene';
-import { SOLAS_WATERFALL_STAGES } from './vessel-layout';
-import { propellerAssembly } from './propeller-assembly';
-import { transformerAssembly } from './transformer-assembly';
-import { driveAssembly } from './drive-assembly';
-import { motorAssembly } from './motor-assembly';
-import { steeringAssembly } from './steering-assembly';
-import { reeferAssembly } from './reefer-assembly';
-import { pumpAssembly } from './pump-assembly';
+import { byId, connections, edgeById, equipment, initialState, powered, connectionState, scenarios, sourceIds, allSupplyIds, VOLTAGES, type SimState, type Equipment, type ModelType, type Connection, type EarthingArchitecture } from './core/network';
+import { modelParts, HV_LOTO_STEPS, HV_EQUIPMENT_VCB_MAP, hvLotoManager, PROTECTION_RELAY_CATALOG } from './assemblies/models';
+import { VesselView, ExplodedView } from './vessel/scene';
+import { SOLAS_WATERFALL_STAGES } from './vessel/vessel-layout';
+import { propellerAssembly } from './assemblies/propeller-assembly';
+import { transformerAssembly } from './assemblies/transformer-assembly';
+import { driveAssembly } from './assemblies/drive-assembly';
+import { motorAssembly } from './assemblies/motor-assembly';
+import { steeringAssembly } from './assemblies/steering-assembly';
+import { reeferAssembly } from './assemblies/reefer-assembly';
+import { pumpAssembly } from './assemblies/pump-assembly';
 import {
   esbCubicleAssembly,
   batterySystemAssembly,
@@ -19,9 +19,9 @@ import {
   galleyBoardAssembly,
   shorePowerAssembly,
   bridgeNavComAssembly
-} from './consumer-assemblies';
-import { resolveAssemblyUrl } from './assets';
-import { simEngine, LOAD_SPECS } from './sim-engine';
+} from './assemblies/consumer-assemblies';
+import { resolveAssemblyUrl } from './vessel/assets';
+import { simEngine, LOAD_SPECS } from './core/sim-engine';
 
 // Stroke icons (24px grid, drawn with currentColor) used in place of unicode glyphs.
 const ICON_PATHS={

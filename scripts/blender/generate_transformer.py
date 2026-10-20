@@ -22,8 +22,9 @@ from mathutils import Vector  # type: ignore
 # ==============================================================================
 # 1. PATH SETUP & SCENE RESET
 # ==============================================================================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXPORT_GLB_PATH = os.path.join(BASE_DIR, "public", "marine_transformer.glb")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) if os.path.basename(SCRIPT_DIR) == 'blender' else os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+EXPORT_GLB_PATH = os.path.join(PROJECT_ROOT, "public", "models", "marine_transformer.glb")
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)

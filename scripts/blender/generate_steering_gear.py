@@ -9,10 +9,9 @@ from mathutils import Vector
 from math import sin, cos, pi
 
 script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-workspace_dir = os.path.abspath(os.path.join(script_dir, '..'))
-public_dir = os.path.join(workspace_dir, 'public')
-if not os.path.isdir(public_dir):
-    public_dir = script_dir
+workspace_dir = os.path.abspath(os.path.join(script_dir, '..', '..')) if os.path.basename(script_dir) == 'blender' else os.path.abspath(os.path.join(script_dir, '..'))
+public_dir = os.path.join(workspace_dir, 'public', 'models')
+os.makedirs(public_dir, exist_ok=True)
 
 EXPORT_GLB_PATH = os.path.join(public_dir, 'marine_steering_gear.glb')
 EXPORT_GLB_ALT = os.path.join(public_dir, 'marine_steering.glb')
