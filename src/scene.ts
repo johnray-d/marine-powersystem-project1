@@ -21,7 +21,7 @@ import {
   shorePowerAssembly,
   bridgeNavComAssembly
 } from './vessel';
-import { vesselLayout, SHIP, halfBeamAt, hullStart } from './vessel-layout';
+import { vesselLayout, SHIP } from './vessel-layout';
 
 const C = { live: 0xff2222, dead: 0x6b7f8f, open: 0xdf8a1c, selected: 0x0b2a3b };
 const BG = { vessel: 0xdfe3e6, exploded: 0xeceef0 };
@@ -67,72 +67,65 @@ function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .012): THREE.M
   return mesh;
 }
 
-const SEA_SAMPLES = 80;
-/** Animated, translucent sea at the waterline. It is cut out inside the hull outline so the interior stays visible. */
-function createSea(): THREE.Mesh {
-  const x0 = hullStart - 1, x1 = 19.8, hull: number[] = [];
-  for (let i = 0; i < SEA_SAMPLES; i++) {
-    const x = x0 + (x1 - x0) * i / (SEA_SAMPLES - 1);
-    let hb = halfBeamAt(x, SHIP.waterline);
-    if (x >= 14.5 && x <= 19.3) {
-      const u = Math.max(0, Math.min(1, (x - 14.5) / 4.8));
-      const bulbHb = 0.72 * Math.sin(Math.pow(u, 0.62) * Math.PI);
-      hb = Math.max(hb, bulbHb);
-    }
-    hull.push(hb);
-  }
+/**
+ * Clean white floor with an engineering net (grid) texture and soft radial falloff.
+ * Replaces the animated ocean at the base of the vessel (y = SHIP.keel - 0.05).
+ */
+function createNetFloor(): THREE.Mesh {
   const material = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    uniforms: { uTime: { value: 0 }, uHull: { value: hull }, uX0: { value: x0 }, uX1: { value: x1 } },
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
     vertexShader: `
-      uniform float uTime;
       varying vec3 vWorld;
-      varying float vWave;
-      float wave(vec2 p) {
-        return sin(p.x * .42 + uTime * .8) * .5 + sin(p.y * .55 - uTime * .65) * .35 + sin((p.x * .7 + p.y * .9) * .8 + uTime * 1.1) * .25;
-      }
       void main() {
-        vec3 p = position;
-        vWave = wave(p.xz);
-        p.y += vWave * .07;
-        vec4 world = modelMatrix * vec4(p, 1.);
+        vec4 world = modelMatrix * vec4(position, 1.0);
         vWorld = world.xyz;
         gl_Position = projectionMatrix * viewMatrix * world;
-      }`,
-    fragmentShader: `
-      uniform float uTime, uX0, uX1;
-      uniform float uHull[${SEA_SAMPLES}];
-      varying vec3 vWorld;
-      varying float vWave;
-      float hullHalfBeam(float x) {
-        float f = (x - uX0) / (uX1 - uX0) * ${SEA_SAMPLES - 1}.;
-        if (f < 0. || f > ${SEA_SAMPLES - 1}.) return 0.;
-        int i = int(floor(f));
-        return mix(uHull[i], uHull[min(i + 1, ${SEA_SAMPLES - 1})], f - float(i));
       }
+    `,
+    fragmentShader: `
+      varying vec3 vWorld;
       void main() {
         vec2 p = vWorld.xz;
-        float hb = hullHalfBeam(p.x);
-        float d = abs(p.y) - hb;
-        if (hb > .02 && d < 0.) discard;
-        // Flowing crest lines that drift across the surface.
-        float flowA = sin(p.x * 1.1 + sin(p.y * .6 + uTime * .45) * 1.6 - uTime * .9);
-        float flowB = sin(p.y * 1.4 - sin(p.x * .5 - uTime * .35) * 1.4 + uTime * .7);
-        float crest = smoothstep(.93, 1., flowA) * .55 + smoothstep(.94, 1., flowB) * .45;
-        float swell = .5 + .5 * vWave;
-        vec3 col = mix(vec3(.13, .43, .62), vec3(.45, .78, .9), swell * .7 + crest * .5);
-        // Foam where the water meets the hull.
-        float foam = hb > .02 ? (1. - smoothstep(0., .45, d)) * (.55 + .45 * sin(p.x * 4. + p.y * 3. + uTime * 2.)) : 0.;
-        float fade = 1. - smoothstep(26., 62., length(p));
-        float alpha = (.15 + .08 * swell + crest * .34 + foam * .45) * fade;
-        col = mix(col, vec3(.95, 1., 1.), clamp(foam * .8 + crest * .2, 0., 1.));
+
+        // Net grid lines: 1m fine net mesh and 5m primary net cords
+        vec2 gridFine = abs(fract(p - 0.5) - 0.5) / fwidth(p);
+        float lineFine = 1.0 - min(min(gridFine.x, gridFine.y), 1.0);
+
+        vec2 gridMajor = abs(fract(p / 5.0 - 0.5) - 0.5) / fwidth(p / 5.0);
+        float lineMajor = 1.0 - min(min(gridMajor.x, gridMajor.y), 1.0);
+
+        // Net intersections / knot accents
+        vec2 knotDelta = abs(fract(p - 0.5) - 0.5);
+        float knots = smoothstep(0.12, 0.0, length(knotDelta)) * 0.35;
+
+        // Combined net line intensity
+        float net = max(lineFine * 0.40, lineMajor * 0.75) + knots;
+
+        // Soft radial fade so the net floor blends smoothly into the background
+        float dist = length(p);
+        float fade = smoothstep(65.0, 18.0, dist);
+
+        // Pure white floor with crisp technical slate net lines
+        vec3 floorWhite = vec3(1.0, 1.0, 1.0);
+        vec3 netLineColor = vec3(0.68, 0.74, 0.82);
+        vec3 col = mix(floorWhite, netLineColor, net);
+
+        // Opacity: high white ground with net, fading out at outer edge
+        float alpha = fade * (0.88 + net * 0.12);
         gl_FragColor = vec4(col, alpha);
-      }`
+      }
+    `
   });
-  const geometry = new THREE.PlaneGeometry(150, 150, 220, 220); geometry.rotateX(-Math.PI / 2);
-  const sea = new THREE.Mesh(geometry, material);
-  sea.position.y = SHIP.waterline; sea.renderOrder = 2; sea.frustumCulled = false;
-  return sea;
+
+  const geometry = new THREE.PlaneGeometry(160, 160);
+  geometry.rotateX(-Math.PI / 2);
+  const floor = new THREE.Mesh(geometry, material);
+  floor.position.y = SHIP.keel - 0.05;
+  floor.renderOrder = 0;
+  floor.frustumCulled = false;
+  return floor;
 }
 
 export class VesselView {
@@ -152,7 +145,7 @@ export class VesselView {
   private selection = 'busA';
   private labelsVisible = true;
   private phase = 0;
-  private sea = createSea();
+  private floor = createNetFloor();
   private lastTime = 0;
   onSelect: (id: string) => void = () => {};
 
@@ -167,7 +160,7 @@ export class VesselView {
     this.controls.maxDistance = 95;
     this.controls.maxPolarAngle = Math.PI * .62;
     this.scene.add(this.hull);
-    this.scene.add(this.sea);
+    this.scene.add(this.floor);
     for (const e of equipment) {
       const group = createVesselEquipment(e);
       const placement = vesselLayout[e.id], size = placement.size.map(v => v * 0.75), inContainer = placement.space === 'cargo';
@@ -325,7 +318,6 @@ export class VesselView {
     const dt = Math.min(.05, (time - this.lastTime) / 1000);
     this.phase += dt; this.lastTime = time;
     if (!this.host.clientWidth || !this.host.clientHeight) return;
-    (this.sea.material as THREE.ShaderMaterial).uniforms.uTime.value = this.phase;
     // The reefer's condenser fan turns only while the container is supplied.
     for (const rId of ['reeferUnit', 'reeferUnitA', 'reeferUnitB']) {
       if (this.live.has(rId)) {

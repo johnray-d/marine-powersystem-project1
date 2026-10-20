@@ -83,7 +83,7 @@ function cargo(parent: THREE.Group) {
       instances.push({ x: bays[b], y: 1.35 + tier * 0.68, z: (row - (CARGO.rows-1)/2) * CARGO.rowPitch, color: colors[(b + row + tier) % colors.length] });
     }
   }
-  const containerMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .1, roughness: .7, transparent: true, opacity: .26, depthWrite: false });
+  const containerMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .1, roughness: .7, transparent: true, opacity: .12, depthWrite: false });
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(CARGO.length, CARGO.height, CARGO.width), containerMaterial, instances.length);
   const matrix = new THREE.Matrix4(); const edges: number[] = [];
   for (let i = 0; i < instances.length; i++) {
@@ -139,21 +139,21 @@ export function createVessel(): THREE.Group {
               meshName === 'SemiBalanced_Rudder'
             ) {
               mat.transparent = true;
-              mat.opacity = 0.35;
+              mat.opacity = 0.12;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
             // 2. Waterline stripe (crisp boot-topping band)
             else if (matName.includes('Waterline')) {
               mat.transparent = true;
-              mat.opacity = 0.75;
+              mat.opacity = 0.20;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
             // 3. Superstructure & accommodation house (translucent so interior switchboards/generators are visible)
             else if (matName.includes('Superstructure') || meshName.includes('Accommodation')) {
               mat.transparent = true;
-              mat.opacity = 0.35;
+              mat.opacity = 0.12;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
@@ -170,8 +170,8 @@ export function createVessel(): THREE.Group {
               meshName.includes('House_Deck')
             ) {
               mat.transparent = true;
-              mat.opacity = 0.65;
-              mat.depthWrite = true;
+              mat.opacity = 0.20;
+              mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
             // 6. Internal deck flats and watertight bulkheads (machinery platforms)
@@ -182,28 +182,28 @@ export function createVessel(): THREE.Group {
               meshName.includes('Bulkhead')
             ) {
               mat.transparent = true;
-              mat.opacity = 0.50;
+              mat.opacity = 0.15;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
             // 7. Navigation bridge windows
             else if (matName.includes('Window') || meshName.includes('Window')) {
               mat.transparent = true;
-              mat.opacity = 0.55;
+              mat.opacity = 0.15;
               mat.depthWrite = false;
             }
             // 8. Funnel casing & accents
             else if (matName.includes('Funnel') || meshName.includes('Funnel')) {
               mat.transparent = true;
-              mat.opacity = 0.75;
+              mat.opacity = 0.20;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
             }
             // 9. Deck hardware, winches, bollards, rails & thruster grates
             else {
-              mat.transparent = matName.includes('Rail');
-              mat.opacity = matName.includes('Rail') ? 0.75 : 0.95;
-              mat.depthWrite = true;
+              mat.transparent = true;
+              mat.opacity = matName.includes('Rail') ? 0.25 : 0.35;
+              mat.depthWrite = false;
             }
           });
         }
