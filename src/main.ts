@@ -1358,7 +1358,7 @@ interface AssemblyPageInfo {
 function getAssemblyPage(selectedId: string, model: ModelType | undefined): AssemblyPageInfo | null {
   if (model === 'thruster' || selectedId === 'bow') {
     return {
-      url: resolveAssemblyUrl('3d_bow_thruster_explodable_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=bowThruster'),
       title: 'HI-SEA Marine Bow Thruster — 3D Explodable CAD Assembly',
       subtitle: 'Right-Angle Spiral Bevel Drive · 4-Blade Kaplan Bronze Propeller · Bridge Joystick · Hydrodynamic Flow · Bill of Materials',
       tag: 'HI-SEA CAD ASSEMBLY & SPECS'
@@ -1366,7 +1366,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (model === 'hv-board' || model === 'lv-board' || selectedId === 'busA' || selectedId === 'busB' || selectedId === 'tie') {
     return {
-      url: resolveAssemblyUrl('3d_marine_main_switchboard_bus_tie_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=eBus'),
       title: 'IEC 60092-302 Marine Main Switchboard & Bus-Tie Assembly',
       subtitle: 'Cubicle 1 Open 115° · Center Withdrawable Bus-Tie ACB · Three-Phase Copper Busbars · IP22 Canopy · Engineering BOM',
       tag: 'IEC 60092-302 CAD ASSEMBLY & SPECS'
@@ -1374,7 +1374,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'prop' || model === 'propeller') {
     return {
-      url: resolveAssemblyUrl('3d_marine_propeller_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=propeller'),
       title: 'Marine Propeller & Stern Tube — 3D Explodable Assembly',
       subtitle: 'Controllable Pitch / Fixed Pitch Propeller · Stern Tube Bearings · Lip Seals · Intermediate Coupling · Exploded View & BOM',
       tag: 'PROPULSION CAD ASSEMBLY & SPECS'
@@ -1382,7 +1382,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (['txA', 'txB', 'txReeferA', 'txReeferB', 'txConA', 'txConB'].includes(selectedId) || model === 'transformer') {
     return {
-      url: resolveAssemblyUrl('3d_marine_transformer_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=transformer'),
       title: 'Marine Distribution Transformer — 3D Explodable CAD Assembly',
       subtitle: '3-Phase Laminated Core · Concentric Primary & Secondary Windings · Class H Nomex Insulation · Porcelain Bushings · Forced Air Cooling',
       tag: 'TRANSFORMER CAD ASSEMBLY & SPECS'
@@ -1390,7 +1390,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'drive' || model === 'drive') {
     return {
-      url: resolveAssemblyUrl('3d_marine_propulsion_drive_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=propulsionDrive'),
       title: 'Marine Propulsion Drive / Converter — 3D Explodable CAD Assembly',
       subtitle: 'Medium-Voltage Frequency Converter · Multi-Pulse Input Stage · Water-Cooled IGBT Inverter Stacks · DC Link Capacitor Bank · Control & Protection Casing',
       tag: 'PROPULSION DRIVE CAD ASSEMBLY & SPECS'
@@ -1398,7 +1398,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'motor' || model === 'motor') {
     return {
-      url: resolveAssemblyUrl('3d_marine_propulsion_motor_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=propulsionMotor'),
       title: 'Marine Electric Propulsion Motor — 3D Explodable CAD Assembly',
       subtitle: '6.6 kV Squirrel-Cage Induction Motor · Low-Loss Laminated Stator & Rotor · Form-Wound Copper Coils · Heavy-Duty Bearings · Bi-Directional Cooling Fan',
       tag: 'PROPULSION MOTOR CAD ASSEMBLY & SPECS'
@@ -1406,7 +1406,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'steering' || selectedId === 'eSteer') {
     return {
-      url: resolveAssemblyUrl('3d_marine_steering_gear_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=steeringGear'),
       title: 'Marine Steering Gear — 3D Explodable CAD Assembly',
       subtitle: 'Twin-Ram Electro-Hydraulic Steering Gear · Forged Rudder Stock · Double-Acting Crosshead Tiller · Axial Piston Pump · SOLAS Steering Standard',
       tag: 'STEERING GEAR CAD ASSEMBLY & SPECS'
@@ -1414,7 +1414,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (['reefer', 'reeferA', 'reeferB', 'reeferAFeed', 'reeferBFeed', 'reeferUnitA', 'reeferUnitB'].includes(selectedId) || model === 'reefer') {
     return {
-      url: resolveAssemblyUrl('3d_marine_reefer_distribution_assembly.html'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=reefer'),
       title: 'Reefer Distribution Panel — 3D Explodable CAD Assembly',
       subtitle: 'Marine Container Bay Distribution · 440 V / 60 Hz 3-Phase · 4 × 32 A CEE Sockets · Individual MCCB Protection · Solid Copper Hull Grounding',
       tag: 'REEFER DISTRIBUTION CAD ASSEMBLY & SPECS'
@@ -1430,7 +1430,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (['eRadio', 'battery'].includes(selectedId)) {
     return {
-      url: resolveAssemblyUrl('universal_viewer.html?eq=eRadio'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=battery'),
       title: '24 V DC Battery Bank & GMDSS/UPS Charger Cabinet',
       subtitle: 'SOLAS Emergency Radio Battery Bank · Dual Thyristor Float/Boost Rectifier · Acid-Resistant Marine Rack',
       tag: 'BATTERY & CHARGER CAD ASSEMBLY & SPECS'
@@ -1454,7 +1454,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'ballast') {
     return {
-      url: resolveAssemblyUrl('universal_viewer.html?eq=ballast'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=ballastPump'),
       title: 'Ballast Pump & Oily Water Separator (OWS) Skid',
       subtitle: '110 kW Centrifugal Ballast Pump · IMO MEPC 107(49) 15 ppm Separator · Turbidity Coalescer · Tri-Lobe Bilge Pump',
       tag: 'BALLAST & OWS CAD ASSEMBLY & SPECS'
@@ -1478,7 +1478,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   }
   if (selectedId === 'nav') {
     return {
-      url: resolveAssemblyUrl('universal_viewer.html?eq=nav'),
+      url: resolveAssemblyUrl('universal_viewer.html?eq=navBridge'),
       title: 'Navigation Bridge COLREG Console & S-Band Radar Suite',
       subtitle: 'SOLAS Bridge NavCom & Wheelhouse Distribution Console · 24 RPM Slotted Waveguide Scanner · Dual Feed',
       tag: 'BRIDGE NAVCOM CAD ASSEMBLY & SPECS'
@@ -1487,7 +1487,7 @@ function getAssemblyPage(selectedId: string, model: ModelType | undefined): Asse
   if (['cooling', 'cooling1', 'cooling2', 'fire', 'fire1', 'fire2', 'bilge', 'eFire'].includes(selectedId) || model === 'pump') {
     const pumpVariant = (['fire', 'fire1', 'fire2', 'eFire'].includes(selectedId)) ? 'fire' : selectedId === 'bilge' ? 'bilge' : 'cooling';
     return {
-      url: resolveAssemblyUrl(`3d_marine_pump_assembly.html?pump=${pumpVariant}`),
+      url: resolveAssemblyUrl(`universal_viewer.html?eq=${pumpVariant}Pump`),
       title: 'Marine Centrifugal Pump Set — 3D Explodable CAD Assembly',
       subtitle: 'Machinery Space 440 V Pump Set · Volute Casing · Impeller · Mechanical Shaft Seal · Rigid Foundation Skid',
       tag: 'PUMP CAD ASSEMBLY & SPECS'
@@ -2442,7 +2442,7 @@ document.querySelector('#openTutorialBtn')?.addEventListener('click',()=>{
 });
 document.querySelector('#openUniversalCatalog')?.addEventListener('click',()=>{
   openAssemblyModal({
-    url: resolveAssemblyUrl('universal_viewer.html?eq=pump_cooling'),
+    url: resolveAssemblyUrl('universal_viewer.html?eq=coolingPump'),
     title: 'Equipment catalog',
     subtitle: 'Exploded 3D assemblies, electrical ratings and bills of materials',
     tag: 'Catalog'
