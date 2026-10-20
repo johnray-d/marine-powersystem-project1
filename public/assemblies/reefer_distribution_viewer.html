@@ -1,3 +1,20 @@
-<!-- Redirect / mirror to marine_reefer_viewer.html -->
-<meta http-equiv="refresh" content="0; url=./marine_reefer_viewer.html">
-<script>window.location.replace("./marine_reefer_viewer.html");</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Universal Marine CAD Twin...</title>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const queryStr = params.toString() ? '&' + params.toString() : '';
+        window.location.replace('universal_viewer.html?eq=reefer' + queryStr);
+    </script>
+</head>
+<body style="background:#0b111e; color:#94a3b8; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0;">
+    <div style="text-align:center;">
+        <div style="width:28px; height:28px; border:3px solid #f97316; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px;"></div>
+        <p style="font-size:13px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Loading Universal CAD Assembly (reefer)...</p>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html>

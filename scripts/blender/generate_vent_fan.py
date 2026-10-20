@@ -34,8 +34,8 @@ from mathutils import Vector, Euler
 
 # Automatically determine output directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..')) if os.path.basename(SCRIPT_DIR) == 'scripts' else SCRIPT_DIR
-PUBLIC_DIR = os.path.join(PROJECT_ROOT, 'public')
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) if os.path.basename(SCRIPT_DIR) == 'blender' else os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+PUBLIC_DIR = os.path.join(PROJECT_ROOT, 'public', 'models')
 os.makedirs(PUBLIC_DIR, exist_ok=True)
 EXPORT_PATH = os.path.join(PUBLIC_DIR, 'vent_fan_assembly.glb')
 

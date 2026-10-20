@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:hull": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender-hull-2-V7.py",
-    "build:prop": "\"D:\\Blender\\blender.exe\" --background --python scripts/propeller_assembly.py",
-    "build:tx": "\"D:\\Blender\\blender.exe\" --background --python scripts/generate_transformer.py",
-    "build:pumps": "\"D:\\Blender\\blender.exe\" --background --python scripts/generate_pumps.py",
-    "check:layout": "node scripts/check-layout.mjs",
+    "build:hull": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender/generate_hull.py",
+    "build:prop": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender/generate_propeller.py",
+    "build:tx": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender/generate_transformer.py",
+    "build:pumps": "\"D:\\Blender\\blender.exe\" --background --python scripts/blender/generate_pumps.py",
+    "check:layout": "node scripts/qa/check-layout.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
-    "shot": "node scripts/shot.mjs",
+    "shot": "node scripts/qa/shot.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

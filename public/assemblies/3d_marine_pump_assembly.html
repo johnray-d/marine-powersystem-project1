@@ -1,205 +1,32 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Marine Centrifugal Pump Inspector</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0b111a;color:#dbe6f2;font:13px/1.45 system-ui,"Segoe UI",sans-serif}
-#app{display:flex;height:100%}#view{flex:1;position:relative;min-width:0}canvas{display:block}
-aside{width:320px;background:#172231e8;border-left:1px solid #2a3b52;padding:16px;overflow:auto;display:flex;flex-direction:column;gap:10px}
-.badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3cc4b5;background:#2a8f8426;border:1px solid #3cc4b54d;padding:2px 7px;border-radius:4px;width:fit-content}
-h1{font-size:18px;margin:2px 0 0}.sub{color:#8ea3bb;margin-bottom:4px;font-size:12px}
-label{display:block;margin:8px 0 3px;color:#8ea3bb;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-input[type=range]{width:100%}
-button{background:#1d3048;color:#dbe6f2;border:1px solid #2f4a6b;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit;transition:all .15s}
-button:hover{background:#27425f}button.on{background:#2a8f84;border-color:#3cc4b5;color:#fff}button:disabled{opacity:.4;cursor:default}
-.row{display:flex;gap:6px;flex-wrap:wrap}
-#info{margin-top:6px;padding:12px;border-left:3px solid #3cc4b5;background:#0f1a28;border-radius:0 6px 6px 0;min-height:64px;font-size:12px}
-#status{color:#e0a458;margin-top:4px;font-size:11px}
-</style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"}}</script>
-</head><body>
-<div id="app"><div id="view"></div>
-<aside>
-  <span class="badge">MARINE 3D CAD INSPECTOR</span>
-  <h1 id="t"></h1><div class="sub" id="s"></div>
-  <label>Pump Variant</label>
-  <div class="row" id="tabs"></div>
-  <label>Exploded View</label><input id="ex" type="range" min="0" max="1" step="0.01" value="0">
-  <div class="row" id="presets"></div>
-  <label>Motor Speed (RPM)</label><input id="rpm" type="range" min="0" max="600" step="10" value="120">
-  <div class="row" style="margin-top:6px"><button id="focus" disabled>Focus part</button><button id="fit">Fit all</button></div>
-  <label>Sub-Assemblies</label><div class="row" id="chips"></div>
-  <div id="info">Select a part to inspect its function.</div>
-  <div id="status"></div>
-</aside></div>
-<script type="module">
-import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-
-const PUMPS={
-  cooling:{file:'marine_cooling_pump.glb',label:'Cooling Pump',sub:'Machinery space · 440 V · Circulates cooling water for machinery.'},
-  fire:{file:'marine_fire_pump.glb',label:'Fire Pump',sub:'Machinery space · 440 V · Main-service pump for the ship fire main.'},
-  ballast:{file:'marine_ballast_pump.glb',label:'Ballast Pump',sub:'Lower machinery space · 440 V · Moves ballast water for trim and stability.'},
-  bilge:{file:'marine_bilge_pump.glb',label:'Bilge Pump',sub:'Lower machinery space · 440 V · Removes accumulated water from bilge wells.'}
-};
-const ASM=[
-  ['Pump skid',['Pump_Skid','Skid_Bolt']],
-  ['Electric motor',['Motor_']],
-  ['Shaft coupling',['Shaft_Coupling','Pump_Shaft']],
-  ['Pump casing',['Pump_Casing','Casing_Cover']],
-  ['Impeller',['Impeller_']],
-  ['Suction / discharge ports',['Suction_','Discharge_']],
-  ['Shaft seal',['Shaft_Seal']]
-];
-const asmOf=n=>ASM.findIndex(a=>a[1].some(p=>n.startsWith(p)));
-
-const descriptionFallbacks={
-  Pump_Skid:'Fabricated steel baseplate keeping motor and pump aligned.',
-  Skid_Bolt:'Foundation bolt securing the skid to the deck.',
-  Motor_Cooling_Fin:'Cooling fin shedding motor heat to the surrounding air.',
-  Motor_Terminal_Box:'Terminal box where the 440 V feeder cable lands.',
-  Motor_End_Cap:'Non-drive-end cover of the motor.',
-  Motor_:'440 V induction motor driving the pump.',
-  Shaft_Coupling:'Coupling transmitting torque and absorbing misalignment.',
-  Pump_Shaft:'Shaft carrying torque from the motor to the impeller.',
-  Shaft_Seal:'Mechanical seal stopping leakage where the shaft exits the casing.',
-  Pump_Casing:'Volute casing converting water velocity into pressure.',
-  Casing_Cover:'Rear cover closing the casing and housing the seal.',
-  Impeller_:'Rotating vaned wheel that accelerates the water.',
-  Suction_:'Suction port and flange where water enters the pump.',
-  Discharge_:'Discharge port and flange delivering pressurised water.'
-};
-const describe=n=>descriptionFallbacks[Object.keys(descriptionFallbacks).find(k=>n.startsWith(k))]||n;
-
-function offset(n){
-  const v=new THREE.Vector3();
-  if(n.startsWith('Skid_Bolt'))return v.set(0,-0.5,0);
-  if(n.startsWith('Pump_Skid'))return v;
-  if(n.startsWith('Motor_Cooling_Fin')){const i=parseInt(n.split('_').pop());return v.set(-1.6+(i-4.5)*0.14,0.5,0);}
-  if(n==='Motor_Terminal_Box')return v.set(-1.6,1.3,0);
-  if(n==='Motor_End_Cap')return v.set(-2.4,0.4,0);
-  if(n.startsWith('Motor_'))return v.set(-1.6,0.4,0);
-  if(n==='Shaft_Coupling')return v.set(-0.9,0.5,0);
-  if(n==='Pump_Shaft')return v.set(-0.3,1.1,0);
-  if(n==='Shaft_Seal')return v.set(-0.7,0.7,0);
-  if(n==='Casing_Cover')return v.set(-0.4,0,0);
-  if(n==='Pump_Casing')return v.set(0.6,0,0);
-  if(n.startsWith('Impeller_'))return v.set(0.3,0.5,1.2);
-  if(n==='Suction_Port')return v.set(1.6,0,0);
-  if(n==='Suction_Flange')return v.set(2.0,0,0);
-  if(n==='Discharge_Port')return v.set(0.6,0.9,0);
-  if(n==='Discharge_Flange')return v.set(0.6,1.4,0);
-  return v;
-}
-
-const $=id=>document.getElementById(id), view=$('view');
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;
-view.appendChild(renderer.domElement);
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b111a);
-const camera=new THREE.PerspectiveCamera(40,1,0.1,200);camera.position.set(5,3.5,6);
-const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(-0.6,0.9,0);
-scene.add(new THREE.HemisphereLight(0xdbeaff,0x1a2433,1.2));
-const d1=new THREE.DirectionalLight(0xffffff,2.2);d1.position.set(5,8,6);scene.add(d1);
-const d2=new THREE.DirectionalLight(0x88aaff,1);d2.position.set(-6,3,-5);scene.add(d2);
-function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe(view);resize();
-
-const AXIS=0.9;
-let root,rotor,fixed,meshes=[],sel=-1,target=0,cur=0,rpm=120;
-
-function status(t){$('status').textContent=t||'';}
-function boxOf(list){const b=new THREE.Box3();list.forEach(m=>b.expandByObject(m));return b;}
-function focusOn(b){const c=b.getCenter(new THREE.Vector3()),s=b.getSize(new THREE.Vector3()).length();
-  const dir=camera.position.clone().sub(controls.target).normalize();controls.target.copy(c);camera.position.copy(c).addScaledVector(dir,s*1.1);}
-
-function select(i,name){
-  meshes.filter(m=>m.userData.asm===sel).forEach(m=>{if(m.material!==m.userData.mat){m.material.dispose();m.material=m.userData.mat;}});
-  sel=i;
-  [...$('chips').children].forEach((c,k)=>c.classList.toggle('on',k===i));
-  $('focus').disabled=i<0;
-  if(i<0){$('info').textContent='Select a part to see what it does.';return;}
-  meshes.filter(m=>m.userData.asm===i).forEach(m=>{m.material=m.userData.mat.clone();m.material.emissive.set(0x44310a);});
-  const first=name||meshes.find(m=>m.userData.asm===i)?.name||'';
-  $('info').innerHTML='<b>'+ASM[i][0]+'</b><br>'+describe(first);
-}
-
-function resolveAssetUrl(filename){
-  const base = location.pathname.includes('/assemblies/') ? '../' : './';
-  return base + filename;
-}
-
-function load(k){
-  if(!PUMPS[k]) k='cooling';
-  if(root){scene.remove(root);root.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
-  meshes=[];sel=-1;select(-1);status('Loading '+PUMPS[k].file+' …');
-  $('t').textContent=PUMPS[k].label;$('s').textContent=PUMPS[k].sub;
-  [...$('tabs').children].forEach(b=>b.classList.toggle('on',b.dataset.k===k));
-  
-  const url = resolveAssetUrl(PUMPS[k].file);
-  new GLTFLoader().load(url,g=>{
-    root=new THREE.Group();rotor=new THREE.Group();rotor.position.set(0,AXIS,0);fixed=new THREE.Group();
-    root.add(fixed,rotor);scene.add(root);root.updateMatrixWorld(true);g.scene.updateMatrixWorld(true);
-    const found=[];g.scene.traverse(o=>{if(o.isMesh)found.push(o);});
-    found.forEach(m=>{
-      const rot=m.userData.rotating===true||m.userData.rotating===1||/^(Impeller_|Pump_Shaft|Shaft_Coupling)/.test(m.name);
-      (rot?rotor:fixed).attach(m);
-      Object.assign(m.userData,{base:m.position.clone(),rot,off:offset(m.name),asm:asmOf(m.name),mat:m.material});
-      meshes.push(m);
-    });
-    status('');focusOn(boxOf(meshes));
-  },undefined,()=>{
-    // Try fallback
-    const fallbackUrl = resolveAssetUrl('marine_pump.glb');
-    new GLTFLoader().load(fallbackUrl, g => {
-      root=new THREE.Group();rotor=new THREE.Group();rotor.position.set(0,AXIS,0);fixed=new THREE.Group();
-      root.add(fixed,rotor);scene.add(root);root.updateMatrixWorld(true);g.scene.updateMatrixWorld(true);
-      const found=[];g.scene.traverse(o=>{if(o.isMesh)found.push(o);});
-      found.forEach(m=>{
-        const rot=m.userData.rotating===true||m.userData.rotating===1||/^(Impeller_|Pump_Shaft|Shaft_Coupling)/.test(m.name);
-        (rot?rotor:fixed).attach(m);
-        Object.assign(m.userData,{base:m.position.clone(),rot,off:offset(m.name),asm:asmOf(m.name),mat:m.material});
-        meshes.push(m);
-      });
-      status('');focusOn(boxOf(meshes));
-    }, undefined, () => status('Could not load pump model. Ensure .glb is in the public directory.'));
-  });
-}
-
-// UI
-Object.entries(PUMPS).forEach(([k,p])=>{const b=document.createElement('button');b.textContent=p.label;b.dataset.k=k;b.onclick=()=>load(k);$('tabs').appendChild(b);});
-[[0,'0% Assembled'],[0.45,'45% Sub-Assy'],[1,'100% Exploded']].forEach(([v,l])=>{const b=document.createElement('button');b.textContent=l;
-  b.onclick=()=>{target=v;$('ex').value=v;};$('presets').appendChild(b);});
-ASM.forEach((a,i)=>{const b=document.createElement('button');b.textContent='0'+(i+1)+' '+a[0];b.onclick=()=>select(i===sel?-1:i);$('chips').appendChild(b);});
-$('ex').oninput=e=>target=+e.target.value;
-$('rpm').oninput=e=>rpm=+e.target.value;
-$('fit').onclick=()=>focusOn(boxOf(meshes));
-$('focus').onclick=()=>{if(sel>=0)focusOn(boxOf(meshes.filter(m=>m.userData.asm===sel)));};
-
-// click-to-inspect
-const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();let down;
-renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
-renderer.domElement.addEventListener('pointerup',e=>{
-  if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>4)return;
-  const r=renderer.domElement.getBoundingClientRect();
-  mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,camera);
-  const h=ray.intersectObjects(meshes,false)[0];
-  if(h)select(h.object.userData.asm,h.object.name);else select(-1);
-});
-
-// loop: eased factor, exact world-space explosion even while rotor spins
-const clock=new THREE.Clock();
-function animate(){requestAnimationFrame(animate);
-  const dt=Math.min(clock.getDelta(),0.05);cur+=(target-cur)*Math.min(1,dt*8);
-  if(rotor){
-    rotor.rotation.x+=rpm*Math.PI/30*dt;
-    const inv=rotor.quaternion.clone().invert();
-    meshes.forEach(m=>{const o=m.userData.off.clone().multiplyScalar(cur);if(m.userData.rot)o.applyQuaternion(inv);m.position.copy(m.userData.base).add(o);});
-  }
-  controls.update();renderer.render(scene,camera);
-}
-animate();
-const initialKey = new URLSearchParams(location.search).get('pump');
-load(initialKey in PUMPS ? initialKey : 'cooling');
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Marine Pump CAD Twin...</title>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const pump = (params.get('pump') || 'cooling').toLowerCase();
+        const pumpMap = {
+            fire: 'firePump',
+            fire1: 'firePump',
+            fire2: 'firePump',
+            efire: 'firePump',
+            cooling: 'coolingPump',
+            cooling1: 'coolingPump',
+            cooling2: 'coolingPump',
+            ballast: 'ballastPump',
+            bilge: 'bilgePump'
+        };
+        const eqId = pumpMap[pump] || 'coolingPump';
+        window.location.replace('universal_viewer.html?eq=' + eqId);
+    </script>
+</head>
+<body style="background:#0b111e; color:#94a3b8; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0;">
+    <div style="text-align:center;">
+        <div style="width:28px; height:28px; border:3px solid #f97316; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px;"></div>
+        <p style="font-size:13px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Loading Universal CAD Pump Twin...</p>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html>

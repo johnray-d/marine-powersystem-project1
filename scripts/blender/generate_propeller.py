@@ -10,8 +10,10 @@ import shutil
 from mathutils import Vector  # type: ignore
 from math import sin, cos, pi
 
-EXPORT_GLB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "marine_propeller_assembly.glb")
-EXPORT_GLB_ALIAS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "marine_propeller.glb")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) if os.path.basename(SCRIPT_DIR) == 'blender' else os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+EXPORT_GLB_PATH = os.path.join(PROJECT_ROOT, "public", "models", "marine_propeller_assembly.glb")
+EXPORT_GLB_ALIAS = os.path.join(PROJECT_ROOT, "public", "models", "marine_propeller.glb")
 
 BLADE_COUNT = 4
 # Blade tuning: larger radius and narrower chord produce a slender silhouette.

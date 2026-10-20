@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --cad-accent: #f97316;
@@ -23,6 +23,7 @@
             background: #0b111e;
             color: #f1f5f9;
             user-select: none;
+            transition: background 0.3s ease;
         }
         .mono {
             font-family: 'JetBrains Mono', monospace;
@@ -34,6 +35,7 @@
             height: 100%;
             z-index: 1;
             background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 65%, #070b14 100%);
+            transition: background 0.3s ease;
         }
         body.light-studio #canvas-container {
             background: radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%);
@@ -47,6 +49,11 @@
                 linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
             background-size: 36px 36px;
+        }
+        body.light-studio .cad-grid-overlay {
+            background-image: 
+                linear-gradient(to right, rgba(100, 116, 139, 0.12) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(100, 116, 139, 0.12) 1px, transparent 1px);
         }
         input[type="range"] {
             -webkit-appearance: none;
@@ -89,11 +96,28 @@
             z-index: 25;
         }
         .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.88);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
         }
+        body.light-studio .glass-panel {
+            background: rgba(255, 255, 255, 0.90);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: #0f172a;
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+        }
+        body.light-studio .text-white { color: #0f172a !important; }
+        body.light-studio .text-slate-300 { color: #334155 !important; }
+        body.light-studio .text-slate-400 { color: #64748b !important; }
+        body.light-studio .bg-slate-900\/70,
+        body.light-studio .bg-slate-900\/80,
+        body.light-studio .bg-slate-900\/90 { background: rgba(241, 245, 249, 0.9) !important; }
+        body.light-studio .bg-slate-800 { background: #e2e8f0 !important; color: #1e293b !important; }
+        body.light-studio .border-slate-800 { border-color: #cbd5e1 !important; }
+        body.light-studio .border-slate-700 { border-color: #cbd5e1 !important; }
+
         select, button {
             outline: none;
         }
@@ -124,9 +148,15 @@
 
     <!-- Top Header Bar -->
     <header class="fixed top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        <div class="glass-panel px-4 py-2.5 rounded-xl flex items-center gap-3.5 pointer-events-auto shadow-2xl">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-600 to-amber-700 flex items-center justify-center shadow-inner border border-orange-400/30">
-                <svg class="w-6 h-6 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Title & Subtitle Badge -->
+        <div class="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 pointer-events-auto shadow-2xl">
+            <a href="../index.html" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-sky-400 transition" title="Return to Main Vessel Simulation">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+            </a>
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-600 to-amber-700 flex items-center justify-center shadow-md">
+                <svg class="w-5 h-5 text-amber-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M12 9a6 6 0 0 0-6-4c0 3 2 5 3 6"></path>
                     <path d="M15 12a6 6 0 0 0 4-6c-3 0-5 2-6 3"></path>
@@ -135,45 +165,54 @@
                 </svg>
             </div>
             <div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 mono">ETO MARINE CAD</span>
-                    <span id="status-badge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mono">KINEMATICS ACTIVE</span>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[10px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 mono">MARINE CAD TWIN</span>
+                    <span id="badge-voltage" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 mono">440 V</span>
+                    <span id="badge-kw" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mono">135 kW</span>
+                    <span id="badge-bus" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 mono">MAIN BUS A</span>
                 </div>
-                <h1 id="header-title" class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">Marine CAD Explodable Assembly</h1>
+                <h1 id="header-title" class="text-sm font-bold text-white tracking-tight mt-0.5">High-Fidelity Marine CAD Twin</h1>
             </div>
         </div>
 
         <!-- Top Right Controls & Equipment Switcher -->
         <div class="glass-panel p-1.5 rounded-xl flex flex-wrap items-center gap-1.5 pointer-events-auto shadow-2xl">
-            <!-- Equipment Selector -->
-            <div class="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700">
-                <span class="text-[10px] font-bold uppercase text-slate-400 mono">EQUIPMENT</span>
-                <select id="eqSelect" class="bg-transparent text-xs font-semibold text-sky-300 cursor-pointer border-none py-0.5 pr-2">
+            <!-- Equipment Selector Dropdown -->
+            <div class="flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-700/80">
+                <span class="text-[9px] font-bold uppercase text-slate-400 mono">EQUIPMENT</span>
+                <select id="eqSelect" class="bg-transparent text-xs font-semibold text-sky-300 cursor-pointer max-w-[210px] sm:max-w-[260px] truncate">
                 </select>
             </div>
 
-            <button id="btn-labels" onclick="toggleCallouts()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition">
+            <button id="btn-labels" onclick="toggleCallouts()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/40 hover:bg-sky-500/30 transition">
                 Labels: ON
             </button>
-            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition" title="Toggle Dark CAD vs Light Blueprint Background">
+            <button id="btn-theme" onclick="toggleStudioTheme()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
                 Light CAD
             </button>
-            <div class="h-5 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
-            <button onclick="setCameraPreset('iso')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Iso View</button>
-            <button onclick="setCameraPreset('front')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Front / Side</button>
-            <button onclick="setCameraPreset('diagram')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition">Exploded CAD</button>
+            <div class="h-4 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+            <!-- View Presets -->
+            <button onclick="setCameraPreset('iso')" class="px-2 py-1 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Isometric View">
+                Iso View
+            </button>
+            <button onclick="setCameraPreset('axial')" class="px-2 py-1 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Axial / Profile View">
+                Axial View
+            </button>
+            <button onclick="setCameraPreset('exploded')" class="px-2 py-1 rounded-lg text-xs font-medium bg-orange-600/30 hover:bg-orange-600/40 text-orange-300 border border-orange-500/40 transition" title="Exploded CAD View">
+                Exploded View
+            </button>
         </div>
     </header>
 
     <!-- Left Sidebar: Bill of Materials -->
-    <aside id="left-panel" class="fixed top-20 left-3 bottom-28 w-72 z-20 flex flex-col gap-2 pointer-events-none hidden lg:flex">
-        <div class="glass-panel rounded-xl p-3.5 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
-            <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-700/80">
+    <aside id="left-panel" class="fixed top-20 left-3 bottom-28 w-72 z-20 flex flex-col gap-2 pointer-events-none">
+        <div class="glass-panel rounded-xl p-3 flex flex-col h-full pointer-events-auto shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/80">
                 <div>
-                    <h2 id="bom-header-count" class="text-xs font-bold uppercase tracking-wider text-slate-300">Assembly BOM</h2>
-                    <p class="text-[11px] text-slate-400">Click any component to inspect</p>
+                    <h2 id="bom-header-count" class="text-xs font-bold uppercase tracking-wider text-orange-400 mono">Assembly BOM</h2>
+                    <p class="text-[10px] text-slate-400">Click component to inspect</p>
                 </div>
-                <button onclick="selectPart(null)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 transition">
+                <button onclick="selectPart(null)" class="text-[10px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
                     Reset Focus
                 </button>
             </div>
@@ -182,78 +221,78 @@
             <div id="bom-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
 
             <!-- Electrical Telemetry Grid -->
-            <div id="elec-telemetry" class="pt-2.5 mt-2 border-t border-slate-700/80 grid grid-cols-3 gap-1.5 text-[10px] mono">
+            <div id="elec-telemetry" class="pt-2 mt-2 border-t border-slate-700/80 grid grid-cols-2 gap-1.5 text-[10px]">
             </div>
         </div>
     </aside>
 
-    <!-- Right Sidebar: Part Inspector & Operational Control Panel -->
-    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-11rem)]">
+    <!-- Right Sidebar: Part Inspector & Dynamic Kinematics Panel -->
+    <aside class="fixed top-20 right-3 w-80 z-20 flex flex-col gap-2 pointer-events-none max-h-[calc(100vh-11rem)] overflow-y-auto pr-1">
         <!-- Selected Component Details Card -->
-        <div class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl transition-all duration-200">
+        <div class="glass-panel rounded-xl p-3.5 pointer-events-auto shadow-2xl transition-all duration-200">
             <div class="flex items-start justify-between gap-2">
                 <div>
-                    <span id="part-code" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 mono">ASSY-00</span>
-                    <h3 id="part-title" class="text-base font-bold text-white mt-1">Complete Assembly</h3>
+                    <span id="part-code" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 mono">ASSY-00</span>
+                    <h3 id="part-title" class="text-sm font-bold text-white mt-1">Complete Assembly</h3>
                 </div>
-                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 font-medium transition">
+                <button id="btn-isolate" onclick="toggleIsolateSelected()" class="hidden text-xs px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold shadow transition">
                     Isolate
                 </button>
             </div>
             <p id="part-desc" class="text-xs text-slate-300 leading-relaxed mt-2">
-                Precision marine electrical subassembly inspected via interactive 3D CAD viewport.
+                Precision marine engineering assembly inspected via interactive 3D CAD viewport.
             </p>
-            <div class="mt-3 pt-2.5 border-t border-slate-700/70 grid grid-cols-2 gap-2 text-[11px]">
-                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block text-[10px] uppercase">Material Spec</span>
+            <div class="mt-2.5 pt-2 border-t border-slate-700/70 grid grid-cols-2 gap-1.5 text-[10px]">
+                <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[9px] uppercase">Material Spec</span>
                     <span id="part-material" class="text-slate-100 font-semibold mono">Marine Grade Steel</span>
                 </div>
-                <div class="bg-slate-900/70 p-2 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block text-[10px] uppercase">Explosion Axis</span>
+                <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block text-[9px] uppercase">Explosion Axis</span>
                     <span id="part-axis" class="text-sky-300 font-semibold mono">Orthogonal Vector</span>
                 </div>
             </div>
         </div>
 
-        <!-- Equipment-Specific Operational Control Panel -->
-        <div id="equipment-ctrl-panel" class="glass-panel rounded-xl p-4 pointer-events-auto shadow-2xl">
+        <!-- Dynamic Equipment-Specific Kinematics / Operational Panel -->
+        <div id="equipment-ctrl-panel" class="glass-panel rounded-xl p-3.5 pointer-events-auto shadow-2xl">
             <!-- Dynamically populated based on equipment type -->
         </div>
     </aside>
 
     <!-- Bottom Master Explosion Controller -->
     <footer class="fixed bottom-3 left-3 right-3 z-30 flex justify-center pointer-events-none">
-        <div class="glass-panel px-5 py-3.5 rounded-2xl w-full max-w-3xl pointer-events-auto shadow-2xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <div class="flex items-center gap-2.5">
+        <div class="glass-panel px-4 py-2.5 rounded-2xl w-full max-w-2xl pointer-events-auto shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <div class="flex items-center gap-2">
                     <span class="text-xs font-bold uppercase tracking-wider text-orange-400 mono flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                         </svg>
-                        Assembly Explosion Factor
+                        Explosion Factor
                     </span>
-                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-400/30 text-orange-300 text-xs font-bold mono">0%</span>
+                    <span id="explode-pct" class="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-bold mono">0%</span>
                 </div>
 
                 <!-- Quick Stage Presets -->
                 <div class="flex items-center gap-1.5">
-                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                    <button onclick="animateExplodeTo(0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
                         0% Assembled
                     </button>
-                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                    <button onclick="animateExplodeTo(0.45)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
                         45% Sub-Assy
                     </button>
-                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30 transition">
-                        100% Full Exploded View
+                    <button onclick="animateExplodeTo(1.0)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white shadow-md transition">
+                        100% Exploded
                     </button>
                 </div>
             </div>
 
             <!-- Interactive Slider -->
-            <div class="flex items-center gap-4">
-                <span class="text-[11px] font-medium text-slate-400 mono">LOCKED</span>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-medium text-slate-400 mono">LOCKED</span>
                 <input id="explode-slider" type="range" min="0" max="100" value="0" class="w-full" oninput="onExplodeSliderChange(this.value)">
-                <span class="text-[11px] font-medium text-slate-400 mono">EXPLODED</span>
+                <span class="text-[10px] font-medium text-slate-400 mono">EXPLODED</span>
             </div>
         </div>
     </footer>
@@ -267,11 +306,12 @@
         let targetExplodeFactor = 0.0;
         let isAnimatingExplode = false;
 
-        let currentEquipmentId = 'cooling';
+        let currentEquipmentId = 'bowThruster';
         let currentItem = null;
         let currentKinematics = null;
         let isKinematicsRunning = true;
-        let kinParam1 = 1; // fan direction, radar rpm multiplier, etc.
+        let kinParam1 = 1; // direction, multiplier, helm angle, etc.
+        let kinParam2 = 0; // helm angle or secondary parameter
 
         let showCallouts = true;
         let selectedPartId = null;
@@ -281,6 +321,9 @@
         const partMeshGroups = {};
         const animatedMeshes = [];
         let catalogEquipment = {};
+        let canonicalList = [];
+        let modelCenter = new THREE.Vector3(0, 0, 0);
+        let modelMaxDim = 3.0;
 
         // Callout DOM map & directions
         const calloutDOMMap = {};
@@ -292,43 +335,123 @@
             { x: -130, y: -70 },
             { x: 130, y: -70 },
             { x: -160, y: 15 },
-            { x: 160, y: 15 }
+            { x: 160, y: 15 },
+            { x: -120, y: 55 },
+            { x: 120, y: 55 }
         ];
 
+        // Specific Bow Thruster procedural handles
+        let isProceduralBowThruster = false;
+        let bowRotatingMeshes = { prop: [], vertShaft: [], gears: [] };
+        let bowTunnelCutaway = false;
+        let bowWaterStreamlinesGroup = null;
+        let bowFullTunnelMesh = null;
+        let bowCutawayTunnelMesh = null;
+
+        // Normalization Alias Map
+        const ALIAS_MAP = {
+            bow: 'bowThruster',
+            bowthruster: 'bowThruster',
+            thruster: 'bowThruster',
+            prop: 'propeller',
+            propeller: 'propeller',
+            motor: 'propulsionMotor',
+            propulsionmotor: 'propulsionMotor',
+            drive: 'propulsionDrive',
+            propulsiondrive: 'propulsionDrive',
+            tx: 'transformer',
+            txa: 'transformer',
+            txb: 'transformer',
+            transformer: 'transformer',
+            steering: 'steeringGear',
+            steeringgear: 'steeringGear',
+            cooling: 'coolingPump',
+            coolingpump: 'coolingPump',
+            pump_cooling: 'coolingPump',
+            fire: 'firePump',
+            firepump: 'firePump',
+            pump_fire: 'firePump',
+            ballast: 'ballastPump',
+            ballastpump: 'ballastPump',
+            pump_ballast: 'ballastPump',
+            bilge: 'bilgePump',
+            bilgepump: 'bilgePump',
+            pump_bilge: 'bilgePump',
+            reefer: 'reefer',
+            reeferdistribution: 'reefer',
+            ventfan: 'ventFan',
+            fan: 'ventFan',
+            nav: 'navBridge',
+            navbridge: 'navBridge',
+            bridge: 'navBridge',
+            ebus: 'eBus',
+            eradio: 'battery',
+            battery: 'battery',
+            aircompressor: 'airCompressor',
+            galley: 'galley440',
+            galley440: 'galley440',
+            shore: 'shore',
+            shorepower: 'shore'
+        };
+
         // ============================================================================
-        // 2. SCENE INITIALIZATION
+        // 2. SCENE INITIALIZATION WITH ACES FILMIC TONE MAPPING & STUDIO LIGHTS
         // ============================================================================
         async function initScene() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
 
             camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(-2.8, 2.0, 3.4);
+            camera.position.set(-8.5, 5.0, 10.5);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.15;
             container.appendChild(renderer.domElement);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.target.set(0, 0.45, 0);
+            controls.target.set(0, 0, 0);
 
-            // Lighting
-            const ambient = new THREE.AmbientLight(0xffffff, 1.4);
-            scene.add(ambient);
+            // Studio Lighting Setup
+            const hemiLight = new THREE.HemisphereLight(0xe2e8f0, 0x1e293b, 0.85);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
 
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.2);
-            dirLight1.position.set(4, 7, 5);
-            dirLight1.castShadow = true;
-            scene.add(dirLight1);
+            const keyLight = new THREE.DirectionalLight(0xfff7ed, 1.4);
+            keyLight.position.set(12, 22, 14);
+            keyLight.castShadow = true;
+            keyLight.shadow.mapSize.width = 2048;
+            keyLight.shadow.mapSize.height = 2048;
+            keyLight.shadow.bias = -0.0004;
+            const d = 8;
+            keyLight.shadow.camera.left = -d;
+            keyLight.shadow.camera.right = d;
+            keyLight.shadow.camera.top = d;
+            keyLight.shadow.camera.bottom = -d;
+            scene.add(keyLight);
 
-            const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 1.2);
-            dirLight2.position.set(-4, -2, -4);
-            scene.add(dirLight2);
+            const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.8);
+            fillLight.position.set(-14, 6, -10);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xfdba74, 0.65);
+            rimLight.position.set(-6, -10, 8);
+            scene.add(rimLight);
+
+            // Ground Contact Plane with soft shadow receiver
+            const groundGeo = new THREE.PlaneGeometry(35, 35);
+            const groundMat = new THREE.ShadowMaterial({ opacity: 0.22 });
+            const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+            groundMesh.rotation.x = -Math.PI / 2;
+            groundMesh.position.y = -0.05;
+            groundMesh.receiveShadow = true;
+            scene.add(groundMesh);
 
             scene.add(assemblyRoot);
 
@@ -344,27 +467,35 @@
                 const res = await fetch('../manifests/equipment_catalog.json');
                 const data = await res.json();
                 catalogEquipment = data.equipment || {};
+                canonicalList = data.canonicalList || Object.keys(catalogEquipment);
 
                 const selectEl = document.getElementById('eqSelect');
                 selectEl.innerHTML = '';
 
-                Object.values(catalogEquipment).forEach(item => {
+                canonicalList.forEach(id => {
+                    const item = catalogEquipment[id];
+                    if (!item) return;
                     const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = `${item.title.split('(')[0].trim()} (${item.electrical?.voltage || 'Marine'})`;
+                    opt.value = id;
+                    opt.textContent = `${item.title.split('—')[0].split('(')[0].trim()} (${item.electrical?.voltage || '440 V'})`;
                     selectEl.appendChild(opt);
                 });
 
-                selectEl.onchange = () => switchEquipment(selectEl.value);
+                selectEl.onchange = () => {
+                    switchEquipment(selectEl.value);
+                };
 
                 // Read URL search params
                 const params = new URLSearchParams(window.location.search);
-                const initId = params.get('eq') || 'ventFan';
-                if (catalogEquipment[initId]) {
-                    selectEl.value = initId;
-                    currentEquipmentId = initId;
-                } else {
-                    currentEquipmentId = selectEl.value;
+                const rawParam = params.get('eq') || params.get('pump') || 'bowThruster';
+                const normalizedId = ALIAS_MAP[rawParam.toLowerCase()] || rawParam;
+
+                if (catalogEquipment[normalizedId]) {
+                    selectEl.value = normalizedId;
+                    currentEquipmentId = normalizedId;
+                } else if (canonicalList.length > 0) {
+                    currentEquipmentId = canonicalList[0];
+                    selectEl.value = currentEquipmentId;
                 }
 
                 await loadEquipment(currentEquipmentId);
@@ -374,14 +505,24 @@
         }
 
         // ============================================================================
-        // 3. EQUIPMENT LOADING & PARSING
+        // 3. EQUIPMENT LOADING (DYNAMIC GLB + PROCEDURAL BOW THRUSTER)
         // ============================================================================
         async function loadEquipment(eqId) {
             currentEquipmentId = eqId;
             currentItem = catalogEquipment[eqId];
             if (!currentItem) return;
 
+            // Sync URL parameter without reload
+            const url = new URL(window.location);
+            url.searchParams.set('eq', eqId);
+            window.history.replaceState({}, '', url);
+
+            // Header labels
             document.getElementById('header-title').textContent = currentItem.title;
+            const el = currentItem.electrical || { voltage: '440 V', ratedKw: 100, busId: 'Main Bus' };
+            document.getElementById('badge-voltage').textContent = el.voltage || '440 V';
+            document.getElementById('badge-kw').textContent = el.ratedKw ? `${el.ratedKw} kW` : 'N/A';
+            document.getElementById('badge-bus').textContent = (el.busId || 'MAIN BUS').toUpperCase();
 
             // Clear previous assembly
             scene.remove(assemblyRoot);
@@ -391,30 +532,48 @@
             for (const k in partMeshGroups) delete partMeshGroups[k];
             animatedMeshes.length = 0;
             for (const k in calloutDOMMap) delete calloutDOMMap[k];
+            isProceduralBowThruster = false;
+            bowRotatingMeshes = { prop: [], vertShaft: [], gears: [] };
 
-            // Parts metadata
-            const baseItem = currentItem.inherits ? catalogEquipment[currentItem.inherits] : currentItem;
-            const partsMeta = currentItem.parts || baseItem?.parts || {};
-
-            // Electrical telemetry
-            const el = currentItem.electrical || { voltage: '440 V', ratedKw: 45, powerFactor: 0.85, busId: 'BUS', breakerId: 'BKR', priority: 'essential' };
+            // Electrical telemetry in BOM sidebar
             document.getElementById('elec-telemetry').innerHTML = `
-                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">VOLTAGE</span><strong class="text-sky-300 font-bold">${el.voltage}</strong></div>
-                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">POWER</span><strong class="text-amber-300 font-bold">${el.ratedKw} kW</strong></div>
-                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block">BUS</span><strong class="text-emerald-300 font-bold">${el.busId}</strong></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block text-[9px] uppercase">Feeder Breaker</span><span class="text-slate-200 font-semibold mono">${el.breakerId || 'ACB-01'}</span></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block text-[9px] uppercase">Starting Method</span><span class="text-orange-400 font-semibold mono">${el.startingMethod || 'DOL'}</span></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block text-[9px] uppercase">Power Factor</span><span class="text-emerald-400 font-semibold mono">cos φ ${el.powerFactor || 0.88}</span></div>
+                <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800"><span class="text-slate-400 block text-[9px] uppercase">Classification</span><span class="text-sky-300 font-semibold mono">${el.priority?.toUpperCase() || 'ESSENTIAL'}</span></div>
             `;
 
             // Kinematics setup
             currentKinematics = currentItem.kinematics || null;
             isKinematicsRunning = true;
             kinParam1 = 1;
+            kinParam2 = 0;
 
-            // Build Equipment Operational Panel
+            // Build operational controls
             buildOperationalPanel(eqId, currentItem);
 
-            // Load GLB
+            // Parts metadata
+            const partsMeta = currentItem.parts || {};
+
+            if (eqId === 'bowThruster' || eqId === 'bow') {
+                // High-fidelity procedural Bow Thruster
+                buildProceduralBowThruster(partsMeta);
+            } else {
+                // Load 3D GLB model
+                await loadGLBModel(currentItem, partsMeta);
+            }
+
+            // Reset explosion and focus
+            targetExplodeFactor = 0.0;
+            updateExplosionPositions(0.0);
+            selectPart(null);
+        }
+
+        async function loadGLBModel(item, partsMeta) {
             const loader = new THREE.GLTFLoader();
-            const glbUrl = '..' + currentItem.glb;
+            let glbFile = (item.glb || '').replace(/^\/?(models\/)?/, '');
+            if (!glbFile) glbFile = `${item.id}.glb`;
+            const glbUrl = `../models/${glbFile}`;
 
             try {
                 const gltf = await loader.loadAsync(glbUrl);
@@ -423,10 +582,16 @@
                     if (child.isMesh) childMeshes.push(child);
                 });
 
-                // Compute bounding box & auto center
+                // Compute bounding box & auto-center
                 const rawBox = new THREE.Box3().setFromObject(gltf.scene);
-                const center = rawBox.getCenter(new THREE.Vector3());
-                controls.target.set(0, center.y, 0);
+                modelCenter = rawBox.getCenter(new THREE.Vector3());
+                const size = rawBox.getSize(new THREE.Vector3());
+                modelMaxDim = Math.max(size.x, size.y, size.z, 2.0);
+
+                // Offset root group so model center sits cleanly at origin
+                gltf.scene.position.set(-modelCenter.x, -modelCenter.y + size.y / 2, -modelCenter.z);
+                controls.target.set(0, size.y / 2, 0);
+                controls.update();
 
                 // Prepare normalized parts list
                 const partKeys = Object.keys(partsMeta);
@@ -444,12 +609,12 @@
                             axis: p.axisName || (p.explode ? `[${p.explode.join(', ')}]` : 'Datum'),
                             desc: p.description || 'High precision marine assembly component.',
                             explodeOffset: new THREE.Vector3(...(p.explode || [0, 0, 0])),
-                            labelAnchorOffset: p.labelAnchorOffset ? new THREE.Vector3(...p.labelAnchorOffset) : new THREE.Vector3(0, 0.25, 0),
+                            labelAnchorOffset: p.labelAnchorOffset ? new THREE.Vector3(...p.labelAnchorOffset) : new THREE.Vector3(0, 0.4, 0),
                             labelScreenDir: p.labelScreenDir || defaultScreenDirs[idx % defaultScreenDirs.length]
                         });
                     });
                 } else {
-                    // Fallback to mesh names if parts are not pre-listed
+                    // Fallback to mesh names if catalog parts aren't pre-listed
                     childMeshes.forEach((mesh, idx) => {
                         normalizedParts.push({
                             id: mesh.name,
@@ -460,7 +625,7 @@
                             axis: 'Datum',
                             desc: 'Precision CAD component.',
                             explodeOffset: new THREE.Vector3(0, 0, 0),
-                            labelAnchorOffset: new THREE.Vector3(0, 0.25, 0),
+                            labelAnchorOffset: new THREE.Vector3(0, 0.3, 0),
                             labelScreenDir: defaultScreenDirs[idx % defaultScreenDirs.length]
                         });
                     });
@@ -471,12 +636,16 @@
                     const grp = new THREE.Group();
                     grp.name = part.id;
                     assemblyRoot.add(grp);
-                    partMeshGroups[part.id] = { group: grp, meta: part };
+                    partMeshGroups[part.id] = { group: grp, meta: part, meshes: [] };
                 });
 
-                // Assign meshes into corresponding part group
+                // Assign meshes into corresponding part groups
                 childMeshes.forEach((mesh) => {
-                    const match = normalizedParts.find(p => mesh.name.startsWith(p.id));
+                    let match = normalizedParts.find(p => mesh.name.startsWith(p.id));
+                    if (!match) {
+                        // fuzzy prefix matching
+                        match = normalizedParts.find(p => p.id.startsWith(mesh.name) || mesh.name.includes(p.id));
+                    }
                     const partId = match ? match.id : normalizedParts[0].id;
                     const pEntry = partMeshGroups[partId];
 
@@ -484,9 +653,17 @@
                     mesh.castShadow = true;
                     mesh.receiveShadow = true;
 
-                    pEntry.group.add(mesh);
+                    // Clone material so we can highlight safely without affecting shared assets
+                    if (mesh.material) {
+                        mesh.material = mesh.material.clone();
+                        mesh.userData.origEmissive = mesh.material.emissive ? mesh.material.emissive.clone() : new THREE.Color(0, 0, 0);
+                        mesh.userData.origEmissiveIntensity = mesh.material.emissiveIntensity !== undefined ? mesh.material.emissiveIntensity : 1.0;
+                    }
 
-                    const isRotating = currentKinematics?.rotatingPrefixes?.some(pref => mesh.name.startsWith(pref)) || false;
+                    pEntry.group.add(mesh);
+                    pEntry.meshes.push(mesh);
+
+                    const isRotating = currentKinematics?.rotatingPrefixes?.some(pref => mesh.name.startsWith(pref));
                     animatedMeshes.push({
                         mesh,
                         partId,
@@ -498,13 +675,292 @@
                 buildBOMSidebar(normalizedParts);
                 buildCalloutDOMElements(normalizedParts);
 
-                // Set initial explosion
-                updateExplosionPositions(explodeFactor);
-                selectPart(null);
+                // Set initial ISO camera framing
+                setCameraPreset('iso');
 
             } catch (err) {
                 console.error(`Failed to load ${glbUrl}:`, err);
+                document.getElementById('header-title').textContent += ' (Loading Error)';
             }
+        }
+
+        // ============================================================================
+        // 4. PROCEDURAL BOW THRUSTER BUILDER (GOLD STANDARD TEMPLATE)
+        // ============================================================================
+        function buildProceduralBowThruster(partsMeta) {
+            isProceduralBowThruster = true;
+            modelCenter = new THREE.Vector3(0, 1.2, 0.2);
+            modelMaxDim = 6.0;
+
+            const bronzeTex = createBronzeCrosshatchTexture();
+            const castBump = createCastIronTexture();
+
+            const mats = {
+                terracotta: new THREE.MeshStandardMaterial({
+                    color: 0xb54328,
+                    roughness: 0.52,
+                    metalness: 0.22,
+                    bumpMap: castBump,
+                    bumpScale: 0.015,
+                    side: THREE.DoubleSide
+                }),
+                podTerracotta: new THREE.MeshStandardMaterial({
+                    color: 0xba472c,
+                    roughness: 0.45,
+                    metalness: 0.25,
+                    bumpMap: castBump,
+                    bumpScale: 0.012
+                }),
+                innerPrimerGrey: new THREE.MeshStandardMaterial({
+                    color: 0x7c858e,
+                    roughness: 0.6,
+                    metalness: 0.3,
+                    side: THREE.DoubleSide
+                }),
+                machinedGrey: new THREE.MeshStandardMaterial({
+                    color: 0x9aa3ad,
+                    roughness: 0.35,
+                    metalness: 0.75
+                }),
+                polishedSteel: new THREE.MeshStandardMaterial({
+                    color: 0xdbe4ee,
+                    roughness: 0.2,
+                    metalness: 0.9
+                }),
+                darkSteel: new THREE.MeshStandardMaterial({
+                    color: 0x475569,
+                    roughness: 0.35,
+                    metalness: 0.85
+                }),
+                bronzeBlade: new THREE.MeshStandardMaterial({
+                    color: 0xe0b869,
+                    map: bronzeTex,
+                    bumpMap: bronzeTex,
+                    bumpScale: 0.02,
+                    roughness: 0.28,
+                    metalness: 0.82
+                }),
+                bronzeHub: new THREE.MeshStandardMaterial({
+                    color: 0xc89d51,
+                    roughness: 0.32,
+                    metalness: 0.85
+                }),
+                copperSeal: new THREE.MeshStandardMaterial({
+                    color: 0xc26d38,
+                    roughness: 0.35,
+                    metalness: 0.75
+                }),
+                rubberBlack: new THREE.MeshStandardMaterial({
+                    color: 0x1e293b,
+                    roughness: 0.85,
+                    metalness: 0.1
+                })
+            };
+
+            const partKeys = Object.keys(partsMeta);
+            const normalizedParts = [];
+            partKeys.forEach((key, idx) => {
+                const p = partsMeta[key];
+                const grp = new THREE.Group();
+                grp.name = key;
+                assemblyRoot.add(grp);
+
+                const partObj = {
+                    id: key,
+                    code: p.code || `PRT-0${idx + 1}`,
+                    name: p.label || key,
+                    shortLabel: p.shortLabel || key.toUpperCase(),
+                    material: p.material || 'Marine Alloy',
+                    axis: p.axisName || 'Datum',
+                    desc: p.description || '',
+                    explodeOffset: new THREE.Vector3(...(p.explode || [0, 0, 0])),
+                    labelAnchorOffset: new THREE.Vector3(...(p.labelAnchorOffset || [0, 1, 0])),
+                    labelScreenDir: p.labelScreenDir || defaultScreenDirs[idx % defaultScreenDirs.length]
+                };
+
+                normalizedParts.push(partObj);
+                partMeshGroups[key] = { group: grp, meta: partObj, meshes: [] };
+            });
+
+            const addMeshToPart = (partId, mesh) => {
+                if (!mesh) return;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData.partId = partId;
+                if (mesh.material) {
+                    mesh.material = mesh.material.clone();
+                    mesh.userData.origEmissive = mesh.material.emissive ? mesh.material.emissive.clone() : new THREE.Color(0, 0, 0);
+                    mesh.userData.origEmissiveIntensity = mesh.material.emissiveIntensity !== undefined ? mesh.material.emissiveIntensity : 1.0;
+                }
+                if (partMeshGroups[partId]) {
+                    partMeshGroups[partId].group.add(mesh);
+                    partMeshGroups[partId].meshes.push(mesh);
+                }
+            };
+
+            // 1. Splined Shaft & Coupling (PRT-01)
+            const splineShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 2.4, 32), mats.polishedSteel);
+            splineShaft.position.set(0, 5.8, 0);
+            addMeshToPart('splined_shaft', splineShaft);
+            const clawCoupling = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.6, 24), mats.machinedGrey);
+            clawCoupling.position.set(0, 6.8, 0);
+            addMeshToPart('splined_shaft', clawCoupling);
+            bowRotatingMeshes.vertShaft.push(splineShaft, clawCoupling);
+
+            // 2. Mounting Bracket & Upper Casing (PRT-02)
+            const pedCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.95, 2.2, 32, 1, true), mats.machinedGrey);
+            pedCylinder.position.set(0, 4.0, 0);
+            addMeshToPart('mounting_bracket', pedCylinder);
+            const lowerFlange = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.22, 32), mats.machinedGrey);
+            lowerFlange.position.set(0, 2.9, 0);
+            addMeshToPart('mounting_bracket', lowerFlange);
+
+            // 3. Vertical Drive Shaft & Seals (PRT-03)
+            const vShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 2.6, 28), mats.polishedSteel);
+            vShaft.position.set(0, 2.0, 0);
+            addMeshToPart('vertical_drive_shaft', vShaft);
+            const bevelPinion = createBevelGearMesh(0.52, 0.22, 0.45, 18, mats.darkSteel);
+            bevelPinion.position.set(0, 0.8, 0);
+            addMeshToPart('vertical_drive_shaft', bevelPinion);
+            bowRotatingMeshes.vertShaft.push(vShaft, bevelPinion);
+
+            // 4. Thruster Tunnel Casing (PRT-04)
+            const tunnelOuterR = 2.45, tunnelInnerR = 2.30, tunnelLen = 8.5;
+            const fullTunnelGeom = new THREE.CylinderGeometry(tunnelOuterR, tunnelOuterR, tunnelLen, 48, 1, true);
+            fullTunnelGeom.rotateX(Math.PI / 2);
+            bowFullTunnelMesh = new THREE.Mesh(fullTunnelGeom, mats.terracotta);
+            bowFullTunnelMesh.position.set(0, 0, 0);
+            bowFullTunnelMesh.visible = !bowTunnelCutaway;
+            addMeshToPart('tunnel_casing', bowFullTunnelMesh);
+
+            const cutawayGeom = new THREE.CylinderGeometry(tunnelOuterR, tunnelOuterR, tunnelLen, 48, 1, true, Math.PI * 0.15, Math.PI * 1.7);
+            cutawayGeom.rotateX(Math.PI / 2);
+            bowCutawayTunnelMesh = new THREE.Mesh(cutawayGeom, mats.terracotta);
+            bowCutawayTunnelMesh.position.set(0, 0, 0);
+            bowCutawayTunnelMesh.visible = bowTunnelCutaway;
+            addMeshToPart('tunnel_casing', bowCutawayTunnelMesh);
+
+            // 5. Gear Pod (PRT-05)
+            const podBody = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.8, 32), mats.podTerracotta);
+            podBody.rotation.x = Math.PI / 2;
+            addMeshToPart('gear_pod', podBody);
+            const podNose = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), mats.podTerracotta);
+            podNose.rotation.x = -Math.PI / 2;
+            podNose.position.set(0, 0, -1.4);
+            addMeshToPart('gear_pod', podNose);
+
+            // 6. Internal Bevel Gears & Prop Shaft (PRT-06)
+            const propShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.8, 32), mats.polishedSteel);
+            propShaft.rotation.x = Math.PI / 2;
+            propShaft.position.set(0, 0, 1.2);
+            addMeshToPart('internal_bevel_gears', propShaft);
+            const bevelCrown = createBevelGearMesh(0.88, 0.55, 0.45, 32, mats.darkSteel);
+            bevelCrown.rotation.x = -Math.PI / 2;
+            bevelCrown.position.set(0, 0, 0.2);
+            addMeshToPart('internal_bevel_gears', bevelCrown);
+            bowRotatingMeshes.prop.push(propShaft, bevelCrown);
+
+            // 7. Propeller Bearing & Seal (PRT-07)
+            const propBearing = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.35, 32), mats.darkSteel);
+            propBearing.rotation.x = Math.PI / 2;
+            propBearing.position.set(0, 0, 2.0);
+            addMeshToPart('propeller_bearing', propBearing);
+
+            // 8. 4-Blade Skewed Kaplan Propeller (PRT-08)
+            const propBladeGroup = new THREE.Group();
+            for (let b = 0; b < 4; b++) {
+                const bladeMesh = new THREE.Mesh(createKaplanBladeGeometry(), mats.bronzeBlade);
+                bladeMesh.rotation.z = (Math.PI / 2) * b;
+                propBladeGroup.add(bladeMesh);
+            }
+            propBladeGroup.position.set(0, 0, 2.8);
+            addMeshToPart('propeller_blades', propBladeGroup);
+            bowRotatingMeshes.prop.push(propBladeGroup);
+
+            // 9. Propeller Hub (PRT-09)
+            const propHub = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.55, 0.9, 32), mats.bronzeHub);
+            propHub.rotation.x = Math.PI / 2;
+            propHub.position.set(0, 0, 2.8);
+            addMeshToPart('propeller_hub', propHub);
+            bowRotatingMeshes.prop.push(propHub);
+
+            // 10. Cap, Lock Nut & Fasteners (PRT-10)
+            const fairingCone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.9, 32), mats.bronzeHub);
+            fairingCone.rotation.x = Math.PI / 2;
+            fairingCone.position.set(0, 0, 3.7);
+            addMeshToPart('cap_fasteners', fairingCone);
+            bowRotatingMeshes.prop.push(fairingCone);
+
+            // 11. Top Electric Motor (PRT-11)
+            const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 2.8, 32), mats.darkSteel);
+            motorBody.position.set(0, 8.8, 0);
+            addMeshToPart('electric_motor', motorBody);
+            const motorCap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), mats.darkSteel);
+            motorCap.position.set(0, 10.2, 0);
+            addMeshToPart('electric_motor', motorCap);
+
+            buildBOMSidebar(normalizedParts);
+            buildCalloutDOMElements(normalizedParts);
+            setCameraPreset('iso');
+        }
+
+        function createBevelGearMesh(radiusTop, radiusBottom, height, numTeeth, mat) {
+            const geom = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, numTeeth * 2);
+            return new THREE.Mesh(geom, mat);
+        }
+
+        function createKaplanBladeGeometry() {
+            const shape = new THREE.Shape();
+            shape.moveTo(0.5, -0.2);
+            shape.bezierCurveTo(1.1, -0.4, 1.9, 0.2, 2.15, 0.9);
+            shape.bezierCurveTo(2.1, 1.6, 1.3, 1.8, 0.7, 1.3);
+            shape.bezierCurveTo(0.4, 0.8, 0.35, 0.3, 0.5, -0.2);
+            const extrudeSettings = { depth: 0.1, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 };
+            const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geom.center();
+            geom.rotateX(0.28);
+            geom.rotateY(0.15);
+            return geom;
+        }
+
+        function createBronzeCrosshatchTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#caa35f';
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.strokeStyle = 'rgba(100, 70, 25, 0.18)';
+            ctx.lineWidth = 1.2;
+            for (let i = -256; i < 512; i += 8) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(i, 256); ctx.lineTo(i + 256, 0); ctx.stroke();
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4, 4);
+            return texture;
+        }
+
+        function createCastIronTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(0, 0, 128, 128);
+            const imgData = ctx.getImageData(0, 0, 128, 128);
+            for (let i = 0; i < imgData.data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 35;
+                imgData.data[i] += noise;
+                imgData.data[i + 1] += noise;
+                imgData.data[i + 2] += noise;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(6, 6);
+            return texture;
         }
 
         function switchEquipment(eqId) {
@@ -512,129 +968,305 @@
         }
 
         // ============================================================================
-        // 4. OPERATIONAL CONTROL PANEL
+        // 5. OPERATIONAL CONTROL PANEL (DYNAMIC BY EQUIPMENT TYPE)
         // ============================================================================
         function buildOperationalPanel(eqId, item) {
             const panel = document.getElementById('equipment-ctrl-panel');
             panel.innerHTML = '';
 
-            if (eqId === 'ventFan') {
+            if (eqId === 'bowThruster' || eqId === 'bow') {
                 panel.innerHTML = `
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            Ventilation Fan Control
+                            <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                            Bow Thruster Bridge Helm
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-orange-400 mono">1200 RPM (MAX)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                        <button id="btn-bt-port" onclick="setBowThrust(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">PORT</button>
+                        <button id="btn-bt-stop" onclick="setBowThrust(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-white border border-slate-600 transition">NEUTRAL</button>
+                        <button id="btn-bt-stbd" onclick="setBowThrust(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-orange-500/25 text-orange-300 border border-orange-400/50 transition">STBD</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                        <button onclick="toggleBowTunnelCutaway()" class="text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 text-sky-300 border border-slate-700 hover:bg-slate-700">Toggle Tunnel Cutaway</button>
+                        <span class="text-[11px] text-slate-400">4-Blade Kaplan</span>
+                    </div>
+                `;
+            } else if (eqId === 'propeller' || eqId === 'prop') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Propulsion Telegraph
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-emerald-400 mono">110 RPM (FULL)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                        <button onclick="setUnivRPM(110, 1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50">AHEAD</button>
+                        <button onclick="setUnivRPM(0, 0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">STOP</button>
+                        <button onclick="setUnivRPM(60, -1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">ASTERN</button>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Kaplan CP Pitch:</span>
+                        <span class="text-sky-300 font-bold mono">+18.5° Design Pitch</span>
+                    </div>
+                `;
+            } else if (eqId === 'propulsionMotor' || eqId === 'motor') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                            Motor Drive Inverter
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-sky-400 mono">720 RPM (60 Hz)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2.5">
+                        <button onclick="setUnivRPM(720, 1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50">60 Hz (720)</button>
+                        <button onclick="setUnivRPM(360, 0.5)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">30 Hz (360)</button>
+                        <button onclick="setUnivRPM(0, 0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">STOP</button>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Class H Stator Temp:</span>
+                        <span class="text-emerald-400 font-bold mono">68°C (Normal)</span>
+                    </div>
+                `;
+            } else if (eqId === 'propulsionDrive' || eqId === 'drive') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                            VFD Inverter Converter
+                        </span>
+                        <span class="text-xs font-bold text-teal-400 mono">6.6 kV / 60 Hz</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] mb-2.5">
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[9px]">DC Link Voltage</span>
+                            <span class="text-amber-400 font-bold mono">690 V DC</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[9px]">Gate Status</span>
+                            <span class="text-emerald-400 font-bold mono">PWM ACTIVE</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Liquid Cooling Skid:</span>
+                        <span class="text-teal-300 font-bold mono">3.2 bar (Circulating)</span>
+                    </div>
+                `;
+            } else if (eqId === 'steeringGear' || eqId === 'steering') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                            Electro-Hydraulic Helm
+                        </span>
+                        <span id="helm-angle-disp" class="text-xs font-bold text-sky-400 mono">0° (MIDSHIPS)</span>
+                    </div>
+                    <div class="mb-2">
+                        <input id="helm-slider" type="range" min="-35" max="35" value="0" class="w-full" oninput="setHelmAngle(this.value)">
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2">
+                        <button onclick="setHelmPreset(-35)" class="py-1 px-1.5 rounded text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">PORT 35°</button>
+                        <button onclick="setHelmPreset(0)" class="py-1 px-1.5 rounded text-[11px] font-bold bg-slate-700 text-white border border-slate-600">0° MID</button>
+                        <button onclick="setHelmPreset(35)" class="py-1 px-1.5 rounded text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">STBD 35°</button>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Hydraulic Pressure:</span>
+                        <span class="text-amber-400 font-bold mono">210 bar</span>
+                    </div>
+                `;
+            } else if (eqId.includes('Pump') || ['cooling', 'fire', 'ballast', 'bilge'].includes(eqId)) {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Pump Set Operation
+                        </span>
+                        <span id="univ-rpm" class="text-xs font-bold text-emerald-400 mono">1750 RPM</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 mb-2.5">
+                        <button onclick="setUnivRPM(1750, 1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50">DOL START</button>
+                        <button onclick="setUnivRPM(0, 0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">STOP</button>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Discharge Pressure:</span>
+                        <span class="text-sky-300 font-bold mono">3.8 bar</span>
+                    </div>
+                `;
+            } else if (eqId === 'ventFan') {
+                panel.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                            Ventilation Fan Starter
                         </span>
                         <span id="univ-rpm" class="text-xs font-bold text-teal-400 mono">1750 RPM (SUPPLY)</span>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 mb-2.5">
-                        <button id="btn-u-ex" onclick="setUnivVentDir(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">◄ Exhaust</button>
-                        <button id="btn-u-stop" onclick="setUnivVentDir(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
-                        <button id="btn-u-sup" onclick="setUnivVentDir(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition">Supply ►</button>
+                        <button id="btn-u-ex" onclick="setUnivVentDir(-1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">EXHAUST</button>
+                        <button id="btn-u-stop" onclick="setUnivVentDir(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">STOP</button>
+                        <button id="btn-u-sup" onclick="setUnivVentDir(1)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-400/50">SUPPLY</button>
                     </div>
-                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
-                        <span class="text-slate-300">Starter: Star-Delta Active</span>
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Fire Damper:</span>
+                        <span class="text-emerald-400 font-bold mono">LATCHED OPEN</span>
                     </div>
                 `;
-            } else if (eqId === 'nav') {
+            } else if (eqId === 'navBridge' || eqId === 'nav') {
                 panel.innerHTML = `
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
-                            S-Band Radar Turning
+                            <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                            S-Band Radar Scanner
                         </span>
-                        <span id="univ-rpm" class="text-xs font-bold text-sky-400 mono">24 RPM (NORMAL SCAN)</span>
+                        <span id="univ-rpm" class="text-xs font-bold text-sky-400 mono">24 RPM (SCAN)</span>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 mb-2.5">
-                        <button id="btn-u-12" onclick="setUnivRadarRPM(12)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">12 RPM</button>
-                        <button id="btn-u-24" onclick="setUnivRadarRPM(24)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-500/50 transition">24 RPM</button>
-                        <button id="btn-u-stop" onclick="setUnivRadarRPM(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
+                        <button id="btn-u-24" onclick="setRadarRPM(24)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50">24 RPM</button>
+                        <button id="btn-u-12" onclick="setRadarRPM(12)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">12 RPM</button>
+                        <button id="btn-u-stop" onclick="setRadarRPM(0)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">STANDBY</button>
                     </div>
-                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
-                        <span class="text-slate-300">COLREG Mimic: Active</span>
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">COLREG Navlights:</span>
+                        <span class="text-emerald-400 font-bold mono">CIRCUIT 1 ENERGIZED</span>
                     </div>
                 `;
             } else {
-                const rpm = currentKinematics?.rpm || 1750;
                 panel.innerHTML = `
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            Kinematic Drive State
+                            <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                            Operational Controls
                         </span>
-                        <span id="univ-rpm" class="text-xs font-bold text-orange-400 mono">${rpm} RPM</span>
+                        <span class="text-xs font-bold text-orange-400 mono">ONLINE</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <button onclick="toggleUnivKinematics(true)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 transition">RUN</button>
-                        <button onclick="toggleUnivKinematics(false)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">STOP</button>
+                    <div class="grid grid-cols-2 gap-1.5 mb-2.5">
+                        <button onclick="toggleUnivKinematics(true)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-orange-500/25 text-orange-300 border border-orange-400/50">RUN</button>
+                        <button onclick="toggleUnivKinematics(false)" class="py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">ISOLATE</button>
                     </div>
-                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
-                        <span class="text-slate-300">Feeder Status: ENERGIZED</span>
-                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800">
+                        <span class="text-slate-400">Class State:</span>
+                        <span class="text-emerald-400 font-bold mono">IEC 60092 COMPLIANT</span>
                     </div>
                 `;
             }
         }
 
-        window.setUnivVentDir = (dir) => {
+        // Operational Panel Callbacks
+        window.setBowThrust = (dir) => {
+            kinParam1 = dir;
+            const bPort = document.getElementById('btn-bt-port');
+            const bStop = document.getElementById('btn-bt-stop');
+            const bStbd = document.getElementById('btn-bt-stbd');
+            const rpmEl = document.getElementById('univ-rpm');
+            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+
+            if (bPort) bPort.className = inact;
+            if (bStop) bStop.className = inact;
+            if (bStbd) bStbd.className = inact;
+
+            if (dir === -1) {
+                if (bPort) bPort.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-orange-500/25 text-orange-300 border border-orange-400/50';
+                if (rpmEl) rpmEl.textContent = '1200 RPM (PORT)';
+            } else if (dir === 1) {
+                if (bStbd) bStbd.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-orange-500/25 text-orange-300 border border-orange-400/50';
+                if (rpmEl) rpmEl.textContent = '1200 RPM (STBD)';
+            } else {
+                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-white border border-slate-600';
+                if (rpmEl) rpmEl.textContent = '0 RPM (NEUTRAL)';
+            }
+        };
+
+        window.toggleBowTunnelCutaway = () => {
+            bowTunnelCutaway = !bowTunnelCutaway;
+            if (bowFullTunnelMesh) bowFullTunnelMesh.visible = !bowTunnelCutaway;
+            if (bowCutawayTunnelMesh) bowCutawayTunnelMesh.visible = bowTunnelCutaway;
+        };
+
+        window.setUnivRPM = (rpm, dir) => {
             kinParam1 = dir;
             const rpmEl = document.getElementById('univ-rpm');
+            if (rpmEl) rpmEl.textContent = `${rpm} RPM`;
+        };
+
+        window.setHelmAngle = (deg) => {
+            const angle = parseFloat(deg);
+            kinParam2 = angle;
+            const disp = document.getElementById('helm-angle-disp');
+            if (disp) {
+                disp.textContent = angle === 0 ? '0° (MIDSHIPS)' : `${Math.abs(angle)}° (${angle < 0 ? 'PORT' : 'STBD'})`;
+            }
+
+            // Animate 3D rudder stock & rams if steering gear
+            if (partMeshGroups['Rudder_Stock'] && partMeshGroups['Tiller_Head']) {
+                const rad = THREE.MathUtils.degToRad(angle);
+                partMeshGroups['Rudder_Stock'].group.rotation.y = rad;
+                partMeshGroups['Tiller_Head'].group.rotation.y = rad;
+            }
+        };
+
+        window.setHelmPreset = (deg) => {
+            const slider = document.getElementById('helm-slider');
+            if (slider) slider.value = deg;
+            setHelmAngle(deg);
+        };
+
+        window.setUnivVentDir = (dir) => {
+            kinParam1 = dir;
             const bEx = document.getElementById('btn-u-ex');
             const bStop = document.getElementById('btn-u-stop');
             const bSup = document.getElementById('btn-u-sup');
-            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+            const rpmEl = document.getElementById('univ-rpm');
+            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+
             if (bEx) bEx.className = inact;
             if (bStop) bStop.className = inact;
             if (bSup) bSup.className = inact;
 
             if (dir === 1) {
-                if (rpmEl) { rpmEl.textContent = '1750 RPM (SUPPLY)'; rpmEl.className = 'text-xs font-bold text-teal-400 mono'; }
-                if (bSup) bSup.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-500/50 transition';
+                if (bSup) bSup.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-teal-500/25 text-teal-300 border border-teal-400/50';
+                if (rpmEl) rpmEl.textContent = '1750 RPM (SUPPLY)';
             } else if (dir === -1) {
-                if (rpmEl) { rpmEl.textContent = '1750 RPM (EXHAUST)'; rpmEl.className = 'text-xs font-bold text-amber-400 mono'; }
-                if (bEx) bEx.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+                if (bEx) bEx.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50';
+                if (rpmEl) rpmEl.textContent = '1750 RPM (EXHAUST)';
             } else {
-                if (rpmEl) { rpmEl.textContent = '0 RPM (STOPPED)'; rpmEl.className = 'text-xs font-bold text-slate-400 mono'; }
-                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-slate-200 border border-slate-600 transition';
+                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-white border border-slate-600';
+                if (rpmEl) rpmEl.textContent = '0 RPM (STOPPED)';
             }
         };
 
-        window.setUnivRadarRPM = (rpm) => {
+        window.setRadarRPM = (rpm) => {
             kinParam1 = rpm / 24;
-            const rpmEl = document.getElementById('univ-rpm');
-            const b12 = document.getElementById('btn-u-12');
             const b24 = document.getElementById('btn-u-24');
+            const b12 = document.getElementById('btn-u-12');
             const bStop = document.getElementById('btn-u-stop');
-            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
-            if (b12) b12.className = inact;
+            const rpmEl = document.getElementById('univ-rpm');
+            const inact = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+
             if (b24) b24.className = inact;
+            if (b12) b12.className = inact;
             if (bStop) bStop.className = inact;
 
             if (rpm === 24) {
-                if (rpmEl) { rpmEl.textContent = '24 RPM (NORMAL SCAN)'; rpmEl.className = 'text-xs font-bold text-sky-400 mono'; }
-                if (b24) b24.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-500/50 transition';
+                if (b24) b24.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-sky-500/25 text-sky-300 border border-sky-400/50';
+                if (rpmEl) rpmEl.textContent = '24 RPM (SCAN)';
             } else if (rpm === 12) {
-                if (rpmEl) { rpmEl.textContent = '12 RPM (LONG RANGE)'; rpmEl.className = 'text-xs font-bold text-amber-400 mono'; }
-                if (b12) b12.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 transition';
+                if (b12) b12.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50';
+                if (rpmEl) rpmEl.textContent = '12 RPM (LONG)';
             } else {
-                if (rpmEl) { rpmEl.textContent = '0 RPM (STOPPED)'; rpmEl.className = 'text-xs font-bold text-slate-400 mono'; }
-                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-slate-200 border border-slate-600 transition';
+                if (bStop) bStop.className = 'py-1.5 px-2 rounded-lg text-xs font-bold bg-slate-700 text-white border border-slate-600';
+                if (rpmEl) rpmEl.textContent = '0 RPM (STANDBY)';
             }
         };
 
         window.toggleUnivKinematics = (run) => {
             isKinematicsRunning = run;
-            const rpmEl = document.getElementById('univ-rpm');
-            if (rpmEl) {
-                rpmEl.textContent = run ? `${currentKinematics?.rpm || 1750} RPM` : '0 RPM (STOPPED)';
-                rpmEl.className = run ? 'text-xs font-bold text-orange-400 mono' : 'text-xs font-bold text-slate-400 mono';
-            }
         };
 
         // ============================================================================
-        // 5. EXPLOSION DYNAMICS & CONTROLS
+        // 6. EXPLOSION DYNAMICS & CONTROLS
         // ============================================================================
         function updateExplosionPositions(factor) {
             explodeFactor = factor;
@@ -681,28 +1313,46 @@
             if (btn) {
                 btn.textContent = showCallouts ? 'Labels: ON' : 'Labels: OFF';
                 btn.className = showCallouts
-                    ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition'
-                    : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 transition';
+                    ? 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/40 hover:bg-sky-500/30 transition'
+                    : 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 hover:bg-slate-700 transition';
             }
         }
 
         function setCameraPreset(preset) {
+            const c = modelCenter;
+            const d = modelMaxDim;
+
             if (preset === 'iso') {
-                camera.position.set(-2.8, 2.0, 3.4);
-                controls.target.set(0, 0.45, 0);
-            } else if (preset === 'front') {
-                camera.position.set(0, 0.45, 3.8);
-                controls.target.set(0, 0.45, 0);
-            } else if (preset === 'diagram') {
-                camera.position.set(-3.2, 2.6, 3.0);
-                controls.target.set(0, 0.45, 0);
+                if (isProceduralBowThruster) {
+                    camera.position.set(-14.5, 9.5, 15.5);
+                    controls.target.set(0, 1.2, 0.2);
+                } else {
+                    camera.position.set(c.x - d * 1.3, c.y + d * 0.9, c.z + d * 1.4);
+                    controls.target.set(c.x, c.y, c.z);
+                }
+            } else if (preset === 'axial') {
+                if (isProceduralBowThruster) {
+                    camera.position.set(-8.5, 3.2, 9.8);
+                    controls.target.set(0, 1.0, 0.2);
+                } else {
+                    camera.position.set(c.x, c.y + d * 0.3, c.z + d * 1.8);
+                    controls.target.set(c.x, c.y, c.z);
+                }
+            } else if (preset === 'exploded') {
+                if (isProceduralBowThruster) {
+                    camera.position.set(-13.8, 10.5, 14.2);
+                    controls.target.set(0, 1.5, 0.0);
+                } else {
+                    camera.position.set(c.x - d * 1.5, c.y + d * 1.2, c.z + d * 1.4);
+                    controls.target.set(c.x, c.y, c.z);
+                }
                 animateExplodeTo(0.85);
             }
             controls.update();
         }
 
         // ============================================================================
-        // 6. BILL OF MATERIALS & INSPECTION
+        // 7. BILL OF MATERIALS & INSPECTION
         // ============================================================================
         function buildBOMSidebar(parts) {
             const listEl = document.getElementById('bom-list');
@@ -713,19 +1363,21 @@
 
             parts.forEach((part) => {
                 const isSelected = selectedPartId === part.id;
-                const item = document.createElement('button');
-                item.className = `w-full text-left px-3 py-2 rounded-lg border transition flex items-center justify-between gap-2 ${
+                const item = document.createElement('div');
+                item.className = `w-full text-left px-2.5 py-1.5 rounded-lg border transition flex items-center justify-between gap-1.5 cursor-pointer ${
                     isSelected
-                        ? 'bg-orange-500/25 border-orange-400/60 text-white'
+                        ? 'bg-orange-500/25 border-orange-400/60 text-white shadow-md'
                         : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-300'
                 }`;
                 item.onclick = () => selectPart(part.id);
                 item.innerHTML = `
-                    <div class="truncate">
-                        <span class="text-[10px] font-bold text-orange-400 mono block">${part.code}</span>
-                        <span class="text-xs font-medium truncate block">${part.name}</span>
+                    <div class="truncate flex-1">
+                        <span class="text-[9px] font-bold text-orange-400 mono block leading-tight">${part.code}</span>
+                        <span class="text-xs font-medium truncate block leading-tight mt-0.5">${part.name}</span>
                     </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 mono shrink-0">Inspect</span>
+                    <button onclick="event.stopPropagation(); toggleIsolatePart('${part.id}')" class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 mono" title="Isolate Part">
+                        ${isIsolated && selectedPartId === part.id ? 'Show' : 'Iso'}
+                    </button>
                 `;
                 listEl.appendChild(item);
             });
@@ -735,12 +1387,24 @@
             selectedPartId = partId;
             const isolateBtn = document.getElementById('btn-isolate');
 
+            // Restore all emissives
+            for (const pid in partMeshGroups) {
+                const pEntry = partMeshGroups[pid];
+                if (!pEntry) continue;
+                (pEntry.meshes || []).forEach(m => {
+                    if (m.material && m.userData.origEmissive) {
+                        m.material.emissive.copy(m.userData.origEmissive);
+                        m.material.emissiveIntensity = m.userData.origEmissiveIntensity;
+                    }
+                });
+            }
+
             if (!partId) {
                 isIsolated = false;
                 isolateBtn.classList.add('hidden');
                 document.getElementById('part-code').textContent = 'ASSY-00';
                 document.getElementById('part-title').textContent = currentItem?.title || 'Complete Assembly';
-                document.getElementById('part-desc').textContent = currentItem?.subtitle || 'Precision marine electrical subassembly inspected via interactive 3D CAD viewport.';
+                document.getElementById('part-desc').textContent = currentItem?.subtitle || 'Precision marine engineering assembly.';
                 document.getElementById('part-material').textContent = 'Marine Class Alloy / Steel';
                 document.getElementById('part-axis').textContent = 'Multi-Axis Orthogonal';
 
@@ -759,17 +1423,29 @@
                     document.getElementById('part-material').textContent = meta.material;
                     document.getElementById('part-axis').textContent = meta.axis;
 
+                    // Emissive highlight on selected part
+                    (entry.meshes || []).forEach(m => {
+                        if (m.material && m.material.emissive) {
+                            m.material.emissive.setHex(0xf97316);
+                            m.material.emissiveIntensity = 0.45;
+                        }
+                    });
+
                     if (isIsolated) {
                         for (const pid in partMeshGroups) {
                             if (partMeshGroups[pid]?.group) {
                                 partMeshGroups[pid].group.visible = (pid === selectedPartId);
                             }
                         }
+                    } else {
+                        for (const pid in partMeshGroups) {
+                            if (partMeshGroups[pid]?.group) partMeshGroups[pid].group.visible = true;
+                        }
                     }
                 }
             }
 
-            // Refresh BOM active button styling
+            // Refresh BOM sidebar active button styling
             const parts = Object.values(partMeshGroups).map(e => e.meta);
             buildBOMSidebar(parts);
         }
@@ -780,8 +1456,19 @@
             selectPart(selectedPartId);
         }
 
+        function toggleIsolatePart(partId) {
+            if (selectedPartId === partId && isIsolated) {
+                isIsolated = false;
+                selectPart(partId);
+            } else {
+                selectedPartId = partId;
+                isIsolated = true;
+                selectPart(partId);
+            }
+        }
+
         // ============================================================================
-        // 7. CALLOUT BADGES & SVG LEADER LINES
+        // 8. CALLOUT BADGES & DYNAMIC SVG LEADER LINES
         // ============================================================================
         function buildCalloutDOMElements(parts) {
             const container = document.getElementById('labels-container');
@@ -789,7 +1476,7 @@
 
             parts.forEach((part) => {
                 const div = document.createElement('div');
-                div.className = 'callout-label px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-600/80 text-[10px] font-bold tracking-wider text-slate-100 shadow-lg mono whitespace-nowrap';
+                div.className = 'callout-label px-2 py-0.5 rounded-md bg-slate-900/90 border border-slate-600/80 text-[9px] font-bold tracking-wider text-slate-100 shadow-lg mono whitespace-nowrap';
                 div.textContent = part.shortLabel;
                 div.onclick = () => selectPart(part.id);
                 container.appendChild(div);
@@ -810,25 +1497,30 @@
                 const domEl = calloutDOMMap[partId];
                 if (!entry || !entry.group || !domEl) continue;
 
+                // Hide callout badge when unexploded or if group invisible
                 if (!entry.group.visible || explodeFactor < 0.10) {
                     domEl.style.opacity = '0';
                     domEl.style.pointerEvents = 'none';
                     continue;
                 }
 
-                const worldPos = entry.group.position.clone().add(entry.meta.labelAnchorOffset);
-                const projected = worldPos.clone().project(camera);
+                // Compute 3D world anchor
+                const worldPos = new THREE.Vector3();
+                entry.group.getWorldPosition(worldPos);
+                worldPos.add(entry.meta.labelAnchorOffset);
 
+                const projected = worldPos.clone().project(camera);
                 if (projected.z > 1) {
                     domEl.style.opacity = '0';
+                    domEl.style.pointerEvents = 'none';
                     continue;
                 }
 
                 const anchorX = (projected.x * 0.5 + 0.5) * width;
                 const anchorY = (-(projected.y * 0.5) + 0.5) * height;
 
-                const labelX = Math.max(90, Math.min(width - 90, anchorX + entry.meta.labelScreenDir.x));
-                const labelY = Math.max(70, Math.min(height - 90, anchorY + entry.meta.labelScreenDir.y));
+                const labelX = Math.max(80, Math.min(width - 80, anchorX + entry.meta.labelScreenDir.x));
+                const labelY = Math.max(65, Math.min(height - 80, anchorY + entry.meta.labelScreenDir.y));
 
                 domEl.style.left = `${labelX}px`;
                 domEl.style.top = `${labelY}px`;
@@ -836,7 +1528,7 @@
                 domEl.style.pointerEvents = 'auto';
                 domEl.style.borderColor = (selectedPartId === partId ? '#f97316' : 'rgba(100,116,139,0.7)');
 
-                // SVG Leader Line
+                // SVG Leader Polyline
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 const elbowX = anchorX + entry.meta.labelScreenDir.x * 0.55;
                 const elbowY = labelY;
@@ -846,6 +1538,7 @@
                 line.setAttribute('stroke-width', selectedPartId === partId ? '2' : '1.2');
                 svg.appendChild(line);
 
+                // Anchor Dot
                 const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 dot.setAttribute('cx', anchorX);
                 dot.setAttribute('cy', anchorY);
@@ -855,6 +1548,9 @@
             }
         }
 
+        // ============================================================================
+        // 9. RAYCASTING & CLICK-TO-INSPECT
+        // ============================================================================
         function setupRaycasting() {
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
@@ -862,16 +1558,28 @@
 
             renderer.domElement.addEventListener('pointerdown', () => { downTime = performance.now(); });
             renderer.domElement.addEventListener('pointerup', (e) => {
-                if (performance.now() - downTime > 220) return;
+                if (performance.now() - downTime > 220) return; // ignore orbit drags
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
                 raycaster.setFromCamera(mouse, camera);
+
                 const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
                 if (intersects.length > 0) {
                     let obj = intersects[0].object;
                     while (obj && !obj.userData?.partId) obj = obj.parent;
-                    if (obj && obj.userData?.partId) selectPart(obj.userData.partId);
+                    if (obj && obj.userData?.partId) {
+                        selectPart(obj.userData.partId);
+                    }
                 }
+            });
+
+            // Pointer hover cursor
+            renderer.domElement.addEventListener('pointermove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(assemblyRoot.children, true);
+                renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
             });
         }
 
@@ -882,15 +1590,15 @@
         }
 
         // ============================================================================
-        // 8. ANIMATION LOOP & KINEMATICS (PROPER LOCAL ROTATION ON AXIS)
+        // 10. ANIMATION LOOP & KINEMATICS
         // ============================================================================
         function animate() {
             requestAnimationFrame(animate);
 
-            // Smooth explosion animation
+            // Smooth explosion lerp
             if (isAnimatingExplode) {
                 const diff = targetExplodeFactor - explodeFactor;
-                if (Math.abs(diff) < 0.005) {
+                if (Math.abs(diff) < 0.003) {
                     explodeFactor = targetExplodeFactor;
                     isAnimatingExplode = false;
                 } else {
@@ -899,8 +1607,15 @@
                 updateExplosionPositions(explodeFactor);
             }
 
-            // PROPER LOCAL ROTATION: Each rotating mesh spins locally around its specified kinematic axis
-            if (isKinematicsRunning && kinParam1 !== 0 && currentKinematics) {
+            // Procedural Bow Thruster Kinematics
+            if (isProceduralBowThruster && kinParam1 !== 0) {
+                const deltaAngle = 0.08 * kinParam1;
+                bowRotatingMeshes.prop.forEach(m => { m.rotation.z += deltaAngle; });
+                bowRotatingMeshes.vertShaft.forEach(m => { m.rotation.y += deltaAngle; });
+            }
+
+            // GLB-Based Kinematics
+            if (!isProceduralBowThruster && isKinematicsRunning && kinParam1 !== 0 && currentKinematics) {
                 const axis = currentKinematics.axis || 'z';
                 const baseRpm = currentKinematics.rpm || 1750;
                 const effectiveRpm = baseRpm * kinParam1;

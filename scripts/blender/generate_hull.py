@@ -15,7 +15,9 @@ from mathutils import Vector  # type: ignore
 # still lies inside the hull; only the bow end moves forward (by LENGTH_STRETCH).
 # ==============================================================================
 import os
-EXPORT_GLB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "blender-hull-V7.glb")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) if os.path.basename(SCRIPT_DIR) == 'blender' else os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+EXPORT_GLB_PATH = os.path.join(PROJECT_ROOT, "public", "models", "blender-hull-V7.glb")
 INCLUDE_SUPERSTRUCTURE = True
 INCLUDE_INTERNAL_COMPARTMENTS = True
 INCLUDE_DECK_MACHINERY = True

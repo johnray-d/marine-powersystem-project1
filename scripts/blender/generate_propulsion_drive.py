@@ -176,13 +176,12 @@ for o in bpy.data.objects:
 
 try:
     script_dir=os.path.dirname(os.path.abspath(__file__))
-    workspace_root=os.path.dirname(script_dir)
+    workspace_root=os.path.abspath(os.path.join(script_dir, '..', '..')) if os.path.basename(script_dir) == 'blender' else os.path.abspath(os.path.join(script_dir, '..'))
 except NameError:
     workspace_root=bpy.path.abspath('//')
 
-public_dir=os.path.join(workspace_root,'public')
-if not os.path.exists(public_dir):
-    public_dir=workspace_root
+public_dir=os.path.join(workspace_root,'public','models')
+os.makedirs(public_dir, exist_ok=True)
 
 export_path1=os.path.join(public_dir,'marine_drive.glb')
 bpy.ops.export_scene.gltf(filepath=export_path1,export_format='GLB',use_selection=True,export_apply=True,export_yup=True)

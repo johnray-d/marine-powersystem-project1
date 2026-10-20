@@ -1,6 +1,6 @@
 {
   "include": [
-    "scripts"
+    "scripts/blender"
   ],
   "reportMissingImports": "none"
 }

@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CARGO, vesselLayout } from './vessel-layout';
-import { createModel } from './models';
-import type { Equipment } from './network';
-import { propellerAssembly } from './propeller-assembly';
-import { transformerAssembly } from './transformer-assembly';
-import { driveAssembly } from './drive-assembly';
-import { motorAssembly } from './motor-assembly';
-import { steeringAssembly } from './steering-assembly';
-import { reeferAssembly } from './reefer-assembly';
-import { pumpAssembly } from './pump-assembly';
+import { createModel } from '../assemblies/models';
+import type { Equipment } from '../core/network';
+import { propellerAssembly } from '../assemblies/propeller-assembly';
+import { transformerAssembly } from '../assemblies/transformer-assembly';
+import { driveAssembly } from '../assemblies/drive-assembly';
+import { motorAssembly } from '../assemblies/motor-assembly';
+import { steeringAssembly } from '../assemblies/steering-assembly';
+import { reeferAssembly } from '../assemblies/reefer-assembly';
+import { pumpAssembly } from '../assemblies/pump-assembly';
 import {
   esbCubicleAssembly,
   batterySystemAssembly,
@@ -19,15 +19,15 @@ import {
   galleyBoardAssembly,
   shorePowerAssembly,
   bridgeNavComAssembly
-} from './consumer-assemblies';
+} from '../assemblies/consumer-assemblies';
 import { resolvePublicAsset } from './assets';
-export { propellerAssembly } from './propeller-assembly';
-export { transformerAssembly } from './transformer-assembly';
-export { driveAssembly } from './drive-assembly';
-export { motorAssembly } from './motor-assembly';
-export { steeringAssembly } from './steering-assembly';
-export { reeferAssembly } from './reefer-assembly';
-export { pumpAssembly } from './pump-assembly';
+export { propellerAssembly } from '../assemblies/propeller-assembly';
+export { transformerAssembly } from '../assemblies/transformer-assembly';
+export { driveAssembly } from '../assemblies/drive-assembly';
+export { motorAssembly } from '../assemblies/motor-assembly';
+export { steeringAssembly } from '../assemblies/steering-assembly';
+export { reeferAssembly } from '../assemblies/reefer-assembly';
+export { pumpAssembly } from '../assemblies/pump-assembly';
 export {
   esbCubicleAssembly,
   batterySystemAssembly,
@@ -37,7 +37,7 @@ export {
   galleyBoardAssembly,
   shorePowerAssembly,
   bridgeNavComAssembly
-} from './consumer-assemblies';
+} from '../assemblies/consumer-assemblies';
 
 const steel = 0x83a7b7;
 // Light theme: the translucent shell and wireframe lines were authored as pale glows for a dark scene, so deepen them to stay visible.

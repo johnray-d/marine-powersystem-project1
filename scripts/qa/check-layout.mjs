@@ -4,9 +4,9 @@ import { createServer } from 'vite';
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
 try {
-  const { equipment } = await server.ssrLoadModule('/src/network.ts');
-  const { vesselLayout, SHIP, CARGO, halfBeamAt } = await server.ssrLoadModule('/src/vessel-layout.ts');
-  const { createVesselEquipment } = await server.ssrLoadModule('/src/vessel.ts');
+  const { equipment } = await server.ssrLoadModule('/src/core/network.ts');
+  const { vesselLayout, SHIP, CARGO, halfBeamAt } = await server.ssrLoadModule('/src/vessel/vessel-layout.ts');
+  const { createVesselEquipment } = await server.ssrLoadModule('/src/vessel/vessel.ts');
   const bounds = [];
   for (const item of equipment) {
     const placement = vesselLayout[item.id];
