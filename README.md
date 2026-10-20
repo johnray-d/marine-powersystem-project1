@@ -65,23 +65,23 @@ The vessel utilizes a modern medium-voltage electric-propulsion topology adherin
 
 ```mermaid
 flowchart TD
-    subgraph SHORE ["Cold Ironing (IEC/ISO/IEEE 80005-1)"]
+    subgraph SHORE ["Cold Ironing IEC/ISO/IEEE 80005-1"]
         HVSC["6.6 kV Shore Connection Reel"] -->|Safety Interlocked CB| ShoreCB["Shore Incomer VCB"]
     end
 
     subgraph GENERATION ["6.6 kV Primary Medium-Voltage Generation"]
-        DG1["DG 1 (2,500 kVA / 6.6 kV)"] -->|VCB 1| BusA["Main Switchboard 6.6 kV — BUS A"]
-        DG2["DG 2 (2,500 kVA / 6.6 kV)"] -->|VCB 2| BusA
+        DG1["DG 1 - 2,500 kVA / 6.6 kV"] -->|VCB 1| BusA["Main Switchboard 6.6 kV - BUS A"]
+        DG2["DG 2 - 2,500 kVA / 6.6 kV"] -->|VCB 2| BusA
         ShoreCB -.->|Alternative Infeed| BusA
         
-        BusA <-->|Tie VCB (ANSI 25 Synch)| BusB["Main Switchboard 6.6 kV — BUS B"]
+        BusA <-->|Tie VCB - ANSI 25 Synch| BusB["Main Switchboard 6.6 kV - BUS B"]
         
-        DG3["DG 3 (2,500 kVA / 6.6 kV)"] -->|VCB 3| BusB
-        DG4["DG 4 (2,500 kVA / 6.6 kV)"] -->|VCB 4| BusB
+        DG3["DG 3 - 2,500 kVA / 6.6 kV"] -->|VCB 3| BusB
+        DG4["DG 4 - 2,500 kVA / 6.6 kV"] -->|VCB 4| BusB
     end
 
     subgraph HEAVY_CONSUMERS ["6.6 kV Heavy Machinery"]
-        BusA -->|Feeder VCB| VFD["Propulsion Converter (12-Pulse VFD)"]
+        BusA -->|Feeder VCB| VFD["Propulsion Converter 12-Pulse VFD"]
         VFD --> PMotor["3,000 kW Induction Propulsion Motor"]
         PMotor --> Prop["4-Blade Skewed Kaplan Propeller"]
 
@@ -91,8 +91,8 @@ flowchart TD
     end
 
     subgraph TRANSFORMATION ["6.6 kV / 440 V Symmetrical Step-Down"]
-        BusA -->|Feeder VCB| TxA["Main Transformer A (1,500 kVA Dyn11)"]
-        BusB -->|Feeder VCB| TxB["Main Transformer B (1,500 kVA Dyn11)"]
+        BusA -->|Feeder VCB| TxA["Main Transformer A 1,500 kVA Dyn11"]
+        BusB -->|Feeder VCB| TxB["Main Transformer B 1,500 kVA Dyn11"]
     end
 
     subgraph LV_DISTRIBUTION ["440 V Low-Voltage Auxiliary Switchboard"]
@@ -100,10 +100,10 @@ flowchart TD
         TxB -->|Incomer ACB 2| LVBusB["440 V Main Bus Section B"]
         LVBusA <-->|LV Bus-Tie ACB| LVBusB
 
-        LVBusA --> CoolingPump["Main SW Cooling Pumps (DOL)"]
+        LVBusA --> CoolingPump["Main SW Cooling Pumps DOL"]
         LVBusA --> Compressors["30 bar Starting Air Compressors"]
-        LVBusB --> FirePump["Main Fire Pump Set (SOLAS)"]
-        LVBusB --> BallastOWS["Ballast Pump & 15 ppm OWS Skid"]
+        LVBusB --> FirePump["Main Fire Pump Set SOLAS"]
+        LVBusB --> BallastOWS["Ballast Pump and 15 ppm OWS Skid"]
         LVBusB --> VentFans["Engine Room Reversible Axial Fans"]
         LVBusB --> DeckCrane["Electro-Hydraulic Cargo Deck Cranes"]
         LVBusA --> ReeferFeeder["440 V Reefer Container Bay Sockets"]
@@ -112,29 +112,29 @@ flowchart TD
         ShuntRelay["SOLAS Ch. II-2 Emergency Remote Shunt Trip"] -.->|Trip Signal| Galley440
     end
 
-    subgraph HOTEL_SERVICE ["220 V Single/Three-Phase Services"]
+    subgraph HOTEL_SERVICE ["220 V Single and Three-Phase Services"]
         LVBusA --> TxHotel["440 V / 220 V Hotel Transformer"]
         TxHotel --> HotelBus["220 V Domestic Switchboard"]
-        HotelBus --> AccomLights["Accommodation Lighting & HVAC Controls"]
-        HotelBus --> AutomationPLC["PMS Automation & Sensor Racks"]
+        HotelBus --> AccomLights["Accommodation Lighting and HVAC Controls"]
+        HotelBus --> AutomationPLC["PMS Automation and Sensor Racks"]
     end
 
     subgraph EMERGENCY_SYSTEM ["SOLAS Chapter II-1/43 Emergency System"]
-        LVBusA -->|Normal Interlocked Feed| ABT["Automatic Bus Transfer (ABT) Switch"]
-        EDG["Emergency Diesel Generator (440 V / 350 kW)"] -->|Emergency Incomer CB| ABT
-        ABT --> ESB["440 V Emergency Switchboard (ESB)"]
+        LVBusA -->|Normal Interlocked Feed| ABT["Automatic Bus Transfer ABT Switch"]
+        EDG["Emergency Diesel Generator 440 V / 350 kW"] -->|Emergency Incomer CB| ABT
+        ABT --> ESB["440 V Emergency Switchboard ESB"]
         
         ESB --> EFirePump["Emergency Fire Pump Set"]
-        ESB --> ESteering["Steering Gear Power Unit (Feeder 2)"]
+        ESB --> ESteering["Steering Gear Power Unit Feeder 2"]
         ESB --> EmLighting["SOLAS Emergency Escape Lighting"]
         
-        ESB --> StaticInverter["Dual Float Charger & Static Inverter UPS"]
+        ESB --> StaticInverter["Dual Float Charger and Static Inverter UPS"]
         BatteryBank["24 V DC Sealed Radio/Nav Battery Bank"] <--> StaticInverter
-        StaticInverter --> NavBus["Uninterruptible Navigation & Radio Bus"]
+        StaticInverter --> NavBus["Uninterruptible Navigation and Radio Bus"]
         
         NavBus --> Radar["S-Band 24 RPM ARPA Radar"]
-        NavBus --> BridgeConsoles["ECDIS, Gyrocompass & Autopilot"]
-        NavBus --> GMDSS["GMDSS VHF/MF Radio & Distress Suite"]
+        NavBus --> BridgeConsoles["ECDIS, Gyrocompass and Autopilot"]
+        NavBus --> GMDSS["GMDSS VHF/MF Radio and Distress Suite"]
         NavBus --> NavLights["COLREG Navigation Lanterns"]
     end
 ```
