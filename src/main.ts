@@ -136,6 +136,40 @@ app.innerHTML=`
           <button id="toggleShell" type="button" aria-pressed="true">Hull</button>
           <button id="toggleLabels" type="button" aria-pressed="true">Labels</button>
         </div>
+        <div class="schematic-legend-card hidden" id="schematicLegendCard" aria-label="Single-line diagram legend">
+          <div class="schematic-legend-header" id="schematicLegendHeader" title="Click to collapse / expand legend">
+            <div class="schematic-legend-title-wrap">
+              <span class="schematic-legend-title">Legend</span>
+              <span class="schematic-legend-sub">DWG NO: MPS-SLD-2026-REV-A</span>
+            </div>
+            <button type="button" class="schematic-legend-toggle" id="toggleSchematicLegend" title="Collapse / expand legend" aria-label="Toggle legend">
+              ${icon('chevronLeft')}
+            </button>
+          </div>
+          <div class="schematic-legend-content" id="schematicLegendContent">
+            <div class="legend-row">
+              <span class="legend-bar hv"></span>
+              <span class="legend-name">6.6 kV main distribution</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-bar lv"></span>
+              <span class="legend-name">440 V distribution</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-bar consumer"></span>
+              <span class="legend-name">220 V control &amp; domestic sub-boards</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-bar emergency"></span>
+              <span class="legend-name">440 V SOLAS emergency</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-bar bulkhead"></span>
+              <span class="legend-name">A-60 / watertight bulkheads</span>
+            </div>
+            <div class="legend-subnote">CLASS: DNV / BV / SOLAS II-1 · Dual transformers · Galley shunt trip · 381 Ω NER</div>
+          </div>
+        </div>
         <div class="view-tools hidden" id="schematicTools">
           <button id="schematicFit" type="button" title="Fit diagram to view">Fit</button>
           <button id="schematicZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
@@ -838,6 +872,19 @@ const schematicState = {
   panY: 0
 };
 
+function clientToSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number): { x: number; y: number } {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if (ctm) {
+    try {
+      return pt.matrixTransform(ctm.inverse());
+    } catch (_) {}
+  }
+  return { x: SVG_BASE_WIDTH / 2, y: SVG_BASE_HEIGHT / 2 };
+}
+
 function updateSchematicViewBox() {
   const svg = document.querySelector<SVGSVGElement>('#schematicHost svg');
   if (!svg) return;
@@ -858,10 +905,8 @@ export function fitSchematicToScreen() {
 function zoomSchematic(factor: number) {
   const host = document.querySelector<HTMLElement>('#schematicHost');
   if (!host) return;
-  const mx = 0.5;
-  const my = 0.5;
   const oldZoom = schematicState.zoom;
-  const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * factor));
+  const newZoom = Math.max(0.4, Math.min(5.0, oldZoom * factor));
   if (Math.abs(newZoom - oldZoom) < 0.001) return;
   
   const oldW = SVG_BASE_WIDTH / oldZoom;
@@ -869,11 +914,11 @@ function zoomSchematic(factor: number) {
   const newW = SVG_BASE_WIDTH / newZoom;
   const newH = SVG_BASE_HEIGHT / newZoom;
   
-  const cursorSvgX = schematicState.panX + mx * oldW;
-  const cursorSvgY = schematicState.panY + my * oldH;
+  const cursorSvgX = schematicState.panX + 0.5 * oldW;
+  const cursorSvgY = schematicState.panY + 0.5 * oldH;
   
-  schematicState.panX = cursorSvgX - mx * newW;
-  schematicState.panY = cursorSvgY - my * newH;
+  schematicState.panX = cursorSvgX - 0.5 * newW;
+  schematicState.panY = cursorSvgY - 0.5 * newH;
   schematicState.zoom = newZoom;
   updateSchematicViewBox();
 }
@@ -888,67 +933,132 @@ function initSchematicInteractions() {
   let startPanX = 0, startPanY = 0;
   let hasMoved = false;
 
+  const activePointers = new Map<number, { x: number; y: number }>();
+  let initialPinchDist = 0;
+  let initialPinchZoom = 1.0;
+
   host.addEventListener('pointerdown', (e: PointerEvent) => {
-    isDown = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    startPanX = schematicState.panX;
-    startPanY = schematicState.panY;
-    hasMoved = false;
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.size === 1) {
+      isDown = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startPanX = schematicState.panX;
+      startPanY = schematicState.panY;
+      hasMoved = false;
+      try { host.setPointerCapture(e.pointerId); } catch (_) {}
+    } else if (activePointers.size === 2) {
+      isDown = false;
+      const pts = Array.from(activePointers.values());
+      initialPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      initialPinchZoom = schematicState.zoom;
+    }
   });
 
   window.addEventListener('pointermove', (e: PointerEvent) => {
+    if (activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (activePointers.size === 2) {
+      const pts = Array.from(activePointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (initialPinchDist > 5) {
+        const factor = dist / initialPinchDist;
+        const newZoom = Math.max(0.4, Math.min(5.0, initialPinchZoom * factor));
+        schematicState.zoom = newZoom;
+        updateSchematicViewBox();
+      }
+      return;
+    }
+
     if (!isDown) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.hypot(dx, dy) > 4) {
+    if (!hasMoved && Math.hypot(dx, dy) > 4) {
       hasMoved = true;
       host.classList.add('is-panning');
     }
     if (hasMoved) {
-      const scale = (SVG_BASE_WIDTH / schematicState.zoom) / host.clientWidth;
-      schematicState.panX = startPanX - dx * scale;
-      schematicState.panY = startPanY - dy * scale;
+      const svg = host.querySelector<SVGSVGElement>('svg');
+      const rect = svg ? svg.getBoundingClientRect() : host.getBoundingClientRect();
+      const scaleX = (SVG_BASE_WIDTH / schematicState.zoom) / (rect.width || host.clientWidth || 1);
+      const scaleY = (SVG_BASE_HEIGHT / schematicState.zoom) / (rect.height || host.clientHeight || 1);
+      schematicState.panX = startPanX - dx * scaleX;
+      schematicState.panY = startPanY - dy * scaleY;
       updateSchematicViewBox();
     }
   });
 
-  window.addEventListener('pointerup', () => {
-    if (isDown) {
-      isDown = false;
-      host.classList.remove('is-panning');
+  const onPointerEnd = (e: PointerEvent) => {
+    activePointers.delete(e.pointerId);
+    if (activePointers.size === 0) {
+      if (isDown) {
+        isDown = false;
+        host.classList.remove('is-panning');
+        try { host.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+    } else if (activePointers.size === 1) {
+      const remaining = Array.from(activePointers.values())[0];
+      isDown = true;
+      startX = remaining.x;
+      startY = remaining.y;
+      startPanX = schematicState.panX;
+      startPanY = schematicState.panY;
+      hasMoved = false;
     }
-  });
+  };
+
+  window.addEventListener('pointerup', onPointerEnd);
+  window.addEventListener('pointercancel', onPointerEnd);
+
+  host.addEventListener('click', (e: MouseEvent) => {
+    if (hasMoved) {
+      e.stopPropagation();
+      e.preventDefault();
+      hasMoved = false;
+    }
+  }, true);
 
   host.addEventListener('wheel', (e: WheelEvent) => {
     e.preventDefault();
-    const rect = host.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / rect.width;
-    const my = (e.clientY - rect.top) / rect.height;
-
+    const svg = host.querySelector<SVGSVGElement>('svg');
+    if (!svg) return;
     const oldZoom = schematicState.zoom;
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    const newZoom = Math.max(0.4, Math.min(4.0, oldZoom * zoomFactor));
+    const factor = e.deltaY < 0 ? 1.15 : 0.87;
+    const newZoom = Math.max(0.4, Math.min(5.0, oldZoom * factor));
     if (Math.abs(newZoom - oldZoom) < 0.001) return;
 
+    const focal = clientToSvgPoint(svg, e.clientX, e.clientY);
     const oldW = SVG_BASE_WIDTH / oldZoom;
     const oldH = SVG_BASE_HEIGHT / oldZoom;
     const newW = SVG_BASE_WIDTH / newZoom;
     const newH = SVG_BASE_HEIGHT / newZoom;
 
-    const cursorSvgX = schematicState.panX + mx * oldW;
-    const cursorSvgY = schematicState.panY + my * oldH;
+    const fracX = (focal.x - schematicState.panX) / oldW;
+    const fracY = (focal.y - schematicState.panY) / oldH;
 
-    schematicState.panX = cursorSvgX - mx * newW;
-    schematicState.panY = cursorSvgY - my * newH;
+    schematicState.panX = focal.x - fracX * newW;
+    schematicState.panY = focal.y - fracY * newH;
     schematicState.zoom = newZoom;
     updateSchematicViewBox();
   }, { passive: false });
+
+  host.addEventListener('dblclick', (e: MouseEvent) => {
+    if ((e.target as HTMLElement)?.closest('[data-select], button')) return;
+    zoomSchematic(1.5);
+  });
 
   document.querySelector('#schematicFit')?.addEventListener('click', fitSchematicToScreen);
   document.querySelector('#schematicZoomIn')?.addEventListener('click', () => zoomSchematic(1.25));
   document.querySelector('#schematicZoomOut')?.addEventListener('click', () => zoomSchematic(0.8));
   document.querySelector('#schematicReset')?.addEventListener('click', fitSchematicToScreen);
+
+  document.querySelector('#schematicLegendHeader')?.addEventListener('click', () => {
+    document.querySelector('#schematicLegendCard')?.classList.toggle('collapsed');
+  });
 }
 
 interface BusbarDef {
@@ -1277,33 +1387,6 @@ function renderSchematic(){
     </g>
   `;
 
-  // 9. Rev A Legend Card at Bottom Right
-  const legendSvg = `
-    <g class="diagram-legend-box rev-a-legend" transform="translate(860, 745)">
-      <rect width="590" height="200" rx="8" />
-      <text class="legend-header" x="18" y="24">Legend</text>
-      <text class="legend-subhead" x="18" y="40">DWG NO: MPS-SLD-2026-REV-A · CLASS: DNV / BV / SOLAS II-1 &amp; II-2</text>
-      <line x1="18" y1="48" x2="572" y2="48" stroke="rgba(148, 163, 184, 0.25)" stroke-width="1" />
-
-      <line x1="22" y1="68" x2="55" y2="68" class="legend-sample-line hv" />
-      <text class="legend-text" x="65" y="72">6.6 kV main distribution</text>
-
-      <line x1="22" y1="92" x2="55" y2="92" class="legend-sample-line lv" />
-      <text class="legend-text" x="65" y="96">440 V distribution</text>
-
-      <line x1="22" y1="116" x2="55" y2="116" class="legend-sample-line consumer" />
-      <text class="legend-text" x="65" y="120">220 V control and domestic sub-boards</text>
-
-      <line x1="22" y1="140" x2="55" y2="140" class="legend-sample-line emergency" />
-      <text class="legend-text" x="65" y="144">440 V SOLAS emergency</text>
-
-      <line x1="22" y1="164" x2="55" y2="164" class="legend-sample-line bulkhead" />
-      <text class="legend-text" x="65" y="168">A-60 / watertight bulkheads</text>
-
-      <text class="legend-subtext" x="18" y="188">Dual transformers per side · galley shunt trip · HRE 381 Ω NER with 67N</text>
-    </g>
-  `;
-
   const vbW = SVG_BASE_WIDTH / schematicState.zoom;
   const vbH = SVG_BASE_HEIGHT / schematicState.zoom;
   host.innerHTML = `
@@ -1319,7 +1402,6 @@ function renderSchematic(){
         ${shoreSvg}
         ${equipmentSvg}
         ${shuntStationSvg}
-        ${legendSvg}
       </svg>
     </div>
   `;
@@ -2464,12 +2546,14 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>b.onclick
   document.querySelector('#schematicHost')!.classList.toggle('hidden',view!=='schematic');
   document.querySelector('#viewTools')!.classList.toggle('hidden',view!=='vessel');
   document.querySelector('#schematicTools')?.classList.toggle('hidden',view!=='schematic');
+  document.querySelector('#schematicLegendCard')?.classList.toggle('hidden',view!=='schematic');
   document.querySelector('#viewTitle')!.textContent=view==='vessel'?'Vessel overview':'Single-line diagram';
   document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(t=>{t.classList.toggle('active',t===b);t.setAttribute('aria-selected',String(t===b));});
   if(view==='schematic') {
     fitSchematicToScreen();
   }
 });
+initSchematicInteractions();
 refresh();
 
 // Run continuous 100ms quasi-steady-state electrical simulation loop

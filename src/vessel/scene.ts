@@ -68,8 +68,9 @@ function lineBetween(a: THREE.Vector3, b: THREE.Vector3, radius = .012): THREE.M
 }
 
 /**
- * Clean white floor with an engineering net (grid) texture and soft radial falloff.
- * Replaces the animated ocean at the base of the vessel (y = SHIP.keel - 0.05).
+ * Maritime navy blue floor with an engineering net (grid) texture and soft radial falloff.
+ * Provides high-contrast backdrop so the lighter ship hull, interior equipment, and
+ * animated electrical power flows remain vividly legible.
  */
 function createNetFloor(): THREE.Mesh {
   const material = new THREE.ShaderMaterial({
@@ -98,32 +99,42 @@ function createNetFloor(): THREE.Mesh {
 
         // Net intersections / knot accents
         vec2 knotDelta = abs(fract(p - 0.5) - 0.5);
-        float knots = smoothstep(0.12, 0.0, length(knotDelta)) * 0.35;
+        float knots = smoothstep(0.12, 0.0, length(knotDelta)) * 0.45;
 
         // Combined net line intensity
-        float net = max(lineFine * 0.40, lineMajor * 0.75) + knots;
+        float net = max(lineFine * 0.45, lineMajor * 0.85) + knots;
 
-        // Soft radial fade so the net floor blends smoothly into the background
+        // Soft radial fade so the net floor blends smoothly outward
         float dist = length(p);
-        float fade = smoothstep(65.0, 18.0, dist);
+        float fade = smoothstep(75.0, 22.0, dist);
 
-        // Pure white floor with crisp technical slate net lines
-        vec3 floorWhite = vec3(1.0, 1.0, 1.0);
-        vec3 netLineColor = vec3(0.68, 0.74, 0.82);
-        vec3 col = mix(floorWhite, netLineColor, net);
+        // Deep maritime navy blue base with subtle radial depth
+        vec3 coreNavy = vec3(0.040, 0.082, 0.165);  // #0a152a
+        vec3 outerNavy = vec3(0.055, 0.110, 0.215); // #0e1c37
+        vec3 floorNavy = mix(coreNavy, outerNavy, smoothstep(5.0, 48.0, dist));
 
-        // Opacity: high white ground with net, fading out at outer edge
-        float alpha = fade * (0.88 + net * 0.12);
+        // Luminous technical net lines (cyan/electric blue)
+        vec3 netFineColor = vec3(0.18, 0.45, 0.72);   // crisp cyan-blue net line
+        vec3 netMajorColor = vec3(0.35, 0.75, 0.98);  // glowing primary cord
+        vec3 knotColor = vec3(0.55, 0.88, 1.0);       // knot accents
+
+        vec3 netCol = mix(netFineColor, netMajorColor, lineMajor);
+        netCol = mix(netCol, knotColor, clamp(knots * 2.0, 0.0, 1.0));
+
+        vec3 col = mix(floorNavy, netCol, net);
+
+        // Opacity: solid navy ground with glowing net, fading out at outer edge
+        float alpha = fade * (0.92 + net * 0.08);
         gl_FragColor = vec4(col, alpha);
       }
     `
   });
 
-  const geometry = new THREE.PlaneGeometry(160, 160);
+  const geometry = new THREE.PlaneGeometry(180, 180);
   geometry.rotateX(-Math.PI / 2);
   const floor = new THREE.Mesh(geometry, material);
   floor.position.y = SHIP.keel - 0.05;
-  floor.renderOrder = 0;
+  floor.renderOrder = -100;
   floor.frustumCulled = false;
   return floor;
 }
@@ -163,7 +174,10 @@ export class VesselView {
     this.scene.add(this.floor);
     for (const e of equipment) {
       const group = createVesselEquipment(e);
-      const placement = vesselLayout[e.id], size = placement.size.map(v => v * 0.75), inContainer = placement.space === 'cargo';
+      const placement = vesselLayout[e.id];
+      const isReefer = e.id === 'reeferUnit' || e.id === 'reeferUnitA' || e.id === 'reeferUnitB';
+      const eqScale = isReefer ? 1.0 : (e.id === 'prop' ? 0.75 * 1.20 : 0.75);
+      const size = placement.size.map(v => v * eqScale), inContainer = placement.space === 'cargo';
       const radius = inContainer ? .22 : Math.max(.12, Math.max(size[0], size[2]) / 2 + .04);
       const halo = new THREE.Mesh(new THREE.RingGeometry(radius, radius + .026, 32), new THREE.MeshBasicMaterial({ color: C.dead, transparent: true, opacity: .7, side: THREE.DoubleSide, depthWrite: false }));
       halo.rotation.x = -Math.PI / 2; halo.position.y = .012; halo.userData.halo = true;
@@ -233,7 +247,7 @@ export class VesselView {
     if (id === 'reeferUnit' || id === 'reeferUnitA' || id === 'reeferUnitB') {
       // The supply plugs into the inlet on the refrigeration end of the container.
       const placement = vesselLayout[id], direction = placement.rotation === Math.PI ? -1 : 1;
-      return object.position.clone().add(new THREE.Vector3(direction * (placement.size[0] * 0.75 / 2 + .05), .28 * 0.75, 0));
+      return object.position.clone().add(new THREE.Vector3(direction * (placement.size[0] / 2 + .05), .28, 0));
     }
     if (id === 'prop') {
       return object.position.clone();

@@ -83,8 +83,9 @@ function cargo(parent: THREE.Group) {
       instances.push({ x: bays[b], y: 1.35 + tier * 0.68, z: (row - (CARGO.rows-1)/2) * CARGO.rowPitch, color: colors[(b + row + tier) % colors.length] });
     }
   }
-  const containerMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .1, roughness: .7, transparent: true, opacity: .12, depthWrite: false });
+  const containerMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .1, roughness: .7, transparent: true, opacity: .32, depthWrite: false });
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(CARGO.length, CARGO.height, CARGO.width), containerMaterial, instances.length);
+  mesh.renderOrder = 4;
   const matrix = new THREE.Matrix4(); const edges: number[] = [];
   for (let i = 0; i < instances.length; i++) {
     const item = instances[i]; matrix.makeTranslation(item.x, item.y, item.z); mesh.setMatrixAt(i, matrix); mesh.setColorAt(i, new THREE.Color(item.color));
@@ -100,7 +101,7 @@ function cargo(parent: THREE.Group) {
   }
   parent.add(mesh);
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.Float32BufferAttribute(edges,3));
-  parent.add(new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:0x3d6978,transparent:true,opacity:0.3})));
+  parent.add(new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:0x3d6978,transparent:true,opacity:0.45})));
 }
 
 export function createVessel(): THREE.Group {
@@ -139,23 +140,26 @@ export function createVessel(): THREE.Group {
               meshName === 'SemiBalanced_Rudder'
             ) {
               mat.transparent = true;
-              mat.opacity = 0.12;
+              mat.opacity = 0.32;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 3;
             }
             // 2. Waterline stripe (crisp boot-topping band)
             else if (matName.includes('Waterline')) {
               mat.transparent = true;
-              mat.opacity = 0.20;
+              mat.opacity = 0.40;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 3;
             }
             // 3. Superstructure & accommodation house (translucent so interior switchboards/generators are visible)
             else if (matName.includes('Superstructure') || meshName.includes('Accommodation')) {
               mat.transparent = true;
-              mat.opacity = 0.12;
+              mat.opacity = 0.32;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 3;
             }
             // 4. Equipment foundation pads (solid & clearly legible under machinery)
             else if (matName.includes('Equipment_Foundation_Pad') || meshName.startsWith('Pad_')) {
@@ -170,9 +174,10 @@ export function createVessel(): THREE.Group {
               meshName.includes('House_Deck')
             ) {
               mat.transparent = true;
-              mat.opacity = 0.20;
+              mat.opacity = 0.40;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 1;
             }
             // 6. Internal deck flats and watertight bulkheads (machinery platforms)
             else if (
@@ -182,28 +187,32 @@ export function createVessel(): THREE.Group {
               meshName.includes('Bulkhead')
             ) {
               mat.transparent = true;
-              mat.opacity = 0.15;
+              mat.opacity = 0.35;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 1;
             }
             // 7. Navigation bridge windows
             else if (matName.includes('Window') || meshName.includes('Window')) {
               mat.transparent = true;
-              mat.opacity = 0.15;
+              mat.opacity = 0.35;
               mat.depthWrite = false;
+              child.renderOrder = 3;
             }
             // 8. Funnel casing & accents
             else if (matName.includes('Funnel') || meshName.includes('Funnel')) {
               mat.transparent = true;
-              mat.opacity = 0.20;
+              mat.opacity = 0.40;
               mat.depthWrite = false;
               mat.side = THREE.DoubleSide;
+              child.renderOrder = 3;
             }
             // 9. Deck hardware, winches, bollards, rails & thruster grates
             else {
               mat.transparent = true;
-              mat.opacity = matName.includes('Rail') ? 0.25 : 0.35;
+              mat.opacity = matName.includes('Rail') ? 0.45 : 0.55;
               mat.depthWrite = false;
+              child.renderOrder = 4;
             }
           });
         }
@@ -225,12 +234,14 @@ export function createVessel(): THREE.Group {
 function addCompartmentEnclosures(parent: THREE.Group) {
   // 1. [A-60 FIRE BULKHEAD] Engine Control Room & Main Switchboard Boundary
   const a60Group = new THREE.Group();
-  outlineBox(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xf59e0b, 0.45);
-  box(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xd97706, 0.08);
+  a60Group.renderOrder = 2;
+  outlineBox(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xf59e0b, 0.60);
+  box(a60Group, [5.8, 1.85, 3.6], [-7.5, -0.15, 0], 0xd97706, 0.18);
   parent.add(a60Group);
 
   // 2. [ARC PRESSURE RELIEF DUCT] → OPEN AIR
   const arcDuct = new THREE.Group();
+  arcDuct.renderOrder = 2;
   // Vertical duct rising from 6.6 kV switchgear (y = 0.4) to above weather deck (y = 2.45)
   box(arcDuct, [0.65, 2.05, 0.65], [-7.75, 1.42, 0], 0x334155, 0.85);
   outlineBox(arcDuct, [0.65, 2.05, 0.65], [-7.75, 1.42, 0], 0x94a3b8, 0.75);
@@ -242,25 +253,27 @@ function addCompartmentEnclosures(parent: THREE.Group) {
 
   // 3. [WATERTIGHT BULKHEAD] Bow Thruster Collision Bulkhead (Trimmed & Resized for V7 Hull)
   const wtBulkhead = new THREE.Group();
+  wtBulkhead.renderOrder = 2;
   // Lower tank-top bulkhead plate fitting neatly between keel and lower machinery flat
-  box(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x334155, 0.35);
-  outlineBox(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x38bdf8, 0.55);
+  box(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x334155, 0.45);
+  outlineBox(wtBulkhead, [0.06, 1.15, 3.0], [18.6, -2.05, 0], 0x38bdf8, 0.70);
   // Horizontal stiffener channels
-  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -2.35, 0], 0x1e293b, 0.65);
-  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -1.75, 0], 0x1e293b, 0.65);
+  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -2.35, 0], 0x1e293b, 0.75);
+  box(wtBulkhead, [0.09, 0.04, 2.9], [18.6, -1.75, 0], 0x1e293b, 0.75);
   // Vertical structural framing
   for (const z of [-1.0, 0, 1.0]) {
-    box(wtBulkhead, [0.08, 1.1, 0.04], [18.6, -2.05, z], 0x1e293b, 0.65);
+    box(wtBulkhead, [0.08, 1.1, 0.04], [18.6, -2.05, z], 0x1e293b, 0.75);
   }
   // Watertight access door frame
-  box(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x475569, 0.6);
-  outlineBox(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x38bdf8, 0.75);
+  box(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x475569, 0.7);
+  outlineBox(wtBulkhead, [0.08, 0.55, 0.36], [18.6, -2.05, 0], 0x38bdf8, 0.85);
   parent.add(wtBulkhead);
 
   // 4. EMERGENCY GENERATOR ROOM (ABOVE BULKHEAD DECK)
   const esbRoom = new THREE.Group();
-  outlineBox(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xf97316, 0.5);
-  box(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xea580c, 0.07);
+  esbRoom.renderOrder = 2;
+  outlineBox(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xf97316, 0.65);
+  box(esbRoom, [3.4, 1.55, 1.7], [-10.85, 2.35, -1.35], 0xea580c, 0.18);
   parent.add(esbRoom);
 }
 
@@ -415,15 +428,19 @@ export function createVesselEquipment(e:Equipment):THREE.Group {
   const placement=vesselLayout[e.id];
   const root=new THREE.Group();root.position.set(...placement.position);root.userData.eqId=e.id;
   const EQ_SCALE = 0.75;
+  const isReeferUnit = e.id === 'reeferUnit' || e.id === 'reeferUnitA' || e.id === 'reeferUnitB';
+  const isPropeller = e.id === 'prop' || e.kind === 'propeller';
+  const itemScale = isReeferUnit ? 1.0 : (isPropeller ? 0.90 : EQ_SCALE);
   const size: [number, number, number] = [
-    placement.size[0] * EQ_SCALE,
-    placement.size[1] * EQ_SCALE,
-    placement.size[2] * EQ_SCALE
+    placement.size[0] * itemScale,
+    placement.size[1] * itemScale,
+    placement.size[2] * itemScale
   ];
   if(e.id==='prop'||e.kind==='propeller'){
-    propellerAssembly.group.scale.setScalar(EQ_SCALE);
+    const PROP_SCALE = EQ_SCALE * 1.20; // 20% size increase for propeller in 3D vessel view (0.90)
+    propellerAssembly.group.scale.setScalar(PROP_SCALE);
     root.add(propellerAssembly.group);
-    root.userData.height=placement.size[1] * EQ_SCALE;
+    root.userData.height=placement.size[1] * PROP_SCALE;
     root.userData.propellerAssembly=propellerAssembly;
     root.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.eqId=e.id;});
     return root;

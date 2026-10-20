@@ -83,6 +83,17 @@ try {
   fs.writeFileSync('bow_closeup.png', Buffer.from(shotBow.result.data, 'base64'));
   console.log('Saved bow_closeup.png');
 
+  // 1b. Stern-Quarter Hovering Shot (the exact angle where the bug occurred)
+  await evaluate(`
+    window.app.vessel.controls.target.set(-2.0, 0.5, 0);
+    window.app.vessel.camera.position.set(-24.0, 11.0, -22.0);
+    window.app.vessel.controls.update();
+  `);
+  await new Promise(r => setTimeout(r, 1200));
+  const shotSternHover = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('vessel_stern_quarter_fixed.png', Buffer.from(shotSternHover.result.data, 'base64'));
+  console.log('Saved vessel_stern_quarter_fixed.png');
+
   // 2. Full vessel overview showing elevated ship height above the sea
   await evaluate(`
     window.app.select('busA');
@@ -92,6 +103,18 @@ try {
   const shotFull = await send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync('vessel_shot.png', Buffer.from(shotFull.result.data, 'base64'));
   console.log('Saved vessel_shot.png');
+
+  // 2b. Reefer containers closeup in the cargo hold (matching user's angle)
+  await evaluate(`
+    window.app.select('reeferUnitB');
+    window.app.vessel.controls.target.set(10.0, 1.6, 0.2);
+    window.app.vessel.camera.position.set(5.5, 3.8, 6.5);
+    window.app.vessel.controls.update();
+  `);
+  await new Promise(r => setTimeout(r, 1000));
+  const shotReefer = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('reefer_containers_shot.png', Buffer.from(shotReefer.result.data, 'base64'));
+  console.log('Saved reefer_containers_shot.png');
 
   // 3. Energize propulsion and bow thruster to test spinning animations
   await evaluate(`
@@ -116,6 +139,41 @@ try {
   const shotBowSpin = await send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync('bow_thruster_spin.png', Buffer.from(shotBowSpin.result.data, 'base64'));
   console.log('Saved bow_thruster_spin.png');
+
+  // 5. Test Single-line diagram tab, Legend panel, and Zoom controls
+  await evaluate(`
+    const tab = document.querySelector('[data-view="schematic"]');
+    if (tab) tab.click();
+  `);
+  await new Promise(r => setTimeout(r, 1000));
+  const shotSldFitted = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('sld_fitted.png', Buffer.from(shotSldFitted.result.data, 'base64'));
+  console.log('Saved sld_fitted.png');
+
+  // 6. Test Zoom In (+) button twice and capture zoomed state
+  await evaluate(`
+    const zoomIn = document.querySelector('#schematicZoomIn');
+    if (zoomIn) {
+      zoomIn.click();
+      zoomIn.click();
+    }
+  `);
+  await new Promise(r => setTimeout(r, 800));
+  const shotSldZoomed = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('sld_zoomed.png', Buffer.from(shotSldZoomed.result.data, 'base64'));
+  console.log('Saved sld_zoomed.png');
+
+  // 7. Test Legend toggle (collapse)
+  await evaluate(`
+    const fitBtn = document.querySelector('#schematicFit');
+    if (fitBtn) fitBtn.click();
+    const toggle = document.querySelector('#toggleSchematicLegend');
+    if (toggle) toggle.click();
+  `);
+  await new Promise(r => setTimeout(r, 800));
+  const shotSldCollapsed = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync('sld_collapsed.png', Buffer.from(shotSldCollapsed.result.data, 'base64'));
+  console.log('Saved sld_collapsed.png');
 
   if (consoleMessages.length) {
     console.log('Console messages:', consoleMessages);

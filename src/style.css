@@ -2828,6 +2828,156 @@ body.has-assembly-modal {
   justify-content: center;
 }
 
+/* Schematic Legend Card in the top-left panel of the single-line diagram */
+.schematic-legend-card {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  width: 260px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  transition: width 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.schematic-legend-card.collapsed {
+  width: auto;
+}
+
+.schematic-legend-card.collapsed .schematic-legend-content {
+  display: none;
+}
+
+.schematic-legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.schematic-legend-card.collapsed .schematic-legend-header {
+  border-bottom: 0;
+  padding: 5px 9px;
+}
+
+.schematic-legend-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.schematic-legend-title {
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.schematic-legend-sub {
+  font: 400 9px/1.2 var(--font-mono);
+  color: var(--text-3);
+}
+
+.schematic-legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.schematic-legend-toggle:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.schematic-legend-toggle .icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.schematic-legend-card.collapsed .schematic-legend-toggle .icon {
+  transform: rotate(-90deg);
+}
+
+.schematic-legend-content {
+  padding: 7px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.schematic-legend-content .legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--text-2);
+}
+
+.schematic-legend-content .legend-bar {
+  display: inline-block;
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.schematic-legend-content .legend-bar.hv {
+  background: var(--v-hv);
+}
+
+.schematic-legend-content .legend-bar.lv {
+  background: var(--v-lv);
+}
+
+.schematic-legend-content .legend-bar.consumer {
+  background: var(--v-consumer);
+}
+
+.schematic-legend-content .legend-bar.emergency {
+  height: 0;
+  border-top: 3.5px dashed var(--v-emergency);
+  border-radius: 0;
+}
+
+.schematic-legend-content .legend-bar.bulkhead {
+  height: 0;
+  border-top: 2px dashed #94a3b8;
+  border-radius: 0;
+}
+
+.schematic-legend-content .legend-name {
+  white-space: nowrap;
+}
+
+.schematic-legend-content .legend-subnote {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+  font-size: 9px;
+  line-height: 1.25;
+  color: var(--text-3);
+}
+
 .diagram-wrap svg {
   display: block;
   width: 100%;
