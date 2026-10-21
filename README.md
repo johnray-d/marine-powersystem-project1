@@ -25,7 +25,8 @@ The **Marine Power System Simulator** teaches marine electrical engineering, Pow
 ## ✨ Key Features
 
 ### 1. Interactive 3D Vessel View
-* **Technical White Net Sea & Translucent Machinery Hull**: An engineered white grid net floor provides a clean baseline reference frame while lowered hull opacity reveals internal machinery compartments, tanktop foundation chocks, and compartmental bulkheads.
+* **Maritime Navy Blue Net Floor & Translucent Machinery Hull**: An engineered navy blue grid net floor provides a deep, high-contrast datum while balanced translucent hull opacity (+20% opacity enhancement and dual-side depth sorting) clearly reveals internal machinery compartments, tanktop foundation chocks, and compartmental bulkheads without disappearing at acute camera angles.
+* **Enlarged Propeller & Full-Scale Reefer Loads**: 20% enlarged 4-blade skewed propeller and full-scale 40-foot reefer container modules matching container bay cell guides.
 * **Hydrodynamic Taylor/Nabla Bulbous Bow**: Organically lofted continuous bulbous bow emerging seamlessly from the lower forefoot and keel line, eliminating faceted step-cuts and featuring a smooth raked stem.
 * **Forecastle & Deck Machinery**: Raised forecastle deck with sheer rise, solid plated steel bulwarks, heavy-duty V-shaped breakwater, twin anchor windlasses/mooring winches, chain pipes, stockless bower anchors, and deck cargo cranes.
 * **Athwartships Thruster Tunnels & Propeller**: Structural transverse bow thruster duct with protective grates and a 4-blade skewed Kaplan propeller with real-time operational kinematics.

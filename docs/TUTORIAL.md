@@ -13,8 +13,8 @@
 | :--- | :--- |
 | **Glowing Red Power Line** | **Energized Bus / Feeder Cable** (`6.6 kV` HV, `440 V` LV, `440 V` Emergency, or `220 V` Hotel) |
 | **Glowing Yellow Flowing Animation** | **Active Real-Power Flow Direction** from online generator/shore source to running machinery loads |
-| **Technical White Net Floor** | Reference grid datum at baseline, replacing legacy ocean waves for optimal machinery visibility |
-| **Translucent Hull Shell** | Allows full internal spatial inspection of engine room compartments, tanktop chocks, and decks |
+| **Maritime Navy Blue Net Floor** | Reference grid datum at baseline, providing a deep high-contrast datum for optimal equipment and power flow visibility |
+| **Translucent Hull Shell (+20% Opacity)** | Allows full internal spatial inspection of engine room compartments, tanktop chocks, and decks with solid visibility across all camera angles |
 | **Dashed Slate Line** | De-energized feeder cable or busbar section |
 | **Dashed Amber Line** | Open circuit breaker / disconnected feeder path |
 
@@ -26,10 +26,11 @@
 
 When you launch the simulator at **[https://jro-d.github.io/marine-powersystem-project1/](https://jro-d.github.io/marine-powersystem-project1/)**, you enter the **3D Vessel Overview** alongside the **Switchboard Controls** panel (left) and the **Equipment Inspector** (right).
 
-1. **Machinery Compartment Visibility:** The hull's translucent outer shell and technical white net reference floor allow direct visual tracing of internal equipment without visual obstruction.
-2. **Trace Energized Feeders:** Any energized cable glows **bright red** while **glowing yellow pulses** travel along the cable from the active power source (`DG 1`–`DG 4`, `Emergency Generator`, or `Shore Power`) toward the connected loads.
-3. **Inspect Any Equipment:** Click any 3D equipment model in the vessel (or any node in the Single-Line Diagram) to inspect its live voltage, load (`kW` / `kVAr`), power factor, current (`A`), insulation resistance (`MΩ`), and connected breakers.
-4. **Open 3D Universal CAD Assembly:** Click **⚡ Open 3D Engineering Assembly & Specs ↗** at the bottom of the right inspector (or select **Equipment Catalog** in the top bar) to open the unified CAD twin viewer (`universal_viewer.html?eq=<equipment_id>`) for complete parts breakdown and kinematics.
+1. **Machinery Compartment Visibility:** The hull's translucent outer shell (enhanced +20% opacity with dual-face depth sorting) and maritime navy blue net reference floor allow direct visual tracing of internal equipment without visual obstruction or disappearing angles.
+2. **Enlarged Propeller & Reefer Bays:** Features a 20% enlarged 4-blade skewed propeller and true-scale 40-foot containerized reefer units A & B.
+3. **Trace Energized Feeders:** Any energized cable glows **bright red** while **glowing yellow pulses** travel along the cable from the active power source (`DG 1`–`DG 4`, `Emergency Generator`, or `Shore Power`) toward the connected loads.
+4. **Inspect Any Equipment:** Click any 3D equipment model in the vessel (or any node in the Single-Line Diagram) to inspect its live voltage, load (`kW` / `kVAr`), power factor, current (`A`), insulation resistance (`MΩ`), and connected breakers.
+5. **Open 3D Universal CAD Assembly:** Click **⚡ Open 3D Engineering Assembly & Specs ↗** at the bottom of the right inspector (or select **Equipment Catalog** in the top bar) to open the unified CAD twin viewer (`universal_viewer.html?eq=<equipment_id>`) for complete parts breakdown and kinematics.
 
 ---
 
