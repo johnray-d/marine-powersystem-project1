@@ -1640,7 +1640,202 @@
     },
     "coolingPump": {
       "id": "coolingPump",
-      "glb": "/models/marine_cooling_pump.glb"
+      "title": "Auxiliary Sea Water Cooling Pump Set",
+      "subtitle": "Continuous-Duty 440 V Centrifugal Auxiliary Sea Water Cooling Pump · Bronze Impeller",
+      "glb": "/models/marine_cooling_pump.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 75,
+        "powerFactor": 0.86,
+        "breakerId": "cooling1Feed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "Star-Delta / Soft Starter",
+        "inrushMultiplier": 4.5
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.45,
+        "rpm": 1750,
+        "rotatingPrefixes": [
+          "Impeller_",
+          "Pump_Shaft",
+          "Shaft_Coupling"
+        ]
+      },
+      "parts": {
+        "Pump_Skid": {
+          "category": "Skid",
+          "code": "PRT-01",
+          "label": "01 · Fabricated Structural Base Skid",
+          "shortLabel": "BASE SKID & MOUNT",
+          "material": "Marine Structural Steel (IS 2062)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            -0.4,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            -0.2,
+            0
+          ],
+          "description": "Fabricated steel baseplate maintaining precision angular alignment between motor and pump."
+        },
+        "Motor_Body": {
+          "category": "Motor",
+          "code": "PRT-02",
+          "label": "02 · 440 V / 75 kW Marine Induction Motor",
+          "shortLabel": "440V INDUCTION MOTOR",
+          "material": "Cast Iron (EN-GJL-250) Housing / Copper Windings",
+          "axisName": "-Z Backward (-0.8m)",
+          "explode": [
+            0,
+            0,
+            -0.8
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            -0.8
+          ],
+          "description": "Totally enclosed fan-cooled (TEFC) Class F insulated marine motor driving the seawater pump."
+        },
+        "Shaft_Coupling": {
+          "category": "Shaft",
+          "code": "PRT-03",
+          "label": "03 · Flexible Spacer Coupling & Guard",
+          "shortLabel": "FLEXIBLE SPACER COUPLING",
+          "material": "Forged 40Cr Steel / Polyurethane Element",
+          "axisName": "Center [-0.3m Z]",
+          "explode": [
+            0,
+            0,
+            -0.3
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            -0.3
+          ],
+          "description": "Flexible coupling transmitting high torsional drive power while isolating shaft angular misalignment."
+        },
+        "Pump_Shaft": {
+          "category": "Shaft",
+          "code": "PRT-04",
+          "label": "04 · Nitronic 50 High-Strength Stainless Shaft",
+          "shortLabel": "NITRONIC PUMP SHAFT",
+          "material": "Nitronic 50 / AISI 316L Stainless Steel",
+          "axisName": "+Z Forward (+0.2m)",
+          "explode": [
+            0,
+            0,
+            0.2
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.2
+          ],
+          "description": "Precision ground seawater-resistant drive shaft carrying torque directly from coupling to impeller."
+        },
+        "Shaft_Seal": {
+          "category": "Seal",
+          "code": "PRT-05",
+          "label": "05 · Silicon Carbide Cartridge Mechanical Seal",
+          "shortLabel": "MECHANICAL CARTRIDGE SEAL",
+          "material": "SiC / Carbon / Hastelloy-C Spring",
+          "axisName": "+Z Forward (+0.4m)",
+          "explode": [
+            0,
+            0,
+            0.4
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.35,
+            0.4
+          ],
+          "description": "Balanced cartridge mechanical seal preventing seawater egress along the rotating pump shaft."
+        },
+        "Pump_Casing": {
+          "category": "Casing",
+          "code": "PRT-06",
+          "label": "06 · Nickel-Aluminium Bronze Volute Casing",
+          "shortLabel": "NAB VOLUTE CASING",
+          "material": "Nickel-Aluminium Bronze (Cu3 / CuAl10Fe5Ni5)",
+          "axisName": "+Z Forward (+0.6m)",
+          "explode": [
+            0,
+            0,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            0.6
+          ],
+          "description": "High-pressure double-volute hydraulic casing converting high fluid velocity into static discharge head."
+        },
+        "Impeller_Hub": {
+          "category": "Impeller",
+          "code": "PRT-07",
+          "label": "07 · Backward-Curved Centrifugal Impeller",
+          "shortLabel": "NAB CENTRIFUGAL IMPELLER",
+          "material": "Precision Cast Nickel-Aluminium Bronze",
+          "axisName": "+Z Forward (+0.85m)",
+          "explode": [
+            0,
+            0,
+            0.85
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.85
+          ],
+          "description": "Dynamically balanced 6-blade centrifugal impeller delivering 450 m³/h cooling water circulation."
+        },
+        "Suction_Port": {
+          "category": "Ports",
+          "code": "PRT-08",
+          "label": "08 · Axial Suction Port & Bolted Flange",
+          "shortLabel": "AXIAL SUCTION INLET",
+          "material": "NAB Cast Flange / EPDM Gasket",
+          "axisName": "+Z Forward (+1.1m)",
+          "explode": [
+            0,
+            0,
+            1.1
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.3,
+            1.1
+          ],
+          "description": "Axial sea chest suction connection equipped with sacrificial zinc anode mounting boss."
+        },
+        "Discharge_Port": {
+          "category": "Ports",
+          "code": "PRT-09",
+          "label": "09 · Radial Discharge Neck & Flange",
+          "shortLabel": "RADIAL DISCHARGE NECK",
+          "material": "NAB Cast Flange (DIN PN16)",
+          "axisName": "+Y Vertical (+0.6m)",
+          "explode": [
+            0,
+            0.6,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0.6
+          ],
+          "description": "Radial discharge connection feeding auxiliary sea water mains to primary heat exchangers."
+        }
+      }
     },
     "firePump": {
       "id": "firePump",
@@ -1656,11 +1851,349 @@
         "priority": "essential",
         "startingMethod": "DOL",
         "inrushMultiplier": 5.5
+      },
+      "parts": {
+        "Pump_Skid": {
+          "category": "Skid",
+          "code": "PRT-01",
+          "label": "01 · Fabricated Structural Base Skid",
+          "shortLabel": "BASE SKID & MOUNT",
+          "material": "Marine Structural Steel (IS 2062)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            -0.4,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            -0.2,
+            0
+          ],
+          "description": "Fabricated steel baseplate maintaining precision angular alignment between motor and pump."
+        },
+        "Motor_Body": {
+          "category": "Motor",
+          "code": "PRT-02",
+          "label": "02 · 440 V / 95 kW Marine Fire Pump Motor",
+          "shortLabel": "95 kW FIRE PUMP MOTOR",
+          "material": "Cast Iron (EN-GJL-250) Housing / Copper Windings",
+          "axisName": "-Z Backward (-0.8m)",
+          "explode": [
+            0,
+            0,
+            -0.8
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            -0.8
+          ],
+          "description": "Totally enclosed fan-cooled (TEFC) Class F insulated marine motor driving the seawater pump."
+        },
+        "Shaft_Coupling": {
+          "category": "Shaft",
+          "code": "PRT-03",
+          "label": "03 · Flexible Spacer Coupling & Guard",
+          "shortLabel": "FLEXIBLE SPACER COUPLING",
+          "material": "Forged 40Cr Steel / Polyurethane Element",
+          "axisName": "Center [-0.3m Z]",
+          "explode": [
+            0,
+            0,
+            -0.3
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            -0.3
+          ],
+          "description": "Flexible coupling transmitting high torsional drive power while isolating shaft angular misalignment."
+        },
+        "Pump_Shaft": {
+          "category": "Shaft",
+          "code": "PRT-04",
+          "label": "04 · Nitronic 50 High-Strength Stainless Shaft",
+          "shortLabel": "NITRONIC PUMP SHAFT",
+          "material": "Nitronic 50 / AISI 316L Stainless Steel",
+          "axisName": "+Z Forward (+0.2m)",
+          "explode": [
+            0,
+            0,
+            0.2
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.2
+          ],
+          "description": "Precision ground seawater-resistant drive shaft carrying torque directly from coupling to impeller."
+        },
+        "Shaft_Seal": {
+          "category": "Seal",
+          "code": "PRT-05",
+          "label": "05 · Silicon Carbide Cartridge Mechanical Seal",
+          "shortLabel": "MECHANICAL CARTRIDGE SEAL",
+          "material": "SiC / Carbon / Hastelloy-C Spring",
+          "axisName": "+Z Forward (+0.4m)",
+          "explode": [
+            0,
+            0,
+            0.4
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.35,
+            0.4
+          ],
+          "description": "Balanced cartridge mechanical seal preventing seawater egress along the rotating pump shaft."
+        },
+        "Pump_Casing": {
+          "category": "Casing",
+          "code": "PRT-06",
+          "label": "06 · SOLAS High-Pressure Bronze Volute Casing",
+          "shortLabel": "HIGH-PRESSURE CASING",
+          "material": "Nickel-Aluminium Bronze (Cu3 / CuAl10Fe5Ni5)",
+          "axisName": "+Z Forward (+0.6m)",
+          "explode": [
+            0,
+            0,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            0.6
+          ],
+          "description": "High-pressure double-volute hydraulic casing converting high fluid velocity into static discharge head."
+        },
+        "Impeller_Hub": {
+          "category": "Impeller",
+          "code": "PRT-07",
+          "label": "07 · 6-Blade High-Head Fire Main Impeller",
+          "shortLabel": "FIRE MAIN IMPELLER",
+          "material": "Precision Cast Nickel-Aluminium Bronze",
+          "axisName": "+Z Forward (+0.85m)",
+          "explode": [
+            0,
+            0,
+            0.85
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.85
+          ],
+          "description": "Dynamically balanced 6-blade centrifugal impeller delivering 450 m³/h cooling water circulation."
+        },
+        "Suction_Port": {
+          "category": "Ports",
+          "code": "PRT-08",
+          "label": "08 · Axial Suction Port & Bolted Flange",
+          "shortLabel": "AXIAL SUCTION INLET",
+          "material": "NAB Cast Flange / EPDM Gasket",
+          "axisName": "+Z Forward (+1.1m)",
+          "explode": [
+            0,
+            0,
+            1.1
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.3,
+            1.1
+          ],
+          "description": "Axial sea chest suction connection equipped with sacrificial zinc anode mounting boss."
+        },
+        "Discharge_Port": {
+          "category": "Ports",
+          "code": "PRT-09",
+          "label": "09 · Radial Discharge Neck & Flange",
+          "shortLabel": "RADIAL DISCHARGE NECK",
+          "material": "NAB Cast Flange (DIN PN16)",
+          "axisName": "+Y Vertical (+0.6m)",
+          "explode": [
+            0,
+            0.6,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0.6
+          ],
+          "description": "Radial discharge connection feeding auxiliary sea water mains to primary heat exchangers."
+        }
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.45,
+        "rpm": 1750,
+        "rotatingPrefixes": [
+          "Impeller_",
+          "Pump_Shaft",
+          "Shaft_Coupling"
+        ]
       }
     },
     "ballastPump": {
       "id": "ballastPump",
-      "glb": "/models/ballast_ows_skid.glb"
+      "title": "Ballast Pump & Oily Water Separator Skid",
+      "subtitle": "High-Capacity Centrifugal Ballast Pump · 440 V / 110 kW · Bilge & OWS Interlock",
+      "glb": "/models/ballast_ows_skid.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 110,
+        "powerFactor": 0.87,
+        "breakerId": "ballastFeed",
+        "busId": "lvBus",
+        "priority": "operational",
+        "startingMethod": "Star-Delta",
+        "inrushMultiplier": 4
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.5,
+        "rpm": 1450,
+        "rotatingPrefixes": [
+          "Pump_Impeller"
+        ]
+      },
+      "parts": {
+        "Ballast_Pump_Casing": {
+          "category": "Pump",
+          "code": "PRT-01",
+          "label": "01 · Heavy-Duty Double-Volute Ballast Casing",
+          "shortLabel": "BALLAST PUMP CASING",
+          "material": "Marine Ductile Iron (GGG-40.3) / Bronze Wear Rings",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.6,
+            0
+          ],
+          "description": "Heavy marine pump casing capable of moving 650 m³/h seawater for trim, heel, and deballasting operations."
+        },
+        "440V_Drive_Motor": {
+          "category": "Motor",
+          "code": "PRT-02",
+          "label": "02 · 110 kW Marine Squirrel-Cage Induction Motor",
+          "shortLabel": "110 kW DRIVE MOTOR",
+          "material": "Cast Iron Frame / VPI Class H Windings",
+          "axisName": "-X Port (-0.65m)",
+          "explode": [
+            -0.65,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            -0.65,
+            0.6,
+            0
+          ],
+          "description": "Robust 440 V marine electric motor equipped with internal anti-condensation space heaters."
+        },
+        "Pump_Impeller": {
+          "category": "Impeller",
+          "code": "PRT-03",
+          "label": "03 · Bronze Enclosed Non-Clogging Impeller",
+          "shortLabel": "NON-CLOGGING IMPELLER",
+          "material": "Cast Leaded Tin Bronze (RG10)",
+          "axisName": "+X Starboard (+0.45m)",
+          "explode": [
+            0.45,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0.45,
+            0.5,
+            0
+          ],
+          "description": "High-volume enclosed impeller designed to handle sediment, harbor mud, and ballast water solids."
+        },
+        "OWS_Pressure_Vessel": {
+          "category": "OWS",
+          "code": "PRT-04",
+          "label": "04 · 15 PPM Coalescing Oily Water Separator Vessel",
+          "shortLabel": "OWS PRESSURE VESSEL",
+          "material": "Epoxy-Lined Pressure Vessel Steel (P265GH)",
+          "axisName": "+Z Forward (+0.75m)",
+          "explode": [
+            0,
+            0.25,
+            0.75
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.75,
+            0.75
+          ],
+          "description": "IMO MEPC.107(49) certified separation chamber utilizing gravity differential and oleophilic plates."
+        },
+        "Coalescer_Filter": {
+          "category": "Filter",
+          "code": "PRT-05",
+          "label": "05 · Micro-Fiber Oleophilic Coalescing Cartridge",
+          "shortLabel": "COALESCER FILTER",
+          "material": "Sintered Polypropylene & Microglass",
+          "axisName": "+Y Up (+0.85m)",
+          "explode": [
+            0,
+            0.85,
+            0.75
+          ],
+          "labelAnchorOffset": [
+            0,
+            1.1,
+            0.75
+          ],
+          "description": "Secondary high-efficiency filter stage removing finely dispersed oil droplets down to < 5 microns."
+        },
+        "Oil_Content_Monitor": {
+          "category": "Instrumentation",
+          "code": "PRT-06",
+          "label": "06 · 15 PPM Optical Bilge Alarm Monitor (OCM)",
+          "shortLabel": "OIL CONTENT MONITOR",
+          "material": "Optical Cell / Microprocessor Electronics",
+          "axisName": "Forward-Right [0.35, 0.45, 0.95]",
+          "explode": [
+            0.35,
+            0.45,
+            0.95
+          ],
+          "labelAnchorOffset": [
+            0.35,
+            0.8,
+            0.95
+          ],
+          "description": "Automatic sample turbidimeter triggering overboard 3-way discharge diversion if oil content exceeds 15 ppm."
+        },
+        "Control_Panel": {
+          "category": "Control",
+          "code": "PRT-07",
+          "label": "07 · IP55 Skid Automation & Valve Control Panel",
+          "shortLabel": "OWS AUTOMATION PANEL",
+          "material": "Sheet Steel Enclosure / PLC Display",
+          "axisName": "Forward-Left [-0.45, 0.45, 0.75]",
+          "explode": [
+            -0.45,
+            0.45,
+            0.75
+          ],
+          "labelAnchorOffset": [
+            -0.45,
+            0.8,
+            0.75
+          ],
+          "description": "Integrated PLC panel sequencing backwash cycles, level sensors, and pneumatic overboard discharge valves."
+        }
+      }
     },
     "bilgePump": {
       "id": "bilgePump",
@@ -1676,35 +2209,1241 @@
         "priority": "essential",
         "startingMethod": "DOL",
         "inrushMultiplier": 5
+      },
+      "parts": {
+        "Pump_Skid": {
+          "category": "Skid",
+          "code": "PRT-01",
+          "label": "01 · Fabricated Structural Base Skid",
+          "shortLabel": "BASE SKID & MOUNT",
+          "material": "Marine Structural Steel (IS 2062)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            -0.4,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            -0.2,
+            0
+          ],
+          "description": "Fabricated steel baseplate maintaining precision angular alignment between motor and pump."
+        },
+        "Motor_Body": {
+          "category": "Motor",
+          "code": "PRT-02",
+          "label": "02 · 440 V / 45 kW Machinery Bilge Pump Motor",
+          "shortLabel": "45 kW BILGE MOTOR",
+          "material": "Cast Iron (EN-GJL-250) Housing / Copper Windings",
+          "axisName": "-Z Backward (-0.8m)",
+          "explode": [
+            0,
+            0,
+            -0.8
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            -0.8
+          ],
+          "description": "Totally enclosed fan-cooled (TEFC) Class F insulated marine motor driving the seawater pump."
+        },
+        "Shaft_Coupling": {
+          "category": "Shaft",
+          "code": "PRT-03",
+          "label": "03 · Flexible Spacer Coupling & Guard",
+          "shortLabel": "FLEXIBLE SPACER COUPLING",
+          "material": "Forged 40Cr Steel / Polyurethane Element",
+          "axisName": "Center [-0.3m Z]",
+          "explode": [
+            0,
+            0,
+            -0.3
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            -0.3
+          ],
+          "description": "Flexible coupling transmitting high torsional drive power while isolating shaft angular misalignment."
+        },
+        "Pump_Shaft": {
+          "category": "Shaft",
+          "code": "PRT-04",
+          "label": "04 · Nitronic 50 High-Strength Stainless Shaft",
+          "shortLabel": "NITRONIC PUMP SHAFT",
+          "material": "Nitronic 50 / AISI 316L Stainless Steel",
+          "axisName": "+Z Forward (+0.2m)",
+          "explode": [
+            0,
+            0,
+            0.2
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.2
+          ],
+          "description": "Precision ground seawater-resistant drive shaft carrying torque directly from coupling to impeller."
+        },
+        "Shaft_Seal": {
+          "category": "Seal",
+          "code": "PRT-05",
+          "label": "05 · Silicon Carbide Cartridge Mechanical Seal",
+          "shortLabel": "MECHANICAL CARTRIDGE SEAL",
+          "material": "SiC / Carbon / Hastelloy-C Spring",
+          "axisName": "+Z Forward (+0.4m)",
+          "explode": [
+            0,
+            0,
+            0.4
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.35,
+            0.4
+          ],
+          "description": "Balanced cartridge mechanical seal preventing seawater egress along the rotating pump shaft."
+        },
+        "Pump_Casing": {
+          "category": "Casing",
+          "code": "PRT-06",
+          "label": "06 · Bronze Bilge Volute Casing & Strainer",
+          "shortLabel": "BILGE VOLUTE CASING",
+          "material": "Nickel-Aluminium Bronze (Cu3 / CuAl10Fe5Ni5)",
+          "axisName": "+Z Forward (+0.6m)",
+          "explode": [
+            0,
+            0,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            0.6
+          ],
+          "description": "High-pressure double-volute hydraulic casing converting high fluid velocity into static discharge head."
+        },
+        "Impeller_Hub": {
+          "category": "Impeller",
+          "code": "PRT-07",
+          "label": "07 · Bronze Oily Bilge Stripping Impeller",
+          "shortLabel": "BILGE IMPELLER",
+          "material": "Precision Cast Nickel-Aluminium Bronze",
+          "axisName": "+Z Forward (+0.85m)",
+          "explode": [
+            0,
+            0,
+            0.85
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.85
+          ],
+          "description": "Dynamically balanced 6-blade centrifugal impeller delivering 450 m³/h cooling water circulation."
+        },
+        "Suction_Port": {
+          "category": "Ports",
+          "code": "PRT-08",
+          "label": "08 · Axial Suction Port & Bolted Flange",
+          "shortLabel": "AXIAL SUCTION INLET",
+          "material": "NAB Cast Flange / EPDM Gasket",
+          "axisName": "+Z Forward (+1.1m)",
+          "explode": [
+            0,
+            0,
+            1.1
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.3,
+            1.1
+          ],
+          "description": "Axial sea chest suction connection equipped with sacrificial zinc anode mounting boss."
+        },
+        "Discharge_Port": {
+          "category": "Ports",
+          "code": "PRT-09",
+          "label": "09 · Radial Discharge Neck & Flange",
+          "shortLabel": "RADIAL DISCHARGE NECK",
+          "material": "NAB Cast Flange (DIN PN16)",
+          "axisName": "+Y Vertical (+0.6m)",
+          "explode": [
+            0,
+            0.6,
+            0.6
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0.6
+          ],
+          "description": "Radial discharge connection feeding auxiliary sea water mains to primary heat exchangers."
+        }
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.45,
+        "rpm": 1450,
+        "rotatingPrefixes": [
+          "Impeller_",
+          "Pump_Shaft",
+          "Shaft_Coupling"
+        ]
       }
     },
     "ventFan": {
       "id": "ventFan",
-      "glb": "/models/vent_fan_assembly.glb"
+      "title": "Engine Room Heavy Axial Ventilation Fan",
+      "subtitle": "Forced-Draft Machinery Space Supply Fan · Reversible Pitch · Remote Fire Damper Shunt",
+      "glb": "/models/vent_fan_assembly.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 55,
+        "powerFactor": 0.85,
+        "breakerId": "ventFanFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "DOL",
+        "inrushMultiplier": 5
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0,
+        "rpm": 1180,
+        "rotatingPrefixes": [
+          "Axial_Impeller_Blades"
+        ]
+      },
+      "parts": {
+        "Fan_Cylindrical_Casing": {
+          "category": "Casing",
+          "code": "PRT-01",
+          "label": "01 · Welded Heavy-Gauge Cylindrical Casing",
+          "shortLabel": "CYLINDRICAL FAN CASING",
+          "material": "Hot-Dip Galvanized Marine Steel (6mm)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.6,
+            0
+          ],
+          "description": "Heavy aerodynamic cylindrical trunk housing the motor pedestal and guiding airflow."
+        },
+        "Flange_Rings": {
+          "category": "Structure",
+          "code": "PRT-02",
+          "label": "02 · Precision Drilled Trunking Mating Flanges",
+          "shortLabel": "DUCT CONNECTION FLANGES",
+          "material": "Rolled Structural Angle Flanges",
+          "axisName": "Axial Fore & Aft [0, 0, -0.65]",
+          "explode": [
+            0,
+            0,
+            -0.65
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.7,
+            -0.65
+          ],
+          "description": "Drilled marine duct flanges providing rigid vibration-damped connection to vessel air intakes."
+        },
+        "440V_Drive_Motor": {
+          "category": "Motor",
+          "code": "PRT-03",
+          "label": "03 · 55 kW Pad-Mounted Airstream Motor",
+          "shortLabel": "AIRSTREAM DRIVE MOTOR",
+          "material": "Cast Iron Frame / IP56 Sealed Enclosure",
+          "axisName": "-Z Aft (-0.55m)",
+          "explode": [
+            0,
+            0,
+            -0.55
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.45,
+            -0.55
+          ],
+          "description": "High-ambient airstream-cooled electric motor engineered for continuous machinery space ventilation."
+        },
+        "Axial_Impeller_Blades": {
+          "category": "Impeller",
+          "code": "PRT-04",
+          "label": "04 · Aerofoil Adjustable-Pitch Cast Impeller",
+          "shortLabel": "AXIAL IMPELLER BLADES",
+          "material": "High-Tensile Cast Aluminium Alloy (AlSi9Mg)",
+          "axisName": "+Z Forward (+0.65m)",
+          "explode": [
+            0,
+            0,
+            0.65
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.55,
+            0.65
+          ],
+          "description": "Dynamically balanced aerofoil rotor providing 75,000 m³/h forced ventilation into engine room trunks."
+        },
+        "Fire_Damper_Actuator": {
+          "category": "Safety",
+          "code": "PRT-05",
+          "label": "05 · Electro-Hydraulic Quick-Closing Fire Damper",
+          "shortLabel": "QUICK-CLOSING FIRE DAMPER",
+          "material": "Marine Grade Steel / Spring Return Actuator",
+          "axisName": "Top Forward [0, 0.65, 0.35]",
+          "explode": [
+            0,
+            0.65,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.95,
+            0.35
+          ],
+          "description": "SOLAS mandatory emergency shut-off damper isolating ventilation trunks during fire emergencies."
+        },
+        "Local_Starter_Enclosure": {
+          "category": "Control",
+          "code": "PRT-06",
+          "label": "06 · Watertight Reversible Starter & Shunt Box",
+          "shortLabel": "LOCAL STARTER ENCLOSURE",
+          "material": "Powder-Coated Marine Steel (RAL 5015)",
+          "axisName": "Port Side [-0.65, 0.15, 0]",
+          "explode": [
+            -0.65,
+            0.15,
+            0
+          ],
+          "labelAnchorOffset": [
+            -0.65,
+            0.5,
+            0
+          ],
+          "description": "Local DOL starter cabinet with bridge remote telemetry, emergency trip, and forward/exhaust reversing contactors."
+        }
+      }
     },
     "navBridge": {
       "id": "navBridge",
-      "glb": "/models/bridge_navcom_suite.glb"
+      "title": "Navigation Bridge COLREG Console & S-Band Radar",
+      "subtitle": "Integrated Bridge System · Dual ARPA Displays · Dual-Filament Navigation Lights · 24 V DC UPS Bridged",
+      "glb": "/models/bridge_navcom_suite.glb",
+      "electrical": {
+        "voltage": "220 V / 24 V DC",
+        "ratedKw": 12,
+        "powerFactor": 0.95,
+        "breakerId": "navFeed",
+        "busId": "consumerA",
+        "priority": "essential",
+        "startingMethod": "Online Static UPS",
+        "inrushMultiplier": 1.2
+      },
+      "kinematics": {
+        "axis": "y",
+        "pivotY": 1.2,
+        "rpm": 24,
+        "rotatingPrefixes": [
+          "Rotating_S-Band_Scanner_Bar"
+        ]
+      },
+      "parts": {
+        "NavLight_Console_Panel": {
+          "category": "Console",
+          "code": "PRT-01",
+          "label": "01 · COLREG Navigation Light Console & ARPA Desk",
+          "shortLabel": "BRIDGE CONSOLE DESK",
+          "material": "Anti-Glare Sheet Metal / Marine Maple Trim",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.7,
+            0
+          ],
+          "description": "Ergonomic bridge helm console integrating dual ARPA/ECDIS displays and navigation light switchboards."
+        },
+        "Dual_Selector_Switches": {
+          "category": "Switchgear",
+          "code": "PRT-02",
+          "label": "02 · Main / Standby Filament Changeover Switches",
+          "shortLabel": "FILAMENT CHANGEOVER SWITCHES",
+          "material": "Rotary Cam Switches / Heavy Brass Contacts",
+          "axisName": "Forward & Up [-0.2, 0.35, 0.35]",
+          "explode": [
+            -0.2,
+            0.35,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            -0.2,
+            0.65,
+            0.35
+          ],
+          "description": "Rotary transfer switches for Masthead, Sidelights, and Stern lights with automatic filament break detection."
+        },
+        "Alarm_Buzzer": {
+          "category": "Alarm",
+          "code": "PRT-03",
+          "label": "03 · Audible Fault Sounder & Lamp Test Station",
+          "shortLabel": "AUDIBLE FAULT SOUNDER",
+          "material": "Piezo Siren / LED Indicators",
+          "axisName": "Up & Right [0.15, 0.4, 0.3]",
+          "explode": [
+            0.15,
+            0.4,
+            0.3
+          ],
+          "labelAnchorOffset": [
+            0.15,
+            0.65,
+            0.3
+          ],
+          "description": "Acoustic alarm annunciator alerting watchkeeping officers immediately upon bulb filament failure or power loss."
+        },
+        "Radar_Pedestal": {
+          "category": "Radar",
+          "code": "PRT-04",
+          "label": "04 · Mainmast Radar Scanner Pedestal",
+          "shortLabel": "RADAR SCANNER PEDESTAL",
+          "material": "Cast Marine Aluminium (AlSi12)",
+          "axisName": "Vertical Up (+0.45m)",
+          "explode": [
+            0,
+            0.45,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.75,
+            0
+          ],
+          "description": "Weatherproof turning mechanism housing brushless servo drive motor and high-frequency microwave rotary joints."
+        },
+        "Gearbox_Housing": {
+          "category": "Radar",
+          "code": "PRT-05",
+          "label": "05 · Precision Harmonic Reduction Gearbox",
+          "shortLabel": "HARMONIC REDUCTION GEARBOX",
+          "material": "Sealed Alloy Casing / Synthetic Lubricant",
+          "axisName": "Vertical Up (+0.75m)",
+          "explode": [
+            0,
+            0.75,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            1.05,
+            0
+          ],
+          "description": "Zero-backlash sealed reduction transmission maintaining constant 24 RPM rotation in Hurricane-force winds."
+        },
+        "Rotating_S-Band_Scanner_Bar": {
+          "category": "Radar",
+          "code": "PRT-06",
+          "label": "06 · 12-Foot S-Band Slotted Waveguide Antenna",
+          "shortLabel": "S-BAND RADAR SCANNER",
+          "material": "Slotted Aluminium Waveguide / Radome Enclosure",
+          "axisName": "Vertical Up (+1.2m)",
+          "explode": [
+            0,
+            1.2,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            1.5,
+            0
+          ],
+          "description": "High-resolution S-band (3 GHz) slotted waveguide antenna penetrating heavy rain and sea clutter for target tracking."
+        }
+      }
     },
     "eBus": {
       "id": "eBus",
-      "glb": "/models/esb_cubicle.glb"
+      "title": "440 V Emergency Switchboard (ESB) Cubicle",
+      "subtitle": "SOLAS Chapter II-1 Reg 42/43 · Automatic Bus Transfer · Tie Breaker to Main 440 V Board",
+      "glb": "/models/esb_cubicle.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 250,
+        "powerFactor": 0.88,
+        "breakerId": "esbTieFeed",
+        "busId": "eBus",
+        "priority": "emergency",
+        "startingMethod": "Auto Transfer",
+        "inrushMultiplier": 1
+      },
+      "kinematics": {
+        "axis": "y",
+        "pivotY": 0,
+        "rpm": 0,
+        "rotatingPrefixes": []
+      },
+      "parts": {
+        "ESB_Frame": {
+          "category": "Enclosure",
+          "code": "PRT-01",
+          "label": "01 · Heavy Structural Steel Welded Frame",
+          "shortLabel": "ESB STRUCTURAL FRAME",
+          "material": "Marine Structural Steel (IS 2062)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            1.2,
+            0
+          ],
+          "description": "Heavy channel steel framework located above the waterline deck housing the emergency electrical distribution bus."
+        },
+        "ESB_Door": {
+          "category": "Enclosure",
+          "code": "PRT-02",
+          "label": "02 · Gasketed Access Door & Safety Interlock",
+          "shortLabel": "FRONT INTERLOCKED DOOR",
+          "material": "Sheet Steel / Neoprene Gaskets",
+          "axisName": "+Z Forward (+0.85m)",
+          "explode": [
+            0,
+            0,
+            0.85
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.9,
+            0.85
+          ],
+          "description": "Watertight access door with mechanical interlock preventing opening while the emergency bus is live."
+        },
+        "ESB_Busbar_A": {
+          "category": "Busbars",
+          "code": "PRT-03",
+          "label": "03 · 440 V Emergency Busbar Section A",
+          "shortLabel": "ESB COPPER BUSBAR A",
+          "material": "Electrolytic Tough Pitch Copper (1200 A)",
+          "axisName": "Left & Forward [-0.45, 0.35, 0.35]",
+          "explode": [
+            -0.45,
+            0.35,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            -0.45,
+            0.7,
+            0.35
+          ],
+          "description": "Heavy copper busbars distributing power to emergency fire pump and steering gear power unit."
+        },
+        "ESB_Busbar_B": {
+          "category": "Busbars",
+          "code": "PRT-04",
+          "label": "04 · 440 V Emergency Busbar Section B",
+          "shortLabel": "ESB COPPER BUSBAR B",
+          "material": "Solid Tinned Copper Busbar",
+          "axisName": "Right & Forward [0.45, 0.35, 0.35]",
+          "explode": [
+            0.45,
+            0.35,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.45,
+            0.7,
+            0.35
+          ],
+          "description": "Emergency distribution feeder supplying navigation bridge electronics, emergency lighting, and radio UPS."
+        },
+        "ESB_Tie_ACB": {
+          "category": "Switchgear",
+          "code": "PRT-05",
+          "label": "05 · Withdrawable Emergency Bus-Tie Air Breaker",
+          "shortLabel": "EMERGENCY TIE BREAKER",
+          "material": "Silver-Tipped Contacts / Electronic Trip Unit",
+          "axisName": "+Z Forward (+0.65m)",
+          "explode": [
+            0,
+            -0.15,
+            0.65
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.65
+          ],
+          "description": "4-pole withdrawable air circuit breaker interconnecting the main switchboard and emergency switchboard."
+        },
+        "ESB_Metering_Panel": {
+          "category": "Instrumentation",
+          "code": "PRT-06",
+          "label": "06 · Digital Power Metering & Sync Panel",
+          "shortLabel": "ESB METERING PANEL",
+          "material": "Digital Power Transducers / LED Indicators",
+          "axisName": "Up & Forward [0, 0.55, 0.75]",
+          "explode": [
+            0,
+            0.55,
+            0.75
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.85,
+            0.75
+          ],
+          "description": "Microprocessor power meter monitoring frequency, phase voltage, load current, and earth leakage."
+        },
+        "ESB_Control_Wiring": {
+          "category": "Wiring",
+          "code": "PRT-07",
+          "label": "07 · Halogen-Free Control Wiring Loom & Terminals",
+          "shortLabel": "CONTROL WIRING HARNESS",
+          "material": "Tinned Copper / Halogen-Free Polyolefin",
+          "axisName": "Right & Down [0.35, -0.35, 0.45]",
+          "explode": [
+            0.35,
+            -0.35,
+            0.45
+          ],
+          "labelAnchorOffset": [
+            0.35,
+            0.1,
+            0.45
+          ],
+          "description": "Flame-retardant control cable harness interconnecting auto bus transfer relays and trip coils."
+        }
+      }
     },
     "battery": {
       "id": "battery",
-      "glb": "/models/battery_system.glb"
+      "title": "24 V DC Emergency Radio & Control Battery Bank",
+      "subtitle": "12 × 2V VRLA Deep-Cycle Cells (600 Ah) · Dual Float/Boost Rectifier Charger · 0 ms Bridging",
+      "glb": "/models/battery_system.glb",
+      "electrical": {
+        "voltage": "24 V DC / 220 V",
+        "ratedKw": 15,
+        "powerFactor": 0.98,
+        "breakerId": "batteryChargerFeed",
+        "busId": "eBus",
+        "priority": "emergency",
+        "startingMethod": "Static Rectifier",
+        "inrushMultiplier": 1.1
+      },
+      "kinematics": {
+        "axis": "y",
+        "pivotY": 0,
+        "rpm": 0,
+        "rotatingPrefixes": []
+      },
+      "parts": {
+        "Battery_Rack_Frame": {
+          "category": "Structure",
+          "code": "PRT-01",
+          "label": "01 · Acid-Resistant Tiered Marine Steel Rack",
+          "shortLabel": "BATTERY RACK FRAME",
+          "material": "Epoxy-Coated Channel Steel / Drip Trays",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.6,
+            0
+          ],
+          "description": "Vibration-isolated tiered steel rack with heavy acid-resistant coating and earthquake restraints."
+        },
+        "Battery_Cell_01_12": {
+          "category": "Battery",
+          "code": "PRT-02",
+          "label": "02 · 12 × 2V VRLA AGM Deep-Cycle Marine Cells",
+          "shortLabel": "24V / 600Ah CELL BANK",
+          "material": "Lead-Calcium Plates / Absorbent Glass Mat",
+          "axisName": "+Z Forward (+0.5m)",
+          "explode": [
+            0,
+            0.25,
+            0.5
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.65,
+            0.5
+          ],
+          "description": "High-reliability valve-regulated lead-acid cells providing 36 hours of emergency radio communications power."
+        },
+        "DC_Busbar_Positive": {
+          "category": "Busbars",
+          "code": "PRT-03",
+          "label": "03 · Positive Heavy Copper Link Busbars",
+          "shortLabel": "POSITIVE DC BUSBAR",
+          "material": "Solid Tinned Copper / Red Insulating Boots",
+          "axisName": "Left & Up [-0.35, 0.45, 0.65]",
+          "explode": [
+            -0.35,
+            0.45,
+            0.65
+          ],
+          "labelAnchorOffset": [
+            -0.35,
+            0.8,
+            0.65
+          ],
+          "description": "Tinned electrolytic copper busbars interconnecting cells with flame-retardant positive terminal boots."
+        },
+        "DC_Busbar_Negative": {
+          "category": "Busbars",
+          "code": "PRT-04",
+          "label": "04 · Negative Heavy Copper Link Busbars",
+          "shortLabel": "NEGATIVE DC BUSBAR",
+          "material": "Solid Tinned Copper / Black Insulating Boots",
+          "axisName": "Right & Up [0.35, 0.45, 0.65]",
+          "explode": [
+            0.35,
+            0.45,
+            0.65
+          ],
+          "labelAnchorOffset": [
+            0.35,
+            0.8,
+            0.65
+          ],
+          "description": "Low-resistance negative interconnect links maintaining minimal voltage drop across the cell bank."
+        },
+        "Charger_Cabinet": {
+          "category": "Charger",
+          "code": "PRT-05",
+          "label": "05 · Dual Automatic Float/Boost Charger Cubicle",
+          "shortLabel": "AUTOMATIC CHARGER CUBICLE",
+          "material": "IP22 Louvered Steel Enclosure",
+          "axisName": "Aft (-0.35m Z)",
+          "explode": [
+            0,
+            0.65,
+            -0.35
+          ],
+          "labelAnchorOffset": [
+            0,
+            1,
+            -0.35
+          ],
+          "description": "Redundant thyristor rectifier charger with automatic two-rate float/boost and temperature compensation."
+        },
+        "Rectifier_Transformer": {
+          "category": "PowerConversion",
+          "code": "PRT-06",
+          "label": "06 · Galvanic Isolation Transformer & SCR Bridge",
+          "shortLabel": "ISOLATION TRANSFORMER & SCR",
+          "material": "Copper Windings / High-Power Silicon Rectifiers",
+          "axisName": "Left & Up [-0.25, 0.65, 0.25]",
+          "explode": [
+            -0.25,
+            0.65,
+            0.25
+          ],
+          "labelAnchorOffset": [
+            -0.25,
+            0.95,
+            0.25
+          ],
+          "description": "Step-down safety isolation transformer supplying controlled AC to the thyristor rectification bridge."
+        },
+        "Ammeter_Gauge": {
+          "category": "Instrumentation",
+          "code": "PRT-07",
+          "label": "07 · Dual-Scale Center-Zero DC Ammeter",
+          "shortLabel": "CHARGE/DISCHARGE AMMETER",
+          "material": "Moving-Coil Movement / Illuminated Dial Face",
+          "axisName": "Right & Up [0.25, 0.75, 0.35]",
+          "explode": [
+            0.25,
+            0.75,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.25,
+            1.05,
+            0.35
+          ],
+          "description": "Bi-directional center-zero ammeter showing immediate net charge or discharge current into the DC distribution bus."
+        }
+      }
     },
     "airCompressor": {
       "id": "airCompressor",
-      "glb": "/models/air_compressor_skid.glb"
+      "title": "Main Starting Air Compressor & Receiver Skid",
+      "subtitle": "30-Bar Two-Stage Reciprocating Compressor · Automatic Unloader · 30 kW 440 V Drive",
+      "glb": "/models/air_compressor_skid.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 30,
+        "powerFactor": 0.84,
+        "breakerId": "airCompressorFeed",
+        "busId": "lvBus",
+        "priority": "essential",
+        "startingMethod": "Star-Delta",
+        "inrushMultiplier": 4.5
+      },
+      "kinematics": {
+        "axis": "x",
+        "pivotY": 0.4,
+        "rpm": 850,
+        "rotatingPrefixes": [
+          "V_Belt_Drive"
+        ]
+      },
+      "parts": {
+        "Compressor_Frame": {
+          "category": "Structure",
+          "code": "PRT-01",
+          "label": "01 · Cast-Iron Bedplate & Foundation Skid",
+          "shortLabel": "COMPRESSOR BEDPLATE",
+          "material": "Cast Iron (EN-GJL-200) / Anti-Vibration Mounts",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.5,
+            0
+          ],
+          "description": "Heavy rigid cast iron skid absorbing reciprocating vibrations and housing the crankcase oil sump."
+        },
+        "Electric_Motor_440V": {
+          "category": "Motor",
+          "code": "PRT-02",
+          "label": "02 · 30 kW / 440 V Marine Drive Motor",
+          "shortLabel": "30 kW INDUCTION MOTOR",
+          "material": "Cast Iron Frame / Class F Insulation",
+          "axisName": "Left (-0.55m X)",
+          "explode": [
+            -0.55,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            -0.55,
+            0.5,
+            0
+          ],
+          "description": "Continuous-duty marine motor driving the compressor crankshaft via multiple matched V-belts."
+        },
+        "V_Belt_Drive": {
+          "category": "Transmission",
+          "code": "PRT-03",
+          "label": "03 · Multi-Groove V-Belt Pulley & Safety Guard",
+          "shortLabel": "V-BELT DRIVE PULLEY",
+          "material": "Cast Iron Pulleys / Antistatic Kevlar Belts",
+          "axisName": "Forward-Left [-0.25, 0.2, 0.45]",
+          "explode": [
+            -0.25,
+            0.2,
+            0.45
+          ],
+          "labelAnchorOffset": [
+            -0.25,
+            0.5,
+            0.45
+          ],
+          "description": "High-torque speed reduction drive equipped with marine ventilated wire mesh finger guard."
+        },
+        "Two_Stage_Cylinder": {
+          "category": "Compression",
+          "code": "PRT-04",
+          "label": "04 · Two-Stage Stepped Piston & Cylinder Block",
+          "shortLabel": "TWO-STAGE CYLINDER BLOCK",
+          "material": "Alloy Cast Iron / Concentric Valve Rings",
+          "axisName": "Vertical Up (+0.45m)",
+          "explode": [
+            0,
+            0.45,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0
+          ],
+          "description": "Precision bored cylinders compressing starting air in two progressive stages up to 30 bar working pressure."
+        },
+        "Intercooler_Coil": {
+          "category": "Cooling",
+          "code": "PRT-05",
+          "label": "05 · Finned Copper Interstage Air Cooler",
+          "shortLabel": "INTERCOOLER COIL",
+          "material": "Finned Cupro-Nickel Tubes (CuNi 90/10)",
+          "axisName": "Right & Up [0.35, 0.35, 0]",
+          "explode": [
+            0.35,
+            0.35,
+            0
+          ],
+          "labelAnchorOffset": [
+            0.35,
+            0.65,
+            0
+          ],
+          "description": "Air-cooled heat exchanger reducing compressed air temperature between stage 1 and stage 2."
+        },
+        "Solenoid_Unloader_Valve": {
+          "category": "Valves",
+          "code": "PRT-06",
+          "label": "06 · Solenoid Automatic Unloader & Moisture Drain",
+          "shortLabel": "AUTOMATIC UNLOADER VALVE",
+          "material": "Forged Brass / Viton Seals",
+          "axisName": "Right & Forward [0.45, 0.15, 0.35]",
+          "explode": [
+            0.45,
+            0.15,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.45,
+            0.45,
+            0.35
+          ],
+          "description": "Pneumatically unloads compressor during motor startup and periodically vents accumulated moisture."
+        },
+        "Pressure_Receiver_Bottle": {
+          "category": "PressureVessel",
+          "code": "PRT-07",
+          "label": "07 · 30-Bar Certified Starting Air Pressure Vessel",
+          "shortLabel": "30-BAR AIR RECEIVER",
+          "material": "Class I Pressure Vessel Steel (P355GH)",
+          "axisName": "Aft (+0.65m Z)",
+          "explode": [
+            0,
+            0.25,
+            -0.65
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.75,
+            -0.65
+          ],
+          "description": "Class certified high-pressure reservoir storing compressed air for consecutive diesel engine cold starts."
+        }
+      }
     },
     "galley440": {
       "id": "galley440",
-      "glb": "/models/galley_board_assembly.glb"
+      "title": "440 V Galley Primary Switchboard & Shunt Trip",
+      "subtitle": "Heavy Culinary Heating Loads · SOLAS II-2 Reg 9.2 Remote Emergency Trip Station",
+      "glb": "/models/galley_board_assembly.glb",
+      "electrical": {
+        "voltage": "440 V",
+        "ratedKw": 80,
+        "powerFactor": 0.98,
+        "breakerId": "galley440Feed",
+        "busId": "lvBus",
+        "priority": "operational",
+        "startingMethod": "DOL Feeder",
+        "inrushMultiplier": 1.5
+      },
+      "kinematics": {
+        "axis": "y",
+        "pivotY": 0,
+        "rpm": 0,
+        "rotatingPrefixes": []
+      },
+      "parts": {
+        "Galley_Panel_Enclosure": {
+          "category": "Enclosure",
+          "code": "PRT-01",
+          "label": "01 · IP44 Stainless Steel Galley Switchboard",
+          "shortLabel": "STAINLESS ENCLOSURE",
+          "material": "AISI 304 Stainless Steel (Brushed Marine Finish)",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0
+          ],
+          "description": "Hygienic grease- and splash-proof stainless cabinet installed in the galley preparation compartment."
+        },
+        "Feeder_MCCB_Bank": {
+          "category": "Switchgear",
+          "code": "PRT-02",
+          "label": "02 · Molded Case Circuit Breaker Bank",
+          "shortLabel": "FEEDER MCCB BANK",
+          "material": "Thermal-Magnetic Molded Case Breakers",
+          "axisName": "+Z Forward (+0.55m)",
+          "explode": [
+            0,
+            0,
+            0.55
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.4,
+            0.55
+          ],
+          "description": "Individual branch circuit breakers supplying electric boiling pans, deep fat fryers, and baking ovens."
+        },
+        "Shunt_Trip_Relay": {
+          "category": "Safety",
+          "code": "PRT-03",
+          "label": "03 · 24 V DC Solenoid Shunt Trip Release Mechanism",
+          "shortLabel": "SHUNT TRIP MECHANISM",
+          "material": "Continuous-Rated Trip Coil / Spring Stored Energy",
+          "axisName": "Right & Forward [0.45, 0.15, 0.35]",
+          "explode": [
+            0.45,
+            0.15,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.45,
+            0.5,
+            0.35
+          ],
+          "description": "Electromechanical release tripping the incoming galley feeder instantaneously upon remote emergency call."
+        },
+        "Outdoor_Shunt_Trip_Box": {
+          "category": "Safety",
+          "code": "PRT-04",
+          "label": "04 · Weatherproof Emergency Galley Trip Station",
+          "shortLabel": "REMOTE SHUNT TRIP BOX",
+          "material": "Die-Cast Marine Aluminium (Safety Yellow/Red)",
+          "axisName": "Left & Forward [-0.45, 0.1, 0.35]",
+          "explode": [
+            -0.45,
+            0.1,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            -0.45,
+            0.4,
+            0.35
+          ],
+          "description": "SOLAS II-2 Reg 9.2 mandatory emergency station positioned outside the galley escape corridor."
+        },
+        "Red_Mushroom_Button": {
+          "category": "Actuator",
+          "code": "PRT-05",
+          "label": "05 · 40mm Twist-to-Reset Emergency Stop Button",
+          "shortLabel": "EMERGENCY MUSHROOM BUTTON",
+          "material": "High-Impact Polycarbonate / Silver NC Contacts",
+          "axisName": "Left & Forward [-0.45, 0.1, 0.65]",
+          "explode": [
+            -0.45,
+            0.1,
+            0.65
+          ],
+          "labelAnchorOffset": [
+            -0.45,
+            0.35,
+            0.65
+          ],
+          "description": "Heavy latching pushbutton cutting control power and instantly de-energizing all galley cooking appliances."
+        },
+        "Safety_Cover_Flap": {
+          "category": "Safety",
+          "code": "PRT-06",
+          "label": "06 · Spring-Loaded Flip-Up Protective Guard",
+          "shortLabel": "SAFETY FLAP GUARD",
+          "material": "Impact-Resistant Fluorescent Polymer",
+          "axisName": "Left & Forward [-0.45, 0.25, 0.85]",
+          "explode": [
+            -0.45,
+            0.25,
+            0.85
+          ],
+          "labelAnchorOffset": [
+            -0.45,
+            0.55,
+            0.85
+          ],
+          "description": "Flip-up protective guard preventing accidental shutdown caused by crew motion during heavy sea roll."
+        }
+      }
     },
     "shore": {
       "id": "shore",
-      "glb": "/models/shore_power_reel.glb"
+      "title": "6.6 kV High-Voltage Shore Connection (HVSC)",
+      "subtitle": "IEC/IEEE 80005-1 Cold-Ironing Reel · Castell Interlock · Trailing Cable & Earthing Switch",
+      "glb": "/models/shore_power_reel.glb",
+      "electrical": {
+        "voltage": "6.6 kV",
+        "ratedKw": 2000,
+        "powerFactor": 0.9,
+        "breakerId": "shoreBreaker",
+        "busId": "hvBusA",
+        "priority": "operational",
+        "startingMethod": "Interlocked Transfer",
+        "inrushMultiplier": 1
+      },
+      "kinematics": {
+        "axis": "z",
+        "pivotY": 0.6,
+        "rpm": 10,
+        "rotatingPrefixes": [
+          "Cable_Reel_Drum",
+          "HV_Flexible_Cable"
+        ]
+      },
+      "parts": {
+        "Cable_Reel_Drum": {
+          "category": "Structure",
+          "code": "PRT-01",
+          "label": "01 · Motorized Marine Spooling Cable Reel Drum",
+          "shortLabel": "MOTORIZED CABLE REEL",
+          "material": "Fabricated Marine Steel / Slip Ring Chamber",
+          "axisName": "Datum [0, 0, 0]",
+          "explode": [
+            0,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.8,
+            0
+          ],
+          "description": "High-torque spooled drum equipped with continuous internal 6.6 kV copper slip rings."
+        },
+        "HV_Flexible_Cable": {
+          "category": "Cable",
+          "code": "PRT-02",
+          "label": "02 · 6.6 kV Triple-Core Trailing Cold-Ironing Cable",
+          "shortLabel": "6.6 kV TRAILING CABLE",
+          "material": "EPR Rubber Insulation / Copper Screen / PUR Sheath",
+          "axisName": "+Z Forward (+0.45m)",
+          "explode": [
+            0,
+            0.25,
+            0.45
+          ],
+          "labelAnchorOffset": [
+            0,
+            0.7,
+            0.45
+          ],
+          "description": "Heavy flexible power cable with integrated fiber-optic communication cores for quay-to-ship intertripping."
+        },
+        "HV_Connector_Plug": {
+          "category": "Connector",
+          "code": "PRT-03",
+          "label": "03 · IEC/IEEE 80005-1 Shore Power Connector Head",
+          "shortLabel": "HV PLUG & SKID HEAD",
+          "material": "Cast Marine Bronze / Hard Silver Contact Pins",
+          "axisName": "Forward & Down [-0.25, -0.2, 0.45]",
+          "explode": [
+            -0.25,
+            -0.2,
+            0.45
+          ],
+          "labelAnchorOffset": [
+            -0.25,
+            0.2,
+            0.45
+          ],
+          "description": "Standardized international high-voltage plug head with interlocked safety pilot contacts."
+        },
+        "Motorized_Drive": {
+          "category": "Drive",
+          "code": "PRT-04",
+          "label": "04 · Planetary Torque-Controlled Spooling Motor",
+          "shortLabel": "PLANETARY SPOOLING MOTOR",
+          "material": "Planetary Gear Reduction / Electric Motor",
+          "axisName": "Port Side (-0.55m X)",
+          "explode": [
+            -0.55,
+            0,
+            0
+          ],
+          "labelAnchorOffset": [
+            -0.55,
+            0.4,
+            0
+          ],
+          "description": "Tension-controlled drive automatically compensating cable slack during rising and falling tides."
+        },
+        "Junction_Box": {
+          "category": "Enclosure",
+          "code": "PRT-05",
+          "label": "05 · 6.6 kV Shore Connection Switchboard Cubicle",
+          "shortLabel": "SHORE SWITCHBOARD CUBICLE",
+          "material": "Marine Sheet Steel (RAL 7035)",
+          "axisName": "Starboard & Aft [0.55, 0.25, -0.2]",
+          "explode": [
+            0.55,
+            0.25,
+            -0.2
+          ],
+          "labelAnchorOffset": [
+            0.55,
+            0.7,
+            -0.2
+          ],
+          "description": "Cubicle terminating shore power cable with voltage presence lamps, phase sync check, and door interlocks."
+        },
+        "Mechanical_Interlock_Pin": {
+          "category": "Safety",
+          "code": "PRT-06",
+          "label": "06 · Castell Key Trapped-Key Safety Interlock",
+          "shortLabel": "CASTELL SAFETY INTERLOCK",
+          "material": "Machined Brass & Hardened Steel Pin",
+          "axisName": "Right & Up [0.55, 0.45, 0.35]",
+          "explode": [
+            0.55,
+            0.45,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.55,
+            0.75,
+            0.35
+          ],
+          "description": "Fail-safe mechanical key interlock prohibiting cable plug removal while the shore supply breaker is closed."
+        },
+        "Earth_Blade": {
+          "category": "Earthing",
+          "code": "PRT-07",
+          "label": "07 · High-Current Manual Hull Earthing Switch Blade",
+          "shortLabel": "HULL EARTHING BLADE",
+          "material": "High-Purity Electrolytic Copper Blade",
+          "axisName": "Right & Forward [0.55, 0.15, 0.35]",
+          "explode": [
+            0.55,
+            0.15,
+            0.35
+          ],
+          "labelAnchorOffset": [
+            0.55,
+            0.45,
+            0.35
+          ],
+          "description": "Heavy knife-blade earthing switch bonding incoming shore cable screens directly to the vessel hull."
+        }
+      }
     },
     "bow": {
       "id": "bowThruster",

@@ -477,7 +477,9 @@
                     if (!item) return;
                     const opt = document.createElement('option');
                     opt.value = id;
-                    opt.textContent = `${item.title.split('—')[0].split('(')[0].trim()} (${item.electrical?.voltage || '440 V'})`;
+                    const rawTitle = item.title || item.name || id;
+                    const cleanTitle = rawTitle.split('—')[0].split('-')[0].split('(')[0].trim();
+                    opt.textContent = `${cleanTitle} (${item.electrical?.voltage || '440 V'})`;
                     selectEl.appendChild(opt);
                 });
 
@@ -518,7 +520,7 @@
             window.history.replaceState({}, '', url);
 
             // Header labels
-            document.getElementById('header-title').textContent = currentItem.title;
+            document.getElementById('header-title').textContent = currentItem.title || currentItem.name || eqId;
             const el = currentItem.electrical || { voltage: '440 V', ratedKw: 100, busId: 'Main Bus' };
             document.getElementById('badge-voltage').textContent = el.voltage || '440 V';
             document.getElementById('badge-kw').textContent = el.ratedKw ? `${el.ratedKw} kW` : 'N/A';
@@ -604,7 +606,7 @@
                             id: key,
                             code: p.code || `PRT-0${idx + 1}`,
                             name: p.label || key,
-                            shortLabel: p.shortLabel || (p.label.split('·')[1]?.trim() || p.label).toUpperCase(),
+                            shortLabel: p.shortLabel || (p.label ? (p.label.split('·')[1]?.trim() || p.label) : key).toUpperCase(),
                             material: p.material || 'Marine Class Alloy Steel',
                             axis: p.axisName || (p.explode ? `[${p.explode.join(', ')}]` : 'Datum'),
                             desc: p.description || 'High precision marine assembly component.',
